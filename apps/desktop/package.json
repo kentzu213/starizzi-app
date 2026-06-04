@@ -7,7 +7,7 @@
   "homepage": "https://izziapi.com/",
   "repository": {
     "type": "git",
-    "url": "https://github.com/kentzu213/openclaw_app_electron.git"
+    "url": "https://github.com/kentzu213/starizzi-app.git"
   },
   "main": "dist/main/index.js",
   "scripts": {
@@ -44,6 +44,7 @@
     "electron": "^34.2.0",
     "electron-builder": "^25.1.8",
     "eslint": "^9.18.0",
+    "fast-check": "^4.8.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-router-dom": "^7.1.5",
