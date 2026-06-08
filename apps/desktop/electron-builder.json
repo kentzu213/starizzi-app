@@ -115,7 +115,7 @@
     "provider": "github",
     "owner": "kentzu213",
     "repo": "starizzi-app",
-    "releaseType": "release",
+    "releaseType": "prerelease",
     "vPrefixedTagName": true
   },
 
