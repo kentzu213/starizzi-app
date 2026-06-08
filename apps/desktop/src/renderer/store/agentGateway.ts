@@ -285,10 +285,11 @@ export const useAgentGatewayStore = create<AgentGatewayState>((set, get) => ({
 
       return true;
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Failed to reach agent';
+      void error; // External agent unreachable is expected; message handled below.
 
-      // Fallback: provide a simulated response in dev / when agent is not running
-      const fallbackReply = `⚠️ Không thể kết nối tới ${agent.displayName} (${agent.defaultPort}).\n\n**Lỗi:** ${message}\n\n**Hướng dẫn:**\n1. Kiểm tra ${agent.displayName} đã được cài đặt chưa\n2. Đảm bảo agent đang chạy tại port ${agent.defaultPort}\n3. Thử "Refresh Status" trong Agent Hub`;
+      // Fallback: this is an external, self-hosted agent. Be honest — Izzi did not
+      // install/run it; the user must start it themselves at the expected port.
+      const fallbackReply = `⚠️ Chưa kết nối được tới ${agent.displayName} ở 127.0.0.1:${agent.defaultPort}.\n\n${agent.displayName} là agent mã nguồn mở bên ngoài — Izzi không tự cài/chạy nó. Bạn cần tự khởi chạy agent ở máy mình, sau đó mới chat được.\n\n**Cách kiểm tra:**\n1. Đảm bảo ${agent.displayName} đang chạy và lắng nghe ở port ${agent.defaultPort}\n2. Mở lại "${agent.displayName}" trong Agent Hub → bấm "Kiểm tra kết nối"\n3. Xem hướng dẫn cài đặt tại: ${agent.githubUrl}`;
 
       set((state) => ({
         isSending: false,

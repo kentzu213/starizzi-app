@@ -254,7 +254,7 @@ export function AgentStorePage() {
             🌟 Top AI Agents trên GitHub
           </h2>
           <p className="agent-hub__top-subtitle">
-            Open-source AI Agents phổ biến nhất — cài đặt 1-click, dùng với IzziAPI hoặc bất kỳ provider nào
+            Open-source AI Agents phổ biến nhất — chạy cục bộ trên máy bạn, kết nối với IzziAPI hoặc bất kỳ provider nào
           </p>
           <div className="agent-hub__top-grid">
             {externalAgents.map((agent) => (
@@ -286,7 +286,7 @@ export function AgentStorePage() {
                       className="agent-hub__top-card-btn agent-hub__top-card-btn--setup"
                       onClick={() => setSetupAgent(agent)}
                     >
-                      🚀 Setup 1-Click
+                      ⚙️ Hướng dẫn & Kết nối
                     </button>
                   ) : agent.status === 'running' ? (
                     <button
