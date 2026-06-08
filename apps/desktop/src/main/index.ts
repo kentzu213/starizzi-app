@@ -458,6 +458,33 @@ function setupIPC() {
     return agentService.getDiagnostics(limit);
   });
 
+  // ── Custom LLM Provider ──
+  ipcMain.handle('customProvider:getConfig', async () => {
+    return agentService.getProviderConfig();
+  });
+
+  ipcMain.handle(
+    'customProvider:saveConfig',
+    async (
+      _event,
+      input: { baseUrl: string; authType: 'bearer' | 'x-api-key'; selectedModel: any; apiKey?: string },
+    ) => {
+      return agentService.saveProviderConfig(input);
+    },
+  );
+
+  ipcMain.handle('customProvider:setEnabled', async (_event, enabled: boolean) => {
+    return agentService.setCustomEnabled(enabled);
+  });
+
+  ipcMain.handle('customProvider:deleteKey', async () => {
+    return agentService.deleteProviderKey();
+  });
+
+  ipcMain.handle('customProvider:testConnection', async (_event, input?: { apiKey?: string }) => {
+    return agentService.testProviderConnection(input);
+  });
+
   ipcMain.handle('integrations:list', async () => {
     return integrationsService.list();
   });

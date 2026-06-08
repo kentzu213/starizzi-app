@@ -3,6 +3,16 @@ import { randomUUID } from 'crypto';
 import { DatabaseManager } from '../db/database';
 import { AuthManager } from '../auth/auth-manager';
 import { ManagedAgentProvider } from './managed-agent-provider';
+import { ProviderResolver } from './provider-resolver';
+import { SecretStore } from './secret-store';
+import {
+  ProviderSettingsStore,
+  validateCustomConfig,
+  type AuthType,
+  type CustomProviderConfig,
+} from './provider-settings-store';
+import type { ProviderTestResult } from './chat-provider';
+import { CustomOpenAIProvider } from './custom-openai-provider';
 import type {
   AgentBootstrapPayload,
   AgentMemory,
@@ -30,6 +40,9 @@ export class AgentService extends EventEmitter {
   private db: DatabaseManager;
   private auth: AuthManager;
   private provider: ManagedAgentProvider;
+  private secrets: SecretStore;
+  private settingsStore: ProviderSettingsStore;
+  private resolver: ProviderResolver;
   private activeRequestId: string | null = null;
 
   constructor(options: { db: DatabaseManager; auth: AuthManager }) {
@@ -39,6 +52,9 @@ export class AgentService extends EventEmitter {
     this.provider = new ManagedAgentProvider({
       getAccessToken: () => this.auth.getAccessToken(),
     });
+    this.secrets = new SecretStore(this.db);
+    this.settingsStore = new ProviderSettingsStore(this.db);
+    this.resolver = new ProviderResolver(this.settingsStore, this.secrets, this.provider);
   }
 
   async bootstrap(): Promise<AgentBootstrapPayload> {
@@ -104,6 +120,113 @@ export class AgentService extends EventEmitter {
 
   getDiagnostics(limit = 50): DiagnosticEvent[] {
     return this.db.getDiagnosticEvents(limit);
+  }
+
+  // ── Custom provider configuration (thin delegates for IPC) ──
+
+  /** Non-secret config + flag + masked key hint. NEVER returns the full key (R1.4). */
+  getProviderConfig(): {
+    config: CustomProviderConfig | null;
+    enabled: boolean;
+    hasKey: boolean;
+    maskedKeyHint: string | null;
+  } {
+    return {
+      config: this.settingsStore.getConfig(),
+      enabled: this.settingsStore.isCustomEnabled(),
+      hasKey: this.secrets.hasKey(),
+      maskedKeyHint: this.secrets.maskedHint(),
+    };
+  }
+
+  /**
+   * Save non-secret config + (optionally) a new API key. Validates in the main
+   * process (R5.5). An empty/omitted apiKey leaves any existing key untouched (R2.6).
+   */
+  saveProviderConfig(input: {
+    baseUrl: string;
+    authType: AuthType;
+    selectedModel: CustomProviderConfig['selectedModel'];
+    apiKey?: string;
+  }): { ok: boolean; errors?: string[] } {
+    const config: CustomProviderConfig = {
+      baseUrl: input.baseUrl,
+      authType: input.authType,
+      selectedModel: input.selectedModel,
+    };
+    const validation = validateCustomConfig(config);
+    if (!validation.ok) {
+      return { ok: false, errors: validation.errors };
+    }
+
+    this.settingsStore.saveConfig(config);
+    if (input.apiKey && input.apiKey.length > 0) {
+      this.secrets.setKey(input.apiKey);
+    }
+    return { ok: true };
+  }
+
+  /**
+   * Toggle custom provider. Enabling requires a valid config AND a stored key,
+   * otherwise it is refused and active provider stays managed (R3.4 / R5.3).
+   */
+  setCustomEnabled(enabled: boolean): {
+    ok: boolean;
+    activeProvider: 'managed' | 'custom';
+    errors?: string[];
+  } {
+    if (!enabled) {
+      this.settingsStore.setEnabled(false);
+      return { ok: true, activeProvider: 'managed' };
+    }
+
+    const validation = validateCustomConfig(this.settingsStore.getConfig());
+    const errors = [...validation.errors];
+    if (!this.secrets.hasKey()) {
+      errors.push('Chưa có API key — vui lòng nhập key trước khi bật');
+    }
+    if (errors.length > 0) {
+      this.settingsStore.setEnabled(false);
+      return { ok: false, activeProvider: 'managed', errors };
+    }
+
+    this.settingsStore.setEnabled(true);
+    return { ok: true, activeProvider: 'custom' };
+  }
+
+  /** Delete the stored key; the next request falls back to managed (R1.5). */
+  deleteProviderKey(): { ok: boolean } {
+    this.secrets.deleteKey();
+    // A key-less custom provider can no longer be active — disable to avoid a
+    // misleading "enabled" state.
+    if (this.settingsStore.isCustomEnabled()) {
+      this.settingsStore.setEnabled(false);
+    }
+    return { ok: true };
+  }
+
+  /**
+   * Test connection against the custom endpoint (R7). Uses the supplied unsaved
+   * key when provided (without persisting it), otherwise the stored key.
+   * The result message is redacted of any key value.
+   */
+  async testProviderConnection(input?: { apiKey?: string }): Promise<ProviderTestResult> {
+    const config = this.settingsStore.getConfig();
+    const validation = validateCustomConfig(config);
+    if (!validation.ok || !config) {
+      return { ok: false, message: validation.errors.join('; ') || 'Cấu hình không hợp lệ' };
+    }
+
+    const transientKey = input?.apiKey && input.apiKey.length > 0 ? input.apiKey : null;
+    const key = transientKey ?? this.secrets.getKey();
+    if (!key) {
+      return { ok: false, message: 'Chưa có API key để kiểm tra' };
+    }
+
+    const provider = new CustomOpenAIProvider(config, key, (text) =>
+      this.secrets.redact(text, transientKey),
+    );
+    return provider.testConnection();
   }
 
   async sendMessage(sessionId: string, text: string): Promise<AgentSendMessageResult> {
@@ -199,7 +322,8 @@ export class AgentService extends EventEmitter {
 
       this.emitStatus(input.requestId, input.sessionId, 'running');
 
-      for await (const event of this.provider.streamChat({
+      const provider = this.resolver.resolve();
+      for await (const event of provider.streamChat({
         sessionId: input.sessionId,
         message: input.message,
         history,

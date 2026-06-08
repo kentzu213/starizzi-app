@@ -1,5 +1,7 @@
 import axios from 'axios';
 import { parseManagedAgentStream } from './stream-parser';
+import { readStreamBody, streamOpenAISse } from './openai-sse';
+import type { ChatProvider } from './chat-provider';
 import type {
   ManagedAgentStatus,
   ManagedAgentStreamRequest,
@@ -24,14 +26,6 @@ const DEFAULT_MODEL = 'gemini-2.5-pro';
 const MOCK_AGENT_MODE =
   process.env.STARIZZI_MOCK_AGENT_MODE === 'true' ||
   process.env.STARIZZI_MOCK_AGENT_MODE === '1';
-
-async function readStreamBody(stream: NodeJS.ReadableStream): Promise<string> {
-  let body = '';
-  for await (const chunk of stream) {
-    body += Buffer.isBuffer(chunk) ? chunk.toString('utf8') : String(chunk);
-  }
-  return body.trim();
-}
 
 function normalizeStatusPayload(payload: unknown): ManagedAgentStatus | null {
   if (!payload || typeof payload !== 'object') {
@@ -117,7 +111,7 @@ function buildOpenAIPayload(request: ManagedAgentStreamRequest, model: string) {
   };
 }
 
-export class ManagedAgentProvider {
+export class ManagedAgentProvider implements ChatProvider {
   private getAccessToken: () => Promise<string | null>;
   private mockMode: boolean;
 
@@ -241,52 +235,7 @@ export class ManagedAgentProvider {
     if (contentType.includes('text/event-stream') || contentType.includes('text/plain')) {
       yield { type: 'status', state: 'running' };
       yield { type: 'assistant_start' };
-
-      let buffer = '';
-      for await (const rawChunk of response.data) {
-        buffer += Buffer.isBuffer(rawChunk) ? rawChunk.toString('utf8') : String(rawChunk);
-
-        // Process complete SSE lines
-        const lines = buffer.split('\n');
-        buffer = lines.pop() || ''; // Keep incomplete last line in buffer
-
-        for (const line of lines) {
-          const trimmed = line.trim();
-          if (!trimmed || trimmed.startsWith(':')) continue; // Skip comments and empty lines
-
-          if (trimmed === 'data: [DONE]') {
-            yield { type: 'assistant_done' };
-            return;
-          }
-
-          if (trimmed.startsWith('data: ')) {
-            try {
-              const jsonStr = trimmed.slice(6);
-              const parsed = JSON.parse(jsonStr);
-              const delta = parsed.choices?.[0]?.delta?.content;
-              if (delta) {
-                yield { type: 'assistant_delta', delta };
-              }
-
-              // Check for finish_reason
-              const finishReason = parsed.choices?.[0]?.finish_reason;
-              if (finishReason === 'stop') {
-                yield { type: 'assistant_done' };
-                return;
-              }
-            } catch {
-              // Ignore malformed SSE chunks
-            }
-          }
-        }
-      }
-
-      // Process remaining buffer
-      if (buffer.trim() === 'data: [DONE]') {
-        yield { type: 'assistant_done' };
-      } else {
-        yield { type: 'assistant_done' };
-      }
+      yield* streamOpenAISse(response.data);
     } else {
       // Fallback: try the original stream parser for non-SSE responses
       yield* parseManagedAgentStream(response.data, contentType);

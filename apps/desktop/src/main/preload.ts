@@ -151,6 +151,20 @@ const electronAPI = {
     },
   },
 
+  customProvider: {
+    getConfig: () => ipcRenderer.invoke('customProvider:getConfig'),
+    saveConfig: (input: {
+      baseUrl: string;
+      authType: 'bearer' | 'x-api-key';
+      selectedModel: string;
+      apiKey?: string;
+    }) => ipcRenderer.invoke('customProvider:saveConfig', input),
+    setEnabled: (enabled: boolean) => ipcRenderer.invoke('customProvider:setEnabled', enabled),
+    deleteKey: () => ipcRenderer.invoke('customProvider:deleteKey'),
+    testConnection: (input?: { apiKey?: string }) =>
+      ipcRenderer.invoke('customProvider:testConnection', input),
+  },
+
   integrations: {
     list: (): Promise<IntegrationConnection[]> => ipcRenderer.invoke('integrations:list'),
     beginConnect: (provider: IntegrationProvider): Promise<{ provider: IntegrationProvider; url: string }> =>
