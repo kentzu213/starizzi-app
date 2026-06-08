@@ -37,6 +37,9 @@ export function AgentSetupPanel({ agent, onClose, onInstallComplete }: AgentSetu
   const [dockerMissing, setDockerMissing] = useState(false);
   const [isProbing, setIsProbing] = useState(false);
   const [probeMessage, setProbeMessage] = useState<string | null>(null);
+  // Upfront Docker detection so we can show the best path per machine
+  // ('available' → 1-click install; 'missing' → guidance + download link).
+  const [dockerStatus, setDockerStatus] = useState<'unknown' | 'checking' | 'available' | 'missing'>('unknown');
 
   const isDocker = agent.setupMethod === 'docker';
   const needsCompose = isDocker && !!agent.dockerComposeUrl;
@@ -64,6 +67,42 @@ export function AgentSetupPanel({ agent, onClose, onInstallComplete }: AgentSetu
   useEffect(() => {
     logEndRef.current?.scrollIntoView({ block: 'end' });
   }, [installLog]);
+
+  /** Detect Docker availability as soon as the user reaches the install step. */
+  async function detectDocker() {
+    setDockerStatus('checking');
+    try {
+      const ok = dockerAgentApi ? await dockerAgentApi.isAvailable() : false;
+      setDockerStatus(ok ? 'available' : 'missing');
+    } catch {
+      setDockerStatus('missing');
+    }
+  }
+
+  useEffect(() => {
+    if (step !== 2 || !isDocker) return;
+    let cancelled = false;
+    setDockerStatus('checking');
+    (async () => {
+      try {
+        const ok = dockerAgentApi ? await dockerAgentApi.isAvailable() : false;
+        if (!cancelled) setDockerStatus(ok ? 'available' : 'missing');
+      } catch {
+        if (!cancelled) setDockerStatus('missing');
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [step, isDocker, dockerAgentApi]);
+
+  /** Open the Docker Desktop download page in the user's browser. */
+  function openDockerDownload() {
+    const url = 'https://www.docker.com/products/docker-desktop/';
+    if (window.electronAPI?.shell?.openExternal) {
+      window.electronAPI.shell.openExternal(url);
+    } else {
+      window.open(url, '_blank');
+    }
+  }
 
   /** Real Docker install pipeline: pull → run → health-probe (with retries). */
   async function handleInstall() {
@@ -400,15 +439,46 @@ export function AgentSetupPanel({ agent, onClose, onInstallComplete }: AgentSetu
           </div>
         )}
 
-        {/* Real install button — only for Docker agents */}
-        {isDocker && !isInstalling && !installDone && (
-          <button
-            className="agent-setup__install-btn"
-            onClick={handleInstall}
-            type="button"
-          >
-            🚀 Cài đặt thật (Docker)
-          </button>
+        {/* Docker detected → 1-click auto-install */}
+        {isDocker && dockerStatus === 'available' && !isInstalling && !installDone && (
+          <>
+            <div className="agent-setup__success" style={{ marginBottom: 8 }}>
+              🐳 Đã phát hiện Docker trên máy — có thể cài tự động 1 chạm.
+            </div>
+            <button
+              className="agent-setup__install-btn"
+              onClick={handleInstall}
+              type="button"
+            >
+              🚀 Cài tự động bằng Docker (1 chạm)
+            </button>
+          </>
+        )}
+
+        {/* Checking Docker availability */}
+        {isDocker && dockerStatus === 'checking' && !isInstalling && !installDone && (
+          <div className="agent-setup__installing">
+            <div className="agent-setup__spinner" />
+            <span>Đang kiểm tra Docker trên máy…</span>
+          </div>
+        )}
+
+        {/* Docker missing → friendly guidance + download link + re-check */}
+        {isDocker && dockerStatus === 'missing' && !isInstalling && !installDone && (
+          <div className="agent-setup__error" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <span>
+              🐳 Máy bạn chưa cài hoặc chưa mở Docker. Bạn có thể cài Docker để dùng cài tự động 1 chạm,
+              hoặc làm theo hướng dẫn thủ công bên dưới rồi bấm "Kiểm tra kết nối".
+            </span>
+            <div className="action-row" style={{ gap: 8 }}>
+              <button className="btn btn--primary btn--sm" onClick={openDockerDownload} type="button">
+                ⬇️ Tải Docker Desktop
+              </button>
+              <button className="btn btn--ghost btn--sm" onClick={() => void detectDocker()} type="button">
+                🔄 Kiểm tra lại Docker
+              </button>
+            </div>
+          </div>
         )}
 
         {isInstalling && (
@@ -418,9 +488,9 @@ export function AgentSetupPanel({ agent, onClose, onInstallComplete }: AgentSetu
           </div>
         )}
 
-        {/* Manual guidance — shown for non-docker agents, or when Docker is missing,
-            or for compose-based agents as a fallback. */}
-        {(!isDocker || dockerMissing || needsCompose) && !installDone && (
+        {/* Manual guidance — for non-docker agents, when Docker is missing,
+            for compose-based agents, or if an install attempt found Docker missing. */}
+        {(!isDocker || dockerStatus === 'missing' || dockerMissing || needsCompose) && !installDone && (
           <div className="agent-setup__install-summary" style={{ marginTop: 12 }}>
             <div className="agent-setup__install-row" style={{ justifyContent: 'flex-start' }}>
               <strong style={{ color: 'var(--color-text-primary)' }}>

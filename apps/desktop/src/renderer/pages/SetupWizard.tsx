@@ -228,7 +228,17 @@ export function SetupWizardPage({ onComplete }: SetupWizardPageProps) {
           const selected = AGENT_OPTIONS.find(a => a.id === config.agentId);
           if (selected && selected.runtime === 'docker' && selected.dockerImage) {
             const ok = await installDockerAgent(selected, config);
-            setInstallDone(ok);
+            if (!ok) {
+              // Base config is written; the optional Docker agent runtime could
+              // not be installed (no Docker). Let the user finish onboarding and
+              // install the agent later from Agent Hub.
+              setInstallProgress(prev => [...prev, {
+                step: 'agent', percent: 100,
+                message: 'ℹ️ Cấu hình cơ bản đã xong. Agent runtime cần Docker — bạn có thể cài sau trong Agent Hub (cài Docker Desktop rồi bấm cài lại).',
+                isError: false,
+              }]);
+            }
+            setInstallDone(true);
           } else {
             setInstallDone(true);
           }
@@ -275,7 +285,7 @@ export function SetupWizardPage({ onComplete }: SetupWizardPageProps) {
       if (!dockerAgentApi) {
         setInstallProgress(prev => [...prev, {
           step: 'agent', percent: 92,
-          message: '⚠️ Không tìm thấy cầu nối Docker — bỏ qua cài agent runtime.',
+          message: '⚠️ Không tìm thấy cầu nối Docker — bỏ qua cài agent runtime (cài sau trong Agent Hub).',
           isError: true,
         }]);
         return false;
@@ -293,7 +303,7 @@ export function SetupWizardPage({ onComplete }: SetupWizardPageProps) {
         push(`$ docker info`, 92);
         const available = await dockerAgentApi.isAvailable();
         if (!available) {
-          push('  ✗ Docker daemon không phản hồi. Hãy mở Docker Desktop rồi thử lại.', 92, true);
+          push('  ✗ Chưa thấy Docker. Cài "Docker Desktop" (docker.com) rồi mở app, hoặc cài agent sau trong Agent Hub.', 92, true);
           return false;
         }
 
