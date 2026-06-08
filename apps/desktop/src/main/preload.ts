@@ -100,25 +100,6 @@ const electronAPI = {
     buyApi: () => ipcRenderer.invoke('system:buyApi'),
   },
 
-  dockerAgent: {
-    isAvailable: (): Promise<boolean> => ipcRenderer.invoke('dockerAgent:isAvailable'),
-    install: (payload: { id: string; dockerImage?: string; defaultPort: number; dockerComposeUrl?: string; provider?: string; apiKey?: string }): Promise<{ ok: boolean; error?: string }> =>
-      ipcRenderer.invoke('dockerAgent:install', payload),
-    start: (payload: { id: string; dockerImage?: string; defaultPort: number; dockerComposeUrl?: string; provider?: string; apiKey?: string }): Promise<{ ok: boolean; containerId?: string; error?: string }> =>
-      ipcRenderer.invoke('dockerAgent:start', payload),
-    stop: (payload: { id: string; dockerImage?: string; defaultPort: number; dockerComposeUrl?: string }): Promise<{ ok: boolean; error?: string }> =>
-      ipcRenderer.invoke('dockerAgent:stop', payload),
-    status: (payload: { id: string; dockerImage?: string; defaultPort: number; dockerComposeUrl?: string }): Promise<{ running: boolean; error?: string }> =>
-      ipcRenderer.invoke('dockerAgent:status', payload),
-    chat: (payload: { id: string; defaultPort: number }, message: string): Promise<{ ok: boolean; reply?: string; error?: string }> =>
-      ipcRenderer.invoke('dockerAgent:chat', { id: payload.id, defaultPort: payload.defaultPort }, message),
-    onProgress: (listener: (data: { agentId: string; line: string }) => void) => {
-      const handler = (_event: Electron.IpcRendererEvent, data: { agentId: string; line: string }) => listener(data);
-      ipcRenderer.on('dockerAgent:progress', handler);
-      return () => { ipcRenderer.removeListener('dockerAgent:progress', handler); };
-    },
-  },
-
   diagnostics: {
     getEvents: () => ipcRenderer.invoke('diagnostics:getEvents'),
   },

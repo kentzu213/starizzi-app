@@ -16,7 +16,6 @@ import type { AgentTaskStatus, IntegrationProvider } from './agent/types';
 import { UpdaterService } from './updater/updater-service';
 import { SetupWizardService } from './setup/setup-wizard-service';
 import { registerAgentIpcHandlers, shutdownAgents } from './agents';
-import { DockerAgentService, type DockerAgentPayload } from './agents/docker-agent-service';
 
 let mainWindow: BrowserWindow | null = null;
 let authManager: AuthManager;
@@ -30,7 +29,6 @@ let integrationsService: IntegrationsService;
 let onboardingService: OnboardingService;
 let updaterService: UpdaterService;
 let setupWizardService: SetupWizardService;
-const dockerAgentService = new DockerAgentService();
 
 const isDev = !app.isPackaged;
 const OPENCLAW_DOCS_URL = 'https://docs.openclaw.ai';
@@ -383,35 +381,6 @@ function setupIPC() {
 
   ipcMain.handle('setup:scanConfig', async () => {
     return setupWizardService.scanExistingConfig();
-  });
-
-  // ── Docker Agent (Top Agents — real Docker install/run) ──
-  ipcMain.handle('dockerAgent:isAvailable', async () => {
-    return dockerAgentService.isDockerAvailable();
-  });
-
-  ipcMain.handle('dockerAgent:install', async (_event, payload: DockerAgentPayload) => {
-    return dockerAgentService.install(payload, (line) => {
-      if (mainWindow && !mainWindow.isDestroyed()) {
-        mainWindow.webContents.send('dockerAgent:progress', { agentId: payload.id, line });
-      }
-    });
-  });
-
-  ipcMain.handle('dockerAgent:start', async (_event, payload: DockerAgentPayload) => {
-    return dockerAgentService.start(payload);
-  });
-
-  ipcMain.handle('dockerAgent:stop', async (_event, payload: DockerAgentPayload) => {
-    return dockerAgentService.stop(payload);
-  });
-
-  ipcMain.handle('dockerAgent:status', async (_event, payload: DockerAgentPayload) => {
-    return dockerAgentService.status(payload);
-  });
-
-  ipcMain.handle('dockerAgent:chat', async (_event, payload: DockerAgentPayload, message: string) => {
-    return dockerAgentService.chat(payload, message);
   });
 
   ipcMain.handle('diagnostics:getEvents', async () => {
