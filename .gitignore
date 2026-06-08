@@ -28,3 +28,9 @@ _izzi_openclaw_ref/
 
 # Backend source (server-side only)
 backend/src/
+
+# ── Local tooling / generated indexes (not part of the repo) ──
+.codegraph/
+.claude/
+.gemini/
+.vscode/
