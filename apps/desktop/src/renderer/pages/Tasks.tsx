@@ -32,7 +32,7 @@ export function TasksPage() {
         {TASK_COLUMNS.map((column) => {
           const columnTasks = tasks.filter((task) => task.status === column.status);
           return (
-            <section key={column.status} className="task-column">
+            <section key={column.status} className="task-column glass-panel">
               <div className="task-column__header">
                 <h3 className="task-column__title">{column.label}</h3>
                 <span className="task-column__count">{columnTasks.length}</span>
@@ -43,7 +43,7 @@ export function TasksPage() {
               ) : (
                 <div className="task-column__list">
                   {columnTasks.map((task) => (
-                    <article key={task.id} className="task-card">
+                    <article key={task.id} className="task-card glass-card">
                       <div className="task-card__title">{task.title}</div>
                       {task.summary && <p className="task-card__summary">{task.summary}</p>}
                       <div className="task-card__meta">

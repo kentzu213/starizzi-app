@@ -136,7 +136,7 @@ export function ChatPage({ onNavigateToDashboard, onNavigateToAgentHub }: ChatPa
       <section className="chat-page__body">
         {/* Legacy session card (when no gateway tabs) */}
         {!isGatewayMode && (
-          <div className="chat-session-card">
+          <div className="chat-session-card glass-card">
             <div>
               <div className="chat-session-card__label">Current session</div>
               <div className="chat-session-card__title">{session?.title || 'Đang khởi tạo session'}</div>
@@ -223,7 +223,6 @@ export function ChatPage({ onNavigateToDashboard, onNavigateToAgentHub }: ChatPa
               <span>{activeGwSession.agentName}</span>
               <span
                 className="gw-tab__dot"
-                style={{ display: 'inline-block' }}
               />
             </div>
             <ModelSelector

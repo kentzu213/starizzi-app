@@ -251,29 +251,20 @@ export function MarketplacePage() {
 
         {/* Install Toast */}
         {installToast && (
-          <div style={{
-            position: 'fixed',
-            bottom: '24px',
-            right: '24px',
-            padding: '14px 20px',
-            borderRadius: '12px',
-            background: installToast.type === 'success'
-              ? 'linear-gradient(135deg, rgba(0, 184, 148, 0.95), rgba(0, 206, 201, 0.95))'
-              : installToast.type === 'error'
-                ? 'linear-gradient(135deg, rgba(255, 107, 107, 0.95), rgba(238, 82, 83, 0.95))'
-                : 'linear-gradient(135deg, rgba(99, 110, 255, 0.95), rgba(108, 92, 231, 0.95))',
-            color: '#fff',
-            fontSize: '13px',
-            fontWeight: '500',
-            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4)',
-            backdropFilter: 'blur(12px)',
-            zIndex: 9999,
-            animation: 'toast-slide-in 0.3s ease-out',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '10px',
-            maxWidth: '400px',
-          }}>
+          <div
+            className="marketplace-toast"
+            style={{
+              // dynamic by toast type; values routed to Hệ_Token (Req 4.3)
+              background: installToast.type === 'success'
+                ? 'var(--gradient-toast-success)'
+                : installToast.type === 'error'
+                  ? 'var(--gradient-toast-error)'
+                  : 'var(--gradient-toast-info)',
+              color: 'var(--color-toast-text)',
+              boxShadow: 'var(--shadow-toast)',
+              backdropFilter: 'var(--glass-blur)',
+            }}
+          >
             {installToast.message}
           </div>
         )}
@@ -304,43 +295,23 @@ export function MarketplacePage() {
 
   return (
     <div>
-      <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+      <div className="page-header marketplace-header">
         <div>
           <h1 className="page-header__title">🏪 Marketplace</h1>
           <p className="page-header__subtitle">
             Khám phá và cài đặt tiện ích mở rộng cho Izzi OpenClaw
           </p>
         </div>
-        <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexShrink: 0 }}>
+        <div className="marketplace-header__actions">
           <button
             className="btn btn--ghost btn--sm"
             onClick={() => setShowDevDash(true)}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              whiteSpace: 'nowrap' as const,
-            }}
           >
             👨‍💻 Dashboard
           </button>
           <button
             className="btn btn--accent"
             onClick={() => setShowDevUpload(true)}
-            style={{
-              background: 'linear-gradient(135deg, #636eff, #6c5ce7)',
-              color: '#fff',
-              border: 'none',
-              padding: '8px 16px',
-              borderRadius: '10px',
-              fontSize: '13px',
-              fontWeight: '600',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              whiteSpace: 'nowrap' as const,
-            }}
           >
             🚀 Đăng tải tiện ích
           </button>
@@ -348,30 +319,22 @@ export function MarketplacePage() {
       </div>
 
       {/* API Status Badge */}
-      <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: '8px',
-        marginBottom: '16px',
-        fontSize: '12px',
-      }}>
-        <span style={{
-          width: 8,
-          height: 8,
-          borderRadius: '50%',
-          background: apiStatus === 'online' ? '#00b894' : apiStatus === 'offline' ? '#ff6b6b' : '#fdcb6e',
-          display: 'inline-block',
-        }} />
-        <span style={{ color: 'var(--color-text-tertiary)' }}>
+      <div className="marketplace-api-status">
+        <span
+          className="marketplace-api-status__dot"
+          style={{
+            background: apiStatus === 'online' ? 'var(--color-success)' : apiStatus === 'offline' ? 'var(--color-error)' : 'var(--color-warning)',
+          }}
+        />
+        <span className="marketplace-api-status__label">
           {apiStatus === 'online' && 'Marketplace API kết nối'}
           {apiStatus === 'offline' && 'Marketplace API offline — hiển thị dữ liệu demo'}
           {apiStatus === 'checking' && 'Đang kiểm tra kết nối...'}
         </span>
         {apiStatus === 'offline' && (
           <button
-            className="btn btn--ghost btn--sm"
+            className="btn btn--ghost btn--sm marketplace-api-status__retry"
             onClick={checkApiAndLoad}
-            style={{ padding: '2px 8px', fontSize: '11px' }}
           >
             🔄 Thử lại
           </button>
@@ -379,21 +342,13 @@ export function MarketplacePage() {
       </div>
 
       {error && (
-        <div style={{
-          padding: '10px 14px',
-          borderRadius: '8px',
-          background: 'rgba(255, 107, 107, 0.1)',
-          border: '1px solid rgba(255, 107, 107, 0.2)',
-          color: '#ff6b6b',
-          fontSize: '13px',
-          marginBottom: '16px',
-        }}>
+        <div className="marketplace-error">
           ⚠️ {error}
         </div>
       )}
 
       {/* Search */}
-      <div className="search-bar" ref={searchRef} style={{ position: 'relative' }} role="search">
+      <div className="search-bar" ref={searchRef} role="search">
         <span className="search-bar__icon" aria-hidden="true">🔍</span>
         <input
           id="marketplace-search"
@@ -462,9 +417,9 @@ export function MarketplacePage() {
       </div>
 
       {/* Sort & Category Controls */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px', marginBottom: '16px' }}>
+      <div className="marketplace-controls">
         {/* Category Filter */}
-        <div className="filter-pills" style={{ marginBottom: 0 }}>
+        <div className="filter-pills filter-pills--flush">
           {CATEGORIES.map(cat => (
             <button
               key={cat}
@@ -506,7 +461,7 @@ export function MarketplacePage() {
             <h2 className="section-header__title">
               {activeCategory === 'Tất cả' ? 'Tất cả tiện ích' : activeCategory}
             </h2>
-            <span style={{ fontSize: '14px', color: 'var(--color-text-tertiary)' }}>
+            <span className="marketplace-result-count">
               {filteredExtensions.length} kết quả
             </span>
           </div>
@@ -517,8 +472,8 @@ export function MarketplacePage() {
               const isInstalling = installingId === ext.id;
 
               return (
-                <div key={ext.id} className="ext-card animate-in" style={{ animationDelay: `${i * 60}ms` }}>
-                  <div className="ext-card__header" style={{ cursor: 'pointer' }} onClick={() => setSelectedExtension(ext)}>
+                <div key={ext.id} className="ext-card glass-card animate-in" style={{ animationDelay: `${i * 60}ms` }}>
+                  <div className="ext-card__header ext-card__header--clickable" onClick={() => setSelectedExtension(ext)}>
                     <div className="ext-card__icon">{ext.icon}</div>
                     <div className="ext-card__meta">
                       <div className="ext-card__name">{ext.displayName}</div>
@@ -539,7 +494,7 @@ export function MarketplacePage() {
                       </span>
                     </div>
 
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <div className="ext-card__actions">
                       {ext.price ? (
                         <span className="ext-card__price ext-card__price--paid">
                           ${ext.price.monthly}/mo
@@ -568,14 +523,7 @@ export function MarketplacePage() {
 
           {/* Pagination */}
           {totalPages > 1 && (
-            <div style={{
-              display: 'flex',
-              justifyContent: 'center',
-              alignItems: 'center',
-              gap: '8px',
-              marginTop: '24px',
-              padding: '16px 0',
-            }}>
+            <div className="marketplace-pagination">
               <button
                 className="btn btn--ghost btn--sm"
                 onClick={() => handlePageChange(currentPage - 1)}
@@ -586,9 +534,8 @@ export function MarketplacePage() {
               {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
                 <button
                   key={page}
-                  className={`btn btn--sm ${page === currentPage ? 'btn--primary' : 'btn--ghost'}`}
+                  className={`btn btn--sm marketplace-page-btn ${page === currentPage ? 'btn--primary' : 'btn--ghost'}`}
                   onClick={() => handlePageChange(page)}
-                  style={{ minWidth: 36 }}
                 >
                   {page}
                 </button>
@@ -617,56 +564,36 @@ export function MarketplacePage() {
 
       {/* Install Toast Notification */}
       {installToast && (
-        <div style={{
-          position: 'fixed',
-          bottom: '24px',
-          right: '24px',
-          padding: '14px 20px',
-          borderRadius: '12px',
-          background: installToast.type === 'success'
-            ? 'linear-gradient(135deg, rgba(0, 184, 148, 0.95), rgba(0, 206, 201, 0.95))'
-            : installToast.type === 'error'
-              ? 'linear-gradient(135deg, rgba(255, 107, 107, 0.95), rgba(238, 82, 83, 0.95))'
-              : 'linear-gradient(135deg, rgba(99, 110, 255, 0.95), rgba(108, 92, 231, 0.95))',
-          color: '#fff',
-          fontSize: '13px',
-          fontWeight: '500',
-          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4)',
-          backdropFilter: 'blur(12px)',
-          zIndex: 9999,
-          animation: 'toast-slide-in 0.3s ease-out',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '10px',
-          maxWidth: '400px',
-        }}>
+        <div
+          className="marketplace-toast"
+          style={{
+            // dynamic by toast type; values routed to Hệ_Token (Req 4.3)
+            background: installToast.type === 'success'
+              ? 'var(--gradient-toast-success)'
+              : installToast.type === 'error'
+                ? 'var(--gradient-toast-error)'
+                : 'var(--gradient-toast-info)',
+            color: 'var(--color-toast-text)',
+            boxShadow: 'var(--shadow-toast)',
+            backdropFilter: 'var(--glass-blur)',
+          }}
+        >
           {installToast.type === 'info' && (
-            <span style={{
-              display: 'inline-block',
-              width: 16,
-              height: 16,
-              border: '2px solid rgba(255,255,255,0.3)',
-              borderTopColor: '#fff',
-              borderRadius: '50%',
-              animation: 'spin 0.6s linear infinite',
-            }} />
+            <span
+              className="marketplace-toast__spinner"
+              style={{
+                // ring colors routed to Hệ_Token (Req 4.3)
+                border: '2px solid var(--color-border-hover)',
+                borderTopColor: 'var(--color-toast-text)',
+              }}
+            />
           )}
           {installToast.message}
           <button
             onClick={() => setInstallToast(null)}
+            className="marketplace-toast__close"
             style={{
-              background: 'rgba(255,255,255,0.2)',
-              border: 'none',
-              color: '#fff',
-              borderRadius: '50%',
-              width: 20,
-              height: 20,
-              fontSize: '11px',
-              cursor: 'pointer',
-              marginLeft: '4px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
+              color: 'var(--color-toast-text)',
             }}
           >✕</button>
         </div>

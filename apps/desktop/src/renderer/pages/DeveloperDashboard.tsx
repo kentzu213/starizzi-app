@@ -79,23 +79,23 @@ export function DeveloperDashboardPage({ onBack }: { onBack: () => void }) {
   }
 
   const statCards = [
-    { icon: '📦', label: 'Extensions', value: String(stats.total_extensions), color: '#636eff' },
-    { icon: '📥', label: 'Tổng lượt cài', value: formatNumber(stats.total_installs), color: '#00b894' },
-    { icon: '⭐', label: 'Rating TB', value: stats.avg_rating > 0 ? stats.avg_rating.toFixed(1) : '—', color: '#fdcb6e' },
-    { icon: '💰', label: 'Doanh thu', value: `$${formatNumber(stats.total_revenue)}`, color: '#e17055' },
+    { icon: '📦', label: 'Extensions', value: String(stats.total_extensions), color: 'var(--color-accent-secondary)' },
+    { icon: '📥', label: 'Tổng lượt cài', value: formatNumber(stats.total_installs), color: 'var(--color-success)' },
+    { icon: '⭐', label: 'Rating TB', value: stats.avg_rating > 0 ? stats.avg_rating.toFixed(1) : '—', color: 'var(--color-warning)' },
+    { icon: '💰', label: 'Doanh thu', value: `$${formatNumber(stats.total_revenue)}`, color: 'var(--color-accent-cyan)' },
   ];
 
   const statusBadge: Record<string, { label: string; color: string; bg: string }> = {
-    published: { label: 'Đã xuất bản', color: '#00b894', bg: 'rgba(0,184,148,0.1)' },
-    draft: { label: 'Bản nháp', color: '#fdcb6e', bg: 'rgba(253,203,110,0.1)' },
-    pending: { label: 'Chờ duyệt', color: '#74b9ff', bg: 'rgba(116,185,255,0.1)' },
-    rejected: { label: 'Bị từ chối', color: '#ff6b6b', bg: 'rgba(255,107,107,0.1)' },
+    published: { label: 'Đã xuất bản', color: 'var(--color-success)', bg: 'var(--color-success-bg)' },
+    draft: { label: 'Bản nháp', color: 'var(--color-warning)', bg: 'var(--color-warning-bg)' },
+    pending: { label: 'Chờ duyệt', color: 'var(--color-info)', bg: 'var(--color-info-bg)' },
+    rejected: { label: 'Bị từ chối', color: 'var(--color-error)', bg: 'var(--color-error-bg)' },
   };
 
   return (
     <div>
       {/* Header */}
-      <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+      <div className="page-header page-header--split">
         <div>
           <button className="ext-detail__back" onClick={onBack}>
             ← Quay lại Marketplace
@@ -111,7 +111,10 @@ export function DeveloperDashboardPage({ onBack }: { onBack: () => void }) {
       <div className="dev-dash__stats">
         {statCards.map((s, i) => (
           <div key={i} className="dev-dash__stat-card animate-in" style={{ animationDelay: `${i * 60}ms` }}>
-            <div className="dev-dash__stat-icon" style={{ background: `${s.color}15`, color: s.color }}>
+            <div
+              className="dev-dash__stat-icon"
+              style={{ background: `color-mix(in srgb, ${s.color} 12%, transparent)`, color: s.color }}
+            >
               {s.icon}
             </div>
             <div className="dev-dash__stat-value">{s.value}</div>
@@ -129,7 +132,7 @@ export function DeveloperDashboardPage({ onBack }: { onBack: () => void }) {
             onClick={() => setActiveFilter(f)}
           >
             {f === 'all' ? 'Tất cả' : f === 'published' ? 'Đã xuất bản' : 'Bản nháp'}
-            <span style={{ marginLeft: 6, fontSize: 11, opacity: 0.7 }}>
+            <span className="filter-pill__count">
               {f === 'all' ? extensions.length : extensions.filter(e => e.status === f).length}
             </span>
           </button>
@@ -138,12 +141,12 @@ export function DeveloperDashboardPage({ onBack }: { onBack: () => void }) {
 
       {/* Extensions Table */}
       {loading ? (
-        <div className="card" style={{ textAlign: 'center', padding: 48 }}>
-          <div className="spinner" style={{ margin: '0 auto 16px' }} />
-          <p style={{ color: 'var(--color-text-secondary)' }}>Đang tải dữ liệu...</p>
+        <div className="card glass-card ext-loading-card">
+          <div className="spinner ext-loading-card__spinner" />
+          <p className="ext-loading-card__text">Đang tải dữ liệu...</p>
         </div>
       ) : filteredExtensions.length === 0 ? (
-        <div className="card">
+        <div className="card glass-card">
           <div className="empty-state">
             <div className="empty-state__icon">📭</div>
             <h3 className="empty-state__title">Chưa có extension nào</h3>
@@ -176,7 +179,7 @@ export function DeveloperDashboardPage({ onBack }: { onBack: () => void }) {
                   <div className="dev-dash__ext-meta">
                     <span>📥 {formatNumber(ext.installs)} lượt cài</span>
                     <span className="dev-dash__ext-separator">•</span>
-                    <span style={{ color: '#fdcb6e' }}>{renderStars(ext.rating)}</span>
+                    <span className="dev-dash__ext-rating">{renderStars(ext.rating)}</span>
                     {ext.rating > 0 && <span> {ext.rating.toFixed(1)}</span>}
                     <span className="dev-dash__ext-separator">•</span>
                     <span>📅 {formatDate(ext.created_at)}</span>

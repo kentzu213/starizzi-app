@@ -41,7 +41,7 @@ export function SettingsPage({
       </div>
 
       {onboardingState?.hasPendingSetup && (
-        <div className="card section-gap card--accent">
+        <div className="card section-gap card--accent glass-card">
           <div className="card__header">
             <h3 className="card__title">Finish setup</h3>
             <button className="btn btn--primary btn--sm" onClick={openOnboarding}>
@@ -54,7 +54,7 @@ export function SettingsPage({
         </div>
       )}
 
-      <div className="card section-gap">
+      <div className="card glass-card section-gap">
         <div className="card__header">
           <h3 className="card__title">Managed Runner</h3>
         </div>
@@ -81,7 +81,7 @@ export function SettingsPage({
         </div>
       </div>
 
-      <div className="card section-gap">
+      <div className="card glass-card section-gap">
         <div className="card__header">
           <h3 className="card__title">Desktop updates</h3>
           <div className="action-row">
@@ -112,7 +112,7 @@ export function SettingsPage({
         </div>
       </div>
 
-      <div className="card section-gap">
+      <div className="card glass-card section-gap">
         <div className="card__header">
           <h3 className="card__title">Integrations</h3>
           <button className="btn btn--ghost btn--sm" onClick={() => void refreshIntegrations()}>
@@ -145,7 +145,7 @@ export function SettingsPage({
         </div>
       </div>
 
-      <div className="card section-gap">
+      <div className="card glass-card section-gap">
         <div className="card__header">
           <h3 className="card__title">Account</h3>
           <button
@@ -168,7 +168,7 @@ export function SettingsPage({
         </div>
       </div>
 
-      <div className="card section-gap">
+      <div className="card glass-card section-gap">
         <div className="card__header">
           <h3 className="card__title">Core actions</h3>
         </div>
@@ -185,7 +185,7 @@ export function SettingsPage({
         </div>
       </div>
 
-      <div className="card section-gap">
+      <div className="card glass-card section-gap">
         <div className="card__header">
           <h3 className="card__title">Diagnostics</h3>
           <button className="btn btn--ghost btn--sm" onClick={() => void refreshDiagnostics(10)}>
@@ -221,7 +221,7 @@ export function SettingsPage({
         )}
       </div>
 
-      <div className="card">
+      <div className="card glass-card">
         <div className="card__header">
           <h3 className="card__title card__title--danger">
             Danger zone
@@ -247,7 +247,7 @@ function SettingRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="settings-item">
       <div className="settings-item__label">{label}</div>
-      <div style={{ fontSize: '14px', color: 'var(--color-text-secondary)' }}>{value}</div>
+      <div className="settings-item__value">{value}</div>
     </div>
   );
 }

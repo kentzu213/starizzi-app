@@ -92,7 +92,7 @@ export function LoginPage({ onLogin, onGoogleLogin, onSignup }: LoginPageProps) 
 
   return (
     <div className="login-page">
-      <div className="login-card">
+      <div className="login-card glass-card">
         <div className="login-card__logo">
           <div className="login-card__logo-icon">
             <AppLogoMark />
@@ -107,16 +107,7 @@ export function LoginPage({ onLogin, onGoogleLogin, onSignup }: LoginPageProps) 
 
         {error && <div className="login-card__error">⚠️ {error}</div>}
         {successMessage && (
-          <div className="login-card__success" style={{
-            padding: '12px 16px',
-            borderRadius: '8px',
-            background: 'rgba(52, 211, 153, 0.1)',
-            border: '1px solid rgba(52, 211, 153, 0.3)',
-            color: '#34d399',
-            fontSize: '13px',
-            marginBottom: '16px',
-            textAlign: 'center',
-          }}>
+          <div className="login-card__success login-card__success-banner">
             {successMessage}
           </div>
         )}
@@ -167,9 +158,8 @@ export function LoginPage({ onLogin, onGoogleLogin, onSignup }: LoginPageProps) 
 
           <button
             id="btn-login"
-            className="btn btn--primary btn--lg"
+            className="btn btn--primary btn--lg btn--full"
             type="submit"
-            style={{ width: '100%' }}
             disabled={isLoading}
           >
             {isLoading
@@ -184,24 +174,10 @@ export function LoginPage({ onLogin, onGoogleLogin, onSignup }: LoginPageProps) 
 
         <button
           id="btn-google-login"
-          className="btn btn--lg"
-          style={{
-            width: '100%',
-            background: 'rgba(255, 255, 255, 0.06)',
-            border: '1px solid rgba(255, 255, 255, 0.12)',
-            color: '#e2e8f0',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '10px',
-            cursor: 'pointer',
-            transition: 'all 0.2s ease',
-          }}
+          className="btn btn--lg btn--oauth"
           onClick={handleGoogleLogin}
           type="button"
           disabled={isLoading}
-          onMouseOver={e => (e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)')}
-          onMouseOut={e => (e.currentTarget.style.background = 'rgba(255, 255, 255, 0.06)')}
         >
           <svg width="18" height="18" viewBox="0 0 24 24">
             <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.27-4.74 3.27-8.1z"/>
@@ -230,14 +206,10 @@ export function LoginPage({ onLogin, onGoogleLogin, onSignup }: LoginPageProps) 
           )}
         </div>
 
-        <div style={{
-          marginTop: '8px',
-          textAlign: 'center',
-          fontSize: '11px',
-          color: 'rgba(148, 163, 184, 0.5)',
-        }}>
+        {/* Fineprint: slate hues routed to Hệ_Token (Req 4.5 tokens) */}
+        <div className="login-card__fineprint">
           <div>Powered by IzziAPI.com • Supabase Auth</div>
-          <div style={{ marginTop: '3px', color: 'rgba(148, 163, 184, 0.35)' }}>
+          <div className="login-card__fineprint-dim">
             Tài khoản đồng bộ với izziapi.com
           </div>
         </div>

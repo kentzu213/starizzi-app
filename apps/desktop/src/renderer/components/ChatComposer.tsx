@@ -25,7 +25,7 @@ export function ChatComposer({
   }, [value]);
 
   return (
-    <div className="chat-composer">
+    <div className="chat-composer glass-surface">
       <textarea
         ref={textareaRef}
         className="chat-composer__input"

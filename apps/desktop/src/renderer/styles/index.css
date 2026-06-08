@@ -19,9 +19,24 @@
   --color-accent-cyan: #67e8f9;
   --color-accent-purple: #a78bfa;
   --color-accent-emerald: #34d399;
-  --color-accent-glow: rgba(103, 232, 249, 0.25);
+  --color-accent-glow: rgba(103, 232, 249, 0.42);
+  /* Soft purple accent for slate/indigo merge mapping (#c7d2fe/#a5b4fc/#818cf8 range) Ã¢â‚¬â€ Req 3.5 */
+  --color-accent-purple-soft: #c7d2fe;
   --color-accent-gradient: linear-gradient(135deg, #67e8f9 0%, #a78bfa 100%);
   --color-accent-gradient-hover: linear-gradient(135deg, #7aecfc 0%, #b8a0fc 100%);
+  /* Toast notification gradients (Marketplace install toast) — Req 4.5 token-isation */
+  --gradient-toast-success: linear-gradient(135deg, rgba(0, 184, 148, 0.95), rgba(0, 206, 201, 0.95));
+  --gradient-toast-error: linear-gradient(135deg, rgba(255, 107, 107, 0.95), rgba(238, 82, 83, 0.95));
+  --gradient-toast-info: linear-gradient(135deg, rgba(99, 110, 255, 0.95), rgba(108, 92, 231, 0.95));
+  --color-toast-text: #ffffff;
+  --shadow-toast: 0 8px 32px rgba(0, 0, 0, 0.4);
+  --color-error-border-soft: rgba(255, 107, 107, 0.2);
+  /* Semi-transparent black for inline code/terminal blocks (Req 4.5) */
+  --color-code-block-bg: rgba(0, 0, 0, 0.4);
+  /* Login fineprint slate + success-banner border (Req 4.5 token-isation) */
+  --color-text-fineprint: rgba(148, 163, 184, 0.5);
+  --color-text-fineprint-dim: rgba(148, 163, 184, 0.35);
+  --color-success-border-soft: rgba(52, 211, 153, 0.3);
 
   /* Status Colors */
   --color-success: #34d399;
@@ -45,9 +60,17 @@
   --color-border-accent: rgba(103, 232, 249, 0.35);
 
   /* Glass Ã¢â‚¬â€ izziapi.com glassmorphism */
-  --glass-bg: rgba(12, 12, 12, 0.80);
-  --glass-blur: blur(16px);
-  --glass-border: 1px solid rgba(255, 255, 255, 0.06);
+  --glass-bg: rgba(12, 12, 12, 0.82);
+  --glass-blur-amount: 18px;
+  --glass-blur: blur(min(var(--glass-blur-amount, 18px), 24px));
+  --glass-border: 1px solid rgba(255, 255, 255, 0.08);
+  /* Specular highlight: top-edge inset, luminance higher than --glass-bg (Req 1.4) */
+  --glass-specular: inset 0 1px 0 0 rgba(255, 255, 255, 0.16);
+  /* Soft multi-layer glass shadow: >=2 layers, each with distinct offset/blur (Req 1.3) */
+  --glass-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.30),
+    0 8px 24px rgba(0, 0, 0, 0.45),
+    0 20px 48px rgba(0, 0, 0, 0.32);
 
   /* Shadows */
   --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.4);
@@ -80,6 +103,9 @@
   --radius-lg: 16px;
   --radius-xl: 24px;
   --radius-full: 9999px;
+  /* iOS 26 glass radii: lg in [20,32] for main glass surfaces, sm in [8,16] for chips/buttons, always sm < lg (Req 1.2) */
+  --radius-glass-lg: 28px;
+  --radius-glass-sm: 12px;
 
   /* Transitions */
   --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
@@ -89,6 +115,36 @@
   /* Layout */
   --sidebar-width: 260px;
   --titlebar-height: 38px;
+}
+
+/* --- iOS 26 Glass Class Set (Bộ_Class_Glass) ---
+   Đúng ba class dùng chung; mọi thuộc tính nền/blur/viền/bo góc/shadow/specular
+   tham chiếu Token_Glass qua var(--token, fallback), không literal ngoài var() (Req 2.1, 2.2, 2.3, 2.8). */
+.glass-surface {
+  background: var(--glass-bg, rgba(12, 12, 12, 0.82));
+  backdrop-filter: var(--glass-blur, blur(18px));
+  -webkit-backdrop-filter: var(--glass-blur, blur(18px));
+  border: var(--glass-border, 1px solid rgba(255, 255, 255, 0.08));
+  box-shadow: var(--glass-specular, inset 0 1px 0 0 rgba(255, 255, 255, 0.16));
+}
+
+.glass-card {
+  background: var(--glass-bg, rgba(12, 12, 12, 0.82));
+  backdrop-filter: var(--glass-blur, blur(18px));
+  -webkit-backdrop-filter: var(--glass-blur, blur(18px));
+  border: var(--glass-border, 1px solid rgba(255, 255, 255, 0.08));
+  border-radius: var(--radius-glass-lg, 28px);
+  box-shadow: var(--glass-specular, inset 0 1px 0 0 rgba(255, 255, 255, 0.16)),
+              var(--glass-shadow, 0 8px 24px rgba(0, 0, 0, 0.45));
+}
+
+.glass-panel {
+  /* Bề mặt tĩnh: nền token đặc, KHÔNG backdrop-filter (Req 7.3) */
+  background: var(--color-bg-secondary, #0c0c0c);
+  border: var(--glass-border, 1px solid rgba(255, 255, 255, 0.08));
+  border-radius: var(--radius-glass-lg, 28px);
+  box-shadow: var(--glass-specular, inset 0 1px 0 0 rgba(255, 255, 255, 0.16)),
+              var(--glass-shadow, 0 8px 24px rgba(0, 0, 0, 0.45));
 }
 
 /* --- Reset & Base --- */
@@ -405,10 +461,6 @@ a:hover { color: var(--color-accent-primary); }
 }
 
 .stat-card {
-  background: var(--glass-bg);
-  backdrop-filter: var(--glass-blur);
-  border: var(--glass-border);
-  border-radius: var(--radius-lg);
   padding: var(--space-lg);
   transition: all var(--transition-base);
   position: relative;
@@ -471,10 +523,6 @@ a:hover { color: var(--color-accent-primary); }
 
 /* --- Cards & Panels --- */
 .card {
-  background: var(--glass-bg);
-  backdrop-filter: var(--glass-blur);
-  border: var(--glass-border);
-  border-radius: var(--radius-lg);
   padding: var(--space-lg);
 }
 
@@ -499,10 +547,6 @@ a:hover { color: var(--color-accent-primary); }
 }
 
 .ext-card {
-  background: var(--glass-bg);
-  backdrop-filter: var(--glass-blur);
-  border: var(--glass-border);
-  border-radius: var(--radius-lg);
   padding: var(--space-lg);
   transition: all var(--transition-base);
   cursor: pointer;
@@ -686,6 +730,44 @@ a:hover { color: var(--color-accent-primary); }
   cursor: default;
 }
 
+/* --- Shared presentation classes for inline-style removal (task 5.1) ---
+   Token-only; reference Hệ_Token only. Used by TSX sync tasks (6.x) so các
+   Màn_Hình/Component_Chung chỉ cần gắn className thay vì inline style trình bày.
+   (Req 4.1, 4.3) */
+
+/* Accent gradient button.
+   Replaces Marketplace.tsx inline: background 'linear-gradient(135deg, #636eff, #6c5ce7)',
+   color '#fff', border 'none' → routed to brand accent gradient token (Req 3.4, 4.3).
+   `.btn--accent` is already referenced in Marketplace.tsx (className="btn btn--accent"). */
+.btn--accent {
+  background: var(--color-accent-gradient);
+  color: white;
+  border: none;
+}
+.btn--accent:hover {
+  background: var(--color-accent-gradient-hover);
+  box-shadow: var(--shadow-glow);
+  transform: translateY(-1px);
+}
+
+/* OAuth / social full-width button.
+   Replaces Login.tsx inline: background 'rgba(255,255,255,0.06)' → --color-border (exact),
+   border 'rgba(255,255,255,0.12)' → --color-border-hover (exact), color '#e2e8f0' →
+   --color-text-primary; hover bg → --color-border-hover (replaces onMouseOver/onMouseOut). */
+.btn--oauth {
+  width: 100%;
+  background: var(--color-border);
+  border: 1px solid var(--color-border-hover);
+  color: var(--color-text-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+.btn--oauth:hover {
+  background: var(--color-border-hover);
+}
+
 /* --- Form Inputs --- */
 .input-group {
   margin-bottom: var(--space-lg);
@@ -817,16 +899,11 @@ a:hover { color: var(--color-accent-primary); }
 }
 
 .login-card {
-  background: var(--glass-bg);
-  backdrop-filter: var(--glass-blur);
-  border: var(--glass-border);
-  border-radius: var(--radius-xl);
   padding: var(--space-2xl);
   width: 100%;
   max-width: 420px;
   position: relative;
   z-index: 1;
-  box-shadow: var(--shadow-lg);
 }
 
 .login-card__logo {
@@ -988,6 +1065,11 @@ a:hover { color: var(--color-accent-primary); }
   font-size: var(--font-size-base);
   font-weight: 500;
   color: var(--color-text-primary);
+}
+
+.settings-item__value {
+  font-size: 14px;
+  color: var(--color-text-secondary);
 }
 
 .settings-item__description {
@@ -3422,42 +3504,85 @@ a:hover { color: var(--color-accent-primary); }
   .status-detail-list__item { flex-direction: column; align-items: flex-start; }
 }
 
-/* --- Phase 4-6 Overrides â€” izziapi.com brand --- */
+/* ═══════════════════════════════════════════════════════════════════════
+   izzi dark dev-tool theme — synced to izziapi.com (Linear-style)
+   Near-black surfaces, single cyan accent used sparingly, flat hairlines,
+   no glass blur. Re-themes the whole app from the token layer.
+   ═══════════════════════════════════════════════════════════════════════ */
 :root {
-  --color-bg-primary: #000000;
-  --color-bg-secondary: #0C0C0C;
-  --color-bg-tertiary: #141414;
-  --color-bg-elevated: #1a1a1a;
-  --color-bg-hover: #222222;
+  /* Off-black surfaces (no pure #000) on a tight elevation ladder */
+  --color-bg-primary: #08090c;     /* page */
+  --color-bg-secondary: #0c0e12;   /* sidebar / titlebar */
+  --color-bg-tertiary: #101319;    /* sunken wells */
+  --color-bg-elevated: #14171d;    /* cards / raised surfaces */
+  --color-bg-hover: #1a1e26;       /* hover wash */
+
+  /* Single locked accent: izzi cyan. No second hue — gradients collapse to mono cyan. */
   --color-accent-primary: #67e8f9;
-  --color-accent-secondary: #a78bfa;
-  --color-accent-glow: rgba(103, 232, 249, 0.22);
-  --color-accent-gradient: linear-gradient(135deg, #67e8f9 0%, #a78bfa 100%);
-  --color-accent-gradient-hover: linear-gradient(135deg, #7aecfc 0%, #b8a0fc 100%);
-  --color-text-primary: rgba(255, 255, 255, 0.92);
-  --color-text-secondary: rgba(255, 255, 255, 0.55);
-  --color-text-tertiary: rgba(255, 255, 255, 0.30);
-  --color-border: rgba(255, 255, 255, 0.06);
-  --color-border-hover: rgba(255, 255, 255, 0.12);
-  --color-border-accent: rgba(103, 232, 249, 0.35);
-  --glass-bg: rgba(12, 12, 12, 0.84);
-  --glass-border: 1px solid rgba(255, 255, 255, 0.06);
-  --shadow-glow: 0 0 22px rgba(103, 232, 249, 0.14);
+  --color-accent-secondary: #67e8f9;
+  --color-accent-cyan: #67e8f9;
+  --color-accent-purple: #67e8f9;
+  --color-accent-glow: rgba(103, 232, 249, 0.16);
+  --color-accent-purple-soft: #67e8f9;
+  /* Near-flat cyan "gradient" so existing gradient surfaces render as solid cyan */
+  --color-accent-gradient: linear-gradient(135deg, #67e8f9 0%, #22d3ee 100%);
+  --color-accent-gradient-hover: linear-gradient(135deg, #7df0fd 0%, #34dded 100%);
+
+  /* White → gray → dim text hierarchy */
+  --color-text-primary: rgba(255, 255, 255, 0.94);
+  --color-text-secondary: rgba(255, 255, 255, 0.56);
+  --color-text-tertiary: rgba(255, 255, 255, 0.34);
+  --color-text-accent: #67e8f9;
+
+  /* Hairline borders (dev-tool precision) */
+  --color-border: rgba(255, 255, 255, 0.07);
+  --color-border-hover: rgba(255, 255, 255, 0.14);
+  --color-border-accent: rgba(103, 232, 249, 0.40);
+
+  /* Status — sit on near-black */
+  --color-success: #34d399;
+  --color-success-bg: rgba(52, 211, 153, 0.12);
+  --color-warning: #fbbf24;
+  --color-warning-bg: rgba(251, 191, 36, 0.12);
+  --color-error: #f87171;
+  --color-error-bg: rgba(248, 113, 113, 0.12);
+  --color-info: #67e8f9;
+  --color-info-bg: rgba(103, 232, 249, 0.10);
+
+  /* "Glass" becomes a flat dark surface (no blur reliance) */
+  --glass-bg: rgba(18, 21, 27, 0.92);
+  --glass-blur-amount: 0px;
+  --glass-blur: blur(0px);
+  --glass-border: 1px solid rgba(255, 255, 255, 0.08);
+  --glass-specular: inset 0 1px 0 0 rgba(255, 255, 255, 0.05);
+  --glass-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.40),
+    0 12px 32px rgba(0, 0, 0, 0.50);
+
+  /* Flat shadows, tuned to near-black */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.45);
+  --shadow-md: 0 6px 18px rgba(0, 0, 0, 0.50);
+  --shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.55);
+  --shadow-glow: 0 0 0 3px rgba(103, 232, 249, 0.14);
+
+  /* Tight dev-tool radii */
+  --radius-glass-lg: 16px;
+  --radius-glass-sm: 10px;
 }
 
 body {
   background:
-    radial-gradient(circle at top right, rgba(103, 232, 249, 0.08), transparent 30%),
-    radial-gradient(circle at bottom left, rgba(59, 130, 246, 0.06), transparent 28%),
+    radial-gradient(circle at top right, rgba(103, 232, 249, 0.05), transparent 38%),
     var(--color-bg-primary);
 }
 
 .main-content {
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.02), transparent 16%);
+  background: linear-gradient(180deg, rgba(103, 232, 249, 0.03), transparent 14%);
 }
 
 .titlebar {
-  background: rgba(12, 12, 12, 0.96);
+  background: rgba(12, 14, 18, 0.96);
+  border-bottom: 1px solid var(--color-border);
 }
 
 .titlebar__logo {
@@ -3469,7 +3594,7 @@ body {
 .titlebar__logo-icon {
   width: 26px;
   height: 26px;
-  background: rgba(103, 232, 249, 0.12);
+  background: var(--color-info-bg);
   color: var(--color-accent-primary);
 }
 
@@ -3485,7 +3610,8 @@ body {
 }
 
 .sidebar {
-  background: rgba(12, 12, 12, 0.94);
+  background: rgba(12, 14, 18, 0.94);
+  border-right: 1px solid var(--color-border);
 }
 
 .sidebar__section-title {
@@ -4191,9 +4317,6 @@ body {
   align-items: center;
   gap: var(--space-sm);
   padding: var(--space-xl) var(--space-lg);
-  background: rgba(255,255,255,0.03);
-  border: 1px solid rgba(255,255,255,0.08);
-  border-radius: var(--radius-xl);
   cursor: pointer;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   overflow: hidden;
@@ -4204,19 +4327,17 @@ body {
 }
 
 .izzi-setup__mode-card:hover {
-  border-color: rgba(255,255,255,0.15);
+  border-color: var(--color-border-accent);
   transform: translateY(-4px);
-  box-shadow: 0 8px 32px rgba(0,0,0,0.3);
 }
 
 .izzi-setup__mode-card--express {
-  border-color: rgba(103, 232, 249, 0.2);
-  background: linear-gradient(160deg, rgba(103, 232, 249, 0.06), rgba(167, 139, 250, 0.04));
+  border-color: var(--color-border-accent);
 }
 
 .izzi-setup__mode-card--express:hover {
-  border-color: rgba(103, 232, 249, 0.4);
-  box-shadow: 0 0 40px rgba(103, 232, 249, 0.12), 0 8px 32px rgba(0,0,0,0.3);
+  border-color: var(--color-border-accent);
+  box-shadow: var(--glass-shadow), 0 0 40px var(--color-accent-glow);
 }
 
 .izzi-setup__mode-glow {
@@ -4269,9 +4390,6 @@ body {
 /* --- Management Panel --- */
 .izzi-setup__mgmt {
   padding: var(--space-lg);
-  background: rgba(255,255,255,0.02);
-  border: 1px solid rgba(255,255,255,0.06);
-  border-radius: var(--radius-lg);
 }
 
 .izzi-setup__mgmt-title {
@@ -4579,6 +4697,89 @@ body {
   border-color: var(--color-accent-primary);
   color: var(--color-accent-secondary);
   box-shadow: 0 0 12px rgba(103, 232, 249, 0.15);
+}
+
+/* --- Express Agent Picker --- */
+.izzi-setup__agent-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-sm);
+}
+
+@media (max-width: 720px) {
+  .izzi-setup__agent-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.izzi-setup__agent-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  padding: 14px;
+  text-align: left;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-elevated);
+  cursor: pointer;
+  transition: border-color var(--transition-fast), background var(--transition-fast), transform var(--transition-fast);
+  font-family: inherit;
+}
+
+.izzi-setup__agent-card:hover {
+  border-color: var(--color-border-hover);
+  transform: translateY(-2px);
+}
+
+.izzi-setup__agent-card--active {
+  border-color: var(--color-accent-primary);
+  background: rgba(103, 232, 249, 0.08);
+  box-shadow: 0 0 0 1px var(--color-accent-primary);
+}
+
+.izzi-setup__agent-tag {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  background: var(--color-info-bg);
+  color: var(--color-accent-primary);
+}
+
+.izzi-setup__agent-icon {
+  font-size: 26px;
+  line-height: 1;
+}
+
+.izzi-setup__agent-name {
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.izzi-setup__agent-desc {
+  font-size: 11px;
+  color: var(--color-text-secondary);
+  line-height: 1.45;
+}
+
+.izzi-setup__agent-runtime {
+  margin-top: 2px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.02em;
+  color: var(--color-text-tertiary);
+}
+
+.izzi-setup__agent-card--active .izzi-setup__agent-runtime {
+  color: var(--color-accent-secondary);
 }
 
 /* --- Link Button --- */
@@ -5042,3 +5243,796 @@ body {
     flex-direction: column;
   }
 }
+
+/* --- Marketplace/Store presentational classes (task 6.4) ---
+   Token-only layout/typography classes extracted from Marketplace.tsx inline
+   presentational styles (Req 4.1, 5.2c). Colors reference Hệ_Token; spacing/layout
+   px values carry over unchanged to preserve visual output (Req 4.6). No hex/rgb/
+   gradient literal outside var(). */
+.marketplace-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.marketplace-header__actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.marketplace-api-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+  font-size: 12px;
+}
+
+.marketplace-api-status__label {
+  color: var(--color-text-tertiary);
+}
+
+.marketplace-api-status__retry {
+  padding: 2px 8px;
+  font-size: 11px;
+}
+
+/* Status dot: static layout only; the dynamic status background (online/offline/
+   checking) stays inline and already references --color-success/-error/-warning. */
+.marketplace-api-status__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+/* Inline error banner. background/color use error tokens. The 8px radius and the
+   error-tinted border (rgba(255,107,107,0.2)) have no matching token, so they stay
+   inline + flagged in the TSX per Req 4.5. */
+.marketplace-error {
+  padding: 10px 14px;
+  background: var(--color-error-bg);
+  color: var(--color-error);
+  font-size: 13px;
+  margin-bottom: 16px;
+  border-radius: 8px;
+  border: 1px solid var(--color-error-border-soft);
+}
+
+/* Install toast: static layout only. The status-gradient background is dynamic
+   (varies by toast type) and its gradients/#fff/shadow/blur have no Hệ_Token tokens,
+   so those stay inline + flagged in TSX per Req 4.5. border-radius maps to the exact
+   glass small radius token (12px). */
+.marketplace-toast {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  padding: 14px 20px;
+  border-radius: var(--radius-glass-sm);
+  font-size: 13px;
+  font-weight: 500;
+  z-index: 9999;
+  animation: toast-slide-in 0.3s ease-out;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: 400px;
+}
+
+/* Toast loading spinner: static layout + spin animation. Ring colors (white-alpha
+   border, #fff top) have no token and stay inline + flagged in TSX. */
+.marketplace-toast__spinner {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+
+/* Toast close button: layout + token background. #fff icon color has no token and
+   stays inline + flagged in TSX. */
+.marketplace-toast__close {
+  background: var(--color-border-hover);
+  border: none;
+  border-radius: 50%;
+  width: 20px;
+  height: 20px;
+  font-size: 11px;
+  cursor: pointer;
+  margin-left: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.marketplace-controls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.filter-pills--flush {
+  margin-bottom: 0;
+}
+
+.marketplace-result-count {
+  font-size: 14px;
+  color: var(--color-text-tertiary);
+}
+
+.ext-card__header--clickable {
+  cursor: pointer;
+}
+
+.ext-card__actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.marketplace-pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  margin-top: 24px;
+  padding: 16px 0;
+}
+
+.marketplace-page-btn {
+  min-width: 36px;
+}
+
+/* --- Extensions page presentational classes (task 6.4) ---
+   Token-only layout/typography classes extracted from Extensions.tsx and
+   ExtensionDetail.tsx inline presentational styles (Req 4.1, 5.2c). Colors
+   reference Hệ_Token; spacing/layout px values carry over unchanged to preserve
+   visual output (Req 4.6). No hex/rgb/gradient literal outside var(). */
+
+/* Notification toast: fixed position + token-backed surfaces by type. The
+   `.notification-toast` base already exists above; these add layout + the
+   type-variant backgrounds/borders that were inline. */
+.notification-toast {
+  position: fixed;
+  top: 80px;
+  right: 24px;
+  z-index: 9999;
+  padding: 12px 20px;
+  border-radius: var(--radius-md);
+  color: var(--color-text-primary);
+  font-size: 14px;
+  animation: fadeIn 0.3s ease;
+}
+.notification-toast--info {
+  background: var(--color-info-bg);
+  border: 1px solid var(--color-border-accent);
+}
+.notification-toast--success {
+  background: var(--color-success-bg);
+  border: 1px solid var(--color-success);
+}
+.notification-toast--error {
+  background: var(--color-error-bg);
+  border: 1px solid var(--color-error);
+}
+
+/* Page-header split row (title block + actions) reused on Extensions header. */
+.page-header__split-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.extensions-running-count {
+  margin-left: 12px;
+  font-size: 13px;
+  color: var(--color-text-tertiary);
+}
+
+.extensions-header__actions {
+  display: flex;
+  gap: 8px;
+}
+
+/* Updates-panel header left cluster + per-item version label. */
+.ext-updates-panel__header-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.ext-updates-panel__item-name {
+  flex: 1;
+}
+.ext-updates-panel__item-version {
+  font-size: 12px;
+  color: var(--color-text-tertiary);
+}
+
+/* Loading card (spinner centered). */
+.ext-loading-card {
+  text-align: center;
+  padding: 48px;
+}
+.ext-loading-card__spinner {
+  margin: 0 auto 16px;
+}
+.ext-loading-card__text {
+  color: var(--color-text-secondary);
+}
+
+/* Empty-state action button row. */
+.ext-empty-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+/* Installed-extension card layout (runtime + legacy list rows). */
+.ext-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.ext-list-card__body {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+}
+.ext-list-card__icon {
+  width: 48px;
+  height: 48px;
+  font-size: 24px;
+  flex-shrink: 0;
+}
+.ext-list-card__info {
+  flex: 1;
+  min-width: 0;
+}
+.ext-list-card__title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+  flex-wrap: wrap;
+}
+.ext-list-card__name {
+  font-weight: 700;
+  font-size: 15px;
+}
+.ext-list-card__version {
+  font-size: 12px;
+  color: var(--color-text-tertiary);
+}
+.ext-list-card__desc {
+  font-size: 13px;
+  color: var(--color-text-secondary);
+  margin: 0 0 6px;
+}
+.ext-list-card__meta {
+  font-size: 12px;
+  color: var(--color-text-tertiary);
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.ext-list-card__perm {
+  cursor: pointer;
+  text-decoration: underline dotted;
+}
+.ext-list-card__crash {
+  color: var(--color-error);
+}
+.ext-list-card__actions {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+/* ExtensionDetail reviews empty-state icon. */
+.review-empty__icon {
+  font-size: 36px;
+}
+
+/* --- Developer Dashboard / Upload presentational classes (task 6.4) ---
+   Token-only layout/typography classes extracted from DeveloperDashboard.tsx and
+   DeveloperUpload.tsx inline presentational styles (Req 4.1, 5.2c). Colors
+   reference Hệ_Token; spacing/layout px values carry over unchanged (Req 4.6). */
+
+/* Header split row (title block + actions on opposite ends, top-aligned). */
+.page-header--split {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+/* Filter-pill trailing count badge. */
+.filter-pill__count {
+  margin-left: 6px;
+  font-size: 11px;
+  opacity: 0.7;
+}
+
+/* Dev-dashboard rating stars (warning-toned). */
+.dev-dash__ext-rating {
+  color: var(--color-warning);
+}
+
+/* Dev-upload: hidden native file input. */
+.dev-upload__file-input {
+  display: none;
+}
+
+/* Dev-upload: emoji glyph sizes (decorative, layout-only). */
+.dev-upload__success-glyph {
+  font-size: 48px;
+}
+.dev-upload__file-glyph {
+  font-size: 36px;
+}
+.dev-upload__drop-glyph {
+  font-size: 48px;
+  opacity: 0.5;
+}
+
+/* Dev-upload: register CTA spacing. */
+.dev-upload__register-btn {
+  margin-top: 8px;
+}
+
+/* --- Cost Dashboard presentational classes (task 6.5) ---
+   Replaces the in-file `styles` React.CSSProperties object in CostDashboard.tsx
+   (Req 4.1, 5.2c). All colors reference Hệ_Token; spacing/layout px carry over
+   unchanged (Req 4.6). Dynamic values (progress width, data-driven border color)
+   stay inline as Inline_Style_Động (Req 4.2). */
+.cost-dash {
+  padding: 24px 32px;
+  max-width: 960px;
+  margin: 0 auto;
+  font-family: var(--font-family);
+  color: var(--color-text-primary);
+}
+.cost-dash__loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  height: 300px;
+  color: var(--color-text-secondary);
+}
+.cost-dash__spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--color-border-hover);
+  border-top: 2px solid var(--color-accent-cyan);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+.cost-dash__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 24px;
+}
+.cost-dash__title {
+  font-size: 22px;
+  font-weight: 700;
+  margin: 0;
+  color: var(--color-text-primary);
+}
+.cost-dash__subtitle {
+  font-size: 13px;
+  color: var(--color-text-secondary);
+  margin-top: 4px;
+}
+.cost-dash__refresh-btn {
+  background: var(--color-info-bg);
+  border: 1px solid var(--color-border-accent);
+  color: var(--color-accent-cyan);
+  padding: 8px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+}
+.cost-dash__cards-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin-bottom: 24px;
+}
+.cost-dash__card {
+  background: var(--color-bg-secondary);
+  border-radius: 12px;
+  padding: 16px;
+  border: 1px solid var(--color-border);
+}
+.cost-dash__card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+.cost-dash__card-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+.cost-dash__badge {
+  font-size: 14px;
+}
+.cost-dash__progress-bg {
+  height: 6px;
+  background: var(--color-border);
+  border-radius: 3px;
+  margin-bottom: 10px;
+  overflow: hidden;
+}
+.cost-dash__progress-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.6s ease;
+}
+.cost-dash__card-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  margin-bottom: 4px;
+}
+.cost-dash__muted {
+  color: var(--color-text-tertiary);
+  font-size: 12px;
+}
+.cost-dash__stats-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin-bottom: 24px;
+}
+.cost-dash__stat-box {
+  text-align: center;
+  background: var(--color-bg-secondary);
+  border-radius: 12px;
+  padding: 16px 12px;
+  border: 1px solid var(--color-border);
+}
+.cost-dash__stat-value {
+  display: block;
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--color-accent-cyan);
+}
+.cost-dash__stat-label {
+  display: block;
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  margin-top: 4px;
+}
+.cost-dash__stat-sub {
+  display: block;
+  font-size: 11px;
+  color: var(--color-text-tertiary);
+  margin-top: 2px;
+}
+.cost-dash__section {
+  background: var(--color-bg-secondary);
+  border-radius: 12px;
+  padding: 20px;
+  border: 1px solid var(--color-border);
+  margin-bottom: 20px;
+}
+.cost-dash__section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+.cost-dash__section-title {
+  font-size: 15px;
+  font-weight: 600;
+  margin: 0;
+  color: var(--color-text-primary);
+}
+.cost-dash__model-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.cost-dash__model-row {
+  display: grid;
+  grid-template-columns: 1fr 120px 100px;
+  gap: 12px;
+  align-items: center;
+}
+.cost-dash__model-info {
+  display: flex;
+  flex-direction: column;
+}
+.cost-dash__model-name {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-text-primary);
+}
+.cost-dash__model-bar {
+  height: 6px;
+  background: var(--color-border);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.cost-dash__model-bar-fill {
+  height: 100%;
+  border-radius: 3px;
+  background: linear-gradient(90deg, var(--color-accent-purple-soft), var(--color-accent-purple));
+  transition: width 0.5s ease;
+}
+.cost-dash__model-cost {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  text-align: right;
+}
+.cost-dash__limits-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+.cost-dash__limit-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.cost-dash__limit-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+}
+.cost-dash__input-group {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--color-bg-secondary);
+  border-radius: 8px;
+  border: 1px solid var(--color-border-hover);
+  padding: 6px 10px;
+}
+.cost-dash__input-prefix {
+  color: var(--color-text-tertiary);
+  font-size: 13px;
+}
+.cost-dash__input {
+  background: transparent;
+  border: none;
+  color: var(--color-text-primary);
+  font-size: 14px;
+  width: 100%;
+  outline: none;
+}
+.cost-dash__limit-display {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 0;
+}
+.cost-dash__limit-value {
+  font-weight: 600;
+  color: var(--color-accent-cyan);
+}
+.cost-dash__edit-btn {
+  background: transparent;
+  border: 1px solid var(--color-border-hover);
+  color: var(--color-text-secondary);
+  padding: 6px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 12px;
+}
+.cost-dash__edit-actions {
+  display: flex;
+  gap: 8px;
+}
+.cost-dash__save-btn {
+  background: var(--color-info-bg);
+  border: 1px solid var(--color-border-accent);
+  color: var(--color-accent-cyan);
+  padding: 6px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 12px;
+}
+.cost-dash__cancel-btn {
+  background: transparent;
+  border: 1px solid var(--color-border-hover);
+  color: var(--color-text-secondary);
+  padding: 6px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 12px;
+}
+.cost-dash__advice-box {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+  background: var(--color-bg-secondary);
+  border-radius: 12px;
+  border: 1px solid var(--color-border);
+  font-size: 14px;
+  color: var(--color-text-primary);
+}
+.cost-dash__advice-icon {
+  font-size: 20px;
+}
+.cost-dash__empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 300px;
+  gap: 12px;
+  color: var(--color-text-tertiary);
+}
+.cost-dash__empty-icon {
+  font-size: 48px;
+}
+
+/* --- Login presentational classes (task 6.2 follow-up) ---
+   Token-only; removes the last Inline_Style_Trình_Bày from Login.tsx (Req 4.1,
+   5.2c). The slate fineprint and success-banner border use Req 4.5 tokens added
+   to :root above so the exact original hue is preserved (Req 4.6). */
+.btn--full {
+  width: 100%;
+}
+.login-card__success-banner {
+  padding: 12px 16px;
+  border-radius: 8px;
+  background: var(--color-success-bg);
+  border: 1px solid var(--color-success-border-soft);
+  color: var(--color-success);
+  font-size: 13px;
+  margin-bottom: 16px;
+  text-align: center;
+}
+.login-card__fineprint {
+  margin-top: 8px;
+  text-align: center;
+  font-size: 11px;
+  color: var(--color-text-fineprint);
+}
+.login-card__fineprint-dim {
+  margin-top: 3px;
+  color: var(--color-text-fineprint-dim);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   izzi dark dev-tool — typographic + surface layer (cascade-final)
+   Condensed grotesk uppercase display, mono numerals/labels, flat dark
+   surfaces, single cyan accent. No glass, no blur.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+:root {
+  /* Condensed grotesk for display; Geist/Inter stays for UI/body. Mono for labels + numbers. */
+  --font-display: 'Geist', 'Inter Tight', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+/* Condensed uppercase display for page + section + card titles (dev-tool voice) */
+.page-header__title,
+.section-header__title,
+.card__title,
+.login-card__logo h1,
+.chat-page__title,
+.agent-store__title,
+.izzi-setup__hero-title,
+.cost-dash__title,
+.ext-detail__name,
+.empty-state__title {
+  font-family: var(--font-display);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+/* Eyebrows + numeric meta read as mono labels */
+.page-header__eyebrow,
+.chat-page__eyebrow,
+.onboarding-modal__eyebrow,
+.chat-empty-state__eyebrow,
+.chat-session-card__label,
+.meta-caption {
+  font-family: var(--font-mono);
+}
+
+/* Restore the izzi cyan→purple display gradient on the setup hero word */
+.izzi-setup__hero-gradient {
+  background: linear-gradient(135deg, #67e8f9 0%, #a78bfa 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+}
+
+/* Flat cyan focus ring (no glow blur) */
+*:focus-visible {
+  outline: 2px solid var(--color-accent-primary);
+  outline-offset: 2px;
+}
+
+/* Buttons: flat, crisp press */
+.btn--primary,
+.btn--accent {
+  box-shadow: none;
+}
+.btn--primary:hover,
+.btn--accent:hover {
+  box-shadow: var(--shadow-sm);
+  transform: translateY(-1px);
+}
+
+/* Sidebar active item: cyan block marker instead of soft glow */
+.sidebar__item--active {
+  background: var(--color-info-bg);
+  color: var(--color-accent-primary);
+  position: relative;
+}
+.sidebar__item--active::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 60%;
+  background: var(--color-accent-primary);
+}
+
+/* Titlebar hairline */
+.titlebar {
+  border-bottom: 1px solid var(--color-border) !important;
+}
+
+/* Scrollbar on near-black */
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.14);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.24);
+}
+
+/* App loader: near-black page surface */
+.app-loader-paper {
+  background: var(--color-bg-primary) !important;
+}
+
+/* Setup mode-cards: flat paper tiles with a Bauhaus geometric corner accent */
+.izzi-setup__mode-card {
+  background: var(--color-bg-elevated);
+  border: 1px solid var(--color-border);
+  box-shadow: var(--shadow-sm);
+}
+.izzi-setup__mode-card:hover {
+  box-shadow: var(--shadow-md);
+  border-color: var(--color-border-hover);
+}
+.izzi-setup__mode-card--express {
+  border-color: var(--color-border-accent);
+}
+
+/* Agent/feature cards: flat raised paper, sharp hairline */
+.glass-card,
+.glass-panel,
+.glass-surface {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+.glass-card {
+  background: var(--color-bg-elevated);
+}
+.glass-panel {
+  background: var(--color-bg-secondary);
+}
+
+/* Tighten heading scale a touch — Bauhaus is restrained, not shouty */
+.page-header__title { letter-spacing: -0.015em; }

@@ -258,7 +258,7 @@ export function AgentStorePage() {
           </p>
           <div className="agent-hub__top-grid">
             {externalAgents.map((agent) => (
-              <div key={agent.id} className="agent-hub__top-card">
+              <div key={agent.id} className="agent-hub__top-card glass-card">
                 <span className={`agent-hub__top-card-status agent-hub__top-card-status--${agent.status}`}>
                   {agent.status === 'running' ? '🟢 Running' :
                    agent.status === 'stopped' ? '🟡 Stopped' :
@@ -379,7 +379,7 @@ export function AgentStorePage() {
             {filteredAgents.map((agent) => (
               <div
                 key={agent.id}
-                className={`agent-card ${agent.featured ? 'agent-card--featured' : ''}`}
+                className={`agent-card glass-card ${agent.featured ? 'agent-card--featured' : ''}`}
                 onClick={() => setSelectedAgent(agent)}
               >
                 {/* Card Header */}
@@ -929,11 +929,11 @@ function InstalledAgentsPanel({ agents, onRefresh }: {
   }
 
   const statusLabels: Record<string, { label: string; color: string }> = {
-    active: { label: '🟢 Đang hoạt động', color: '#22c55e' },
-    paused: { label: '⏸️ Tạm dừng', color: '#eab308' },
-    configuring: { label: '⚙️ Đang cấu hình', color: '#3b82f6' },
-    error: { label: '🔴 Lỗi', color: '#ef4444' },
-    stopped: { label: '⏹️ Đã dừng', color: '#6b7280' },
+    active: { label: '🟢 Đang hoạt động', color: 'var(--color-success)' },
+    paused: { label: '⏸️ Tạm dừng', color: 'var(--color-warning)' },
+    configuring: { label: '⚙️ Đang cấu hình', color: 'var(--color-info)' },
+    error: { label: '🔴 Lỗi', color: 'var(--color-error)' },
+    stopped: { label: '⏹️ Đã dừng', color: 'var(--color-text-tertiary)' },
   };
 
   return (

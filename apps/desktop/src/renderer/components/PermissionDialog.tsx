@@ -20,9 +20,9 @@ interface PermissionDialogProps {
 }
 
 const RISK_COLORS: Record<string, string> = {
-  low: '#22c55e',
-  medium: '#f59e0b',
-  high: '#ef4444',
+  low: 'var(--color-success)',
+  medium: 'var(--color-warning)',
+  high: 'var(--color-error)',
 };
 
 const RISK_LABELS: Record<string, string> = {
@@ -80,7 +80,7 @@ export function PermissionDialog({
 
   return (
     <div className="permission-overlay">
-      <div className="permission-dialog animate-in">
+      <div className="permission-dialog glass-card animate-in">
         {/* Header */}
         <div className="permission-dialog__header">
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>

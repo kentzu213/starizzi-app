@@ -46,7 +46,7 @@ export function UpdateBanner({
   }
 
   return (
-    <div className={`update-banner update-banner--${updaterState.state}`}>
+    <div className={`update-banner glass-panel update-banner--${updaterState.state}`}>
       <div className="update-banner__copy">
         <strong>Desktop update</strong>
         <span>{message}</span>

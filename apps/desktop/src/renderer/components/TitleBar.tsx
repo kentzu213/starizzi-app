@@ -7,7 +7,7 @@ export function TitleBar() {
   const handleClose = () => window.electronAPI?.window.close();
 
   return (
-    <div className="titlebar">
+    <div className="titlebar glass-surface">
       <div className="titlebar__logo">
         <div className="titlebar__logo-icon">
           <AppLogoMark />

@@ -29,6 +29,22 @@ interface CostDashboardPageProps {
   t: any; // Translation object
 }
 
+// ── Helpers ──
+
+/** Status color token for a budget period, by usage level. */
+function periodColor(data: BudgetPeriod): string {
+  if (data.exceeded) return 'var(--color-error)';
+  if (data.percent >= 80) return 'var(--color-warning)';
+  return 'var(--color-success)';
+}
+
+/** Progress-fill background token: solid until 80%, gradient when healthy. */
+function periodFillBackground(data: BudgetPeriod): string {
+  if (data.exceeded) return 'var(--color-error)';
+  if (data.percent >= 80) return 'var(--color-warning)';
+  return 'linear-gradient(90deg, var(--color-success), var(--color-accent-cyan))';
+}
+
 // ── Component ──
 
 export function CostDashboardPage({ t }: CostDashboardPageProps) {
@@ -86,9 +102,9 @@ export function CostDashboardPage({ t }: CostDashboardPageProps) {
 
   if (loading) {
     return (
-      <div style={styles.container}>
-        <div style={styles.loading}>
-          <div style={styles.spinner} />
+      <div className="cost-dash">
+        <div className="cost-dash__loading">
+          <div className="cost-dash__spinner" />
           <span>{t?.app?.loading || 'Loading...'}</span>
         </div>
       </div>
@@ -97,10 +113,10 @@ export function CostDashboardPage({ t }: CostDashboardPageProps) {
 
   if (!status) {
     return (
-      <div style={styles.container}>
-        <h2 style={styles.title}>{t?.cost?.dashboardTitle || '💰 Cost Management'}</h2>
-        <div style={styles.emptyState}>
-          <span style={styles.emptyIcon}>📊</span>
+      <div className="cost-dash">
+        <h2 className="cost-dash__title">{t?.cost?.dashboardTitle || '💰 Cost Management'}</h2>
+        <div className="cost-dash__empty-state">
+          <span className="cost-dash__empty-icon">📊</span>
           <p>{t?.cost?.noData || 'No spending data yet'}</p>
         </div>
       </div>
@@ -124,83 +140,86 @@ export function CostDashboardPage({ t }: CostDashboardPageProps) {
     .sort(([, a], [, b]) => b.costUSD - a.costUSD);
 
   return (
-    <div style={styles.container}>
+    <div className="cost-dash">
       {/* ── Header ── */}
-      <div style={styles.header}>
+      <div className="cost-dash__header">
         <div>
-          <h2 style={styles.title}>{t?.cost?.dashboardTitle || '💰 Cost Management'}</h2>
-          <p style={styles.subtitle}>{t?.cost?.dashboardDesc || 'Track spending and optimize your AI budget'}</p>
+          <h2 className="cost-dash__title">{t?.cost?.dashboardTitle || '💰 Cost Management'}</h2>
+          <p className="cost-dash__subtitle">{t?.cost?.dashboardDesc || 'Track spending and optimize your AI budget'}</p>
         </div>
-        <button style={styles.refreshBtn} onClick={() => void loadData()}>
+        <button className="cost-dash__refresh-btn" onClick={() => void loadData()}>
           🔄 {t?.app?.refresh || 'Refresh'}
         </button>
       </div>
 
       {/* ── Budget Cards ── */}
-      <div style={styles.cardsGrid}>
+      <div className="cost-dash__cards-grid">
         {periods.map(({ key, data }) => (
-          <div key={key} style={{
-            ...styles.card,
-            borderLeft: `4px solid ${data.exceeded ? '#ef4444' : data.percent >= 80 ? '#f59e0b' : '#4ade80'}`,
-          }}>
-            <div style={styles.cardHeader}>
-              <span style={styles.cardLabel}>{periodLabels[key]}</span>
-              {data.exceeded && <span style={styles.badge}>⚠️</span>}
+          <div
+            key={key}
+            className="glass-card cost-dash__card"
+            style={{ borderLeft: `4px solid ${periodColor(data)}` }}
+          >
+            <div className="cost-dash__card-header">
+              <span className="cost-dash__card-label">{periodLabels[key]}</span>
+              {data.exceeded && <span className="cost-dash__badge">⚠️</span>}
             </div>
             {/* Progress bar */}
-            <div style={styles.progressBg}>
-              <div style={{
-                ...styles.progressFill,
-                width: `${Math.min(data.percent, 100)}%`,
-                background: data.exceeded ? '#ef4444' : data.percent >= 80 ? '#f59e0b' : 'linear-gradient(90deg, #4ade80, #22d3ee)',
-              }} />
+            <div className="cost-dash__progress-bg">
+              <div
+                className="cost-dash__progress-fill"
+                style={{
+                  width: `${Math.min(data.percent, 100)}%`,
+                  background: periodFillBackground(data),
+                }}
+              />
             </div>
-            <div style={styles.cardRow}>
+            <div className="cost-dash__card-row">
               <span>{t?.cost?.spent || 'Spent'}: <strong>{fmtUSD(data.used)}</strong></span>
               <span>{fmtPercent(data.percent)}</span>
             </div>
-            <div style={styles.cardRow}>
-              <span style={styles.muted}>{t?.cost?.limit || 'Limit'}: {fmtUSD(data.limit)}</span>
-              <span style={styles.muted}>{t?.cost?.remaining || 'Remaining'}: {fmtUSD(Math.max(0, data.limit - data.used))}</span>
+            <div className="cost-dash__card-row">
+              <span className="cost-dash__muted">{t?.cost?.limit || 'Limit'}: {fmtUSD(data.limit)}</span>
+              <span className="cost-dash__muted">{t?.cost?.remaining || 'Remaining'}: {fmtUSD(Math.max(0, data.limit - data.used))}</span>
             </div>
           </div>
         ))}
       </div>
 
       {/* ── Summary Stats ── */}
-      <div style={styles.statsRow}>
-        <div style={styles.statBox}>
-          <span style={styles.statValue}>{fmtUSD(status.totalSpent)}</span>
-          <span style={styles.statLabel}>{t?.cost?.totalSpent || 'Total Spent'}</span>
-          <span style={styles.statSub}>{fmtVND(status.totalSpent)}</span>
+      <div className="cost-dash__stats-row">
+        <div className="cost-dash__stat-box">
+          <span className="cost-dash__stat-value">{fmtUSD(status.totalSpent)}</span>
+          <span className="cost-dash__stat-label">{t?.cost?.totalSpent || 'Total Spent'}</span>
+          <span className="cost-dash__stat-sub">{fmtVND(status.totalSpent)}</span>
         </div>
-        <div style={styles.statBox}>
-          <span style={styles.statValue}>{status.totalRequests}</span>
-          <span style={styles.statLabel}>{t?.cost?.requests || 'Requests'}</span>
+        <div className="cost-dash__stat-box">
+          <span className="cost-dash__stat-value">{status.totalRequests}</span>
+          <span className="cost-dash__stat-label">{t?.cost?.requests || 'Requests'}</span>
         </div>
-        <div style={styles.statBox}>
-          <span style={styles.statValue}>{fmtUSD(status.avgCostPerRequest)}</span>
-          <span style={styles.statLabel}>{t?.cost?.avgPerRequest || 'Avg/Request'}</span>
+        <div className="cost-dash__stat-box">
+          <span className="cost-dash__stat-value">{fmtUSD(status.avgCostPerRequest)}</span>
+          <span className="cost-dash__stat-label">{t?.cost?.avgPerRequest || 'Avg/Request'}</span>
         </div>
       </div>
 
       {/* ── Model Breakdown ── */}
       {modelEntries.length > 0 && (
-        <div style={styles.section}>
-          <h3 style={styles.sectionTitle}>{t?.cost?.modelUsage || 'Usage by Model'}</h3>
-          <div style={styles.modelList}>
+        <div className="cost-dash__section">
+          <h3 className="cost-dash__section-title">{t?.cost?.modelUsage || 'Usage by Model'}</h3>
+          <div className="cost-dash__model-list">
             {modelEntries.map(([modelId, { count, costUSD }]) => {
               const pct = status.monthly.used > 0 ? Math.round((costUSD / status.monthly.used) * 100) : 0;
               return (
-                <div key={modelId} style={styles.modelRow}>
-                  <div style={styles.modelInfo}>
-                    <span style={styles.modelName}>{modelId}</span>
-                    <span style={styles.muted}>{count} {t?.cost?.requests || 'requests'}</span>
+                <div key={modelId} className="cost-dash__model-row">
+                  <div className="cost-dash__model-info">
+                    <span className="cost-dash__model-name">{modelId}</span>
+                    <span className="cost-dash__muted">{count} {t?.cost?.requests || 'requests'}</span>
                   </div>
-                  <div style={styles.modelBar}>
-                    <div style={{ ...styles.modelBarFill, width: `${pct}%` }} />
+                  <div className="cost-dash__model-bar">
+                    <div className="cost-dash__model-bar-fill" style={{ width: `${pct}%` }} />
                   </div>
-                  <span style={styles.modelCost}>{fmtUSD(costUSD)} ({pct}%)</span>
+                  <span className="cost-dash__model-cost">{fmtUSD(costUSD)} ({pct}%)</span>
                 </div>
               );
             })}
@@ -209,17 +228,17 @@ export function CostDashboardPage({ t }: CostDashboardPageProps) {
       )}
 
       {/* ── Budget Limits Editor ── */}
-      <div style={styles.section}>
-        <div style={styles.sectionHeader}>
-          <h3 style={styles.sectionTitle}>{t?.cost?.alertSettings || 'Alert Settings'}</h3>
+      <div className="cost-dash__section">
+        <div className="cost-dash__section-header">
+          <h3 className="cost-dash__section-title">{t?.cost?.alertSettings || 'Alert Settings'}</h3>
           {!editing ? (
-            <button style={styles.editBtn} onClick={() => setEditing(true)}>
+            <button className="cost-dash__edit-btn" onClick={() => setEditing(true)}>
               ✏️ {t?.app?.edit || 'Edit'}
             </button>
           ) : (
-            <div style={{ display: 'flex', gap: 8 }}>
-              <button style={styles.saveBtn} onClick={saveLimits}>💾 {t?.app?.save || 'Save'}</button>
-              <button style={styles.cancelBtn} onClick={() => { setEditing(false); setEditLimits(limits); }}>
+            <div className="cost-dash__edit-actions">
+              <button className="cost-dash__save-btn" onClick={saveLimits}>💾 {t?.app?.save || 'Save'}</button>
+              <button className="cost-dash__cancel-btn" onClick={() => { setEditing(false); setEditLimits(limits); }}>
                 {t?.app?.cancel || 'Cancel'}
               </button>
             </div>
@@ -227,30 +246,30 @@ export function CostDashboardPage({ t }: CostDashboardPageProps) {
         </div>
 
         {editing ? (
-          <div style={styles.limitsGrid}>
+          <div className="cost-dash__limits-grid">
             {(['daily', 'weekly', 'monthly'] as const).map(key => (
-              <div key={key} style={styles.limitField}>
-                <label style={styles.limitLabel}>{periodLabels[key]}</label>
-                <div style={styles.inputGroup}>
-                  <span style={styles.inputPrefix}>$</span>
+              <div key={key} className="cost-dash__limit-field">
+                <label className="cost-dash__limit-label">{periodLabels[key]}</label>
+                <div className="cost-dash__input-group">
+                  <span className="cost-dash__input-prefix">$</span>
                   <input
                     type="number"
                     min="0"
                     step="0.5"
                     value={editLimits[key]}
                     onChange={e => setEditLimits({ ...editLimits, [key]: parseFloat(e.target.value) || 0 })}
-                    style={styles.input}
+                    className="cost-dash__input"
                   />
                 </div>
               </div>
             ))}
           </div>
         ) : (
-          <div style={styles.limitsGrid}>
+          <div className="cost-dash__limits-grid">
             {(['daily', 'weekly', 'monthly'] as const).map(key => (
-              <div key={key} style={styles.limitDisplay}>
-                <span style={styles.muted}>{periodLabels[key]}:</span>
-                <span style={styles.limitValue}>{fmtUSD(limits[key])}</span>
+              <div key={key} className="cost-dash__limit-display">
+                <span className="cost-dash__muted">{periodLabels[key]}:</span>
+                <span className="cost-dash__limit-value">{fmtUSD(limits[key])}</span>
               </div>
             ))}
           </div>
@@ -259,11 +278,18 @@ export function CostDashboardPage({ t }: CostDashboardPageProps) {
 
       {/* ── Subscription Advice ── */}
       {advice && (
-        <div style={{
-          ...styles.adviceBox,
-          borderColor: advice.tier === 'max' ? '#f59e0b' : advice.tier === 'pro' ? '#22d3ee' : '#4ade80',
-        }}>
-          <span style={styles.adviceIcon}>
+        <div
+          className="cost-dash__advice-box"
+          style={{
+            // data-driven border color routed to Hệ_Token (Req 4.3)
+            borderColor: advice.tier === 'max'
+              ? 'var(--color-warning)'
+              : advice.tier === 'pro'
+                ? 'var(--color-accent-cyan)'
+                : 'var(--color-success)',
+          }}
+        >
+          <span className="cost-dash__advice-icon">
             {advice.tier === 'max' ? '🚀' : advice.tier === 'pro' ? '⭐' : '✅'}
           </span>
           <span>{advice.reasonVi || t?.cost?.subscriptionAdvice?.[advice.tier] || ''}</span>
@@ -272,175 +298,3 @@ export function CostDashboardPage({ t }: CostDashboardPageProps) {
     </div>
   );
 }
-
-// ── Styles ──
-
-const styles: Record<string, React.CSSProperties> = {
-  container: {
-    padding: '24px 32px',
-    maxWidth: 960,
-    margin: '0 auto',
-    fontFamily: '"Inter", "Segoe UI", sans-serif',
-    color: '#e2e8f0',
-  },
-  loading: {
-    display: 'flex', alignItems: 'center', justifyContent: 'center',
-    gap: 12, height: 300, color: '#94a3b8',
-  },
-  spinner: {
-    width: 20, height: 20, border: '2px solid rgba(255,255,255,0.1)',
-    borderTop: '2px solid #22d3ee', borderRadius: '50%',
-    animation: 'spin 1s linear infinite',
-  },
-  header: {
-    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-    marginBottom: 24,
-  },
-  title: {
-    fontSize: 22, fontWeight: 700, margin: 0, color: '#f1f5f9',
-  },
-  subtitle: {
-    fontSize: 13, color: '#94a3b8', marginTop: 4,
-  },
-  refreshBtn: {
-    background: 'rgba(34,211,238,0.1)', border: '1px solid rgba(34,211,238,0.3)',
-    color: '#22d3ee', padding: '8px 16px', borderRadius: 8, cursor: 'pointer',
-    fontSize: 13, fontWeight: 500,
-  },
-  cardsGrid: {
-    display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginBottom: 24,
-  },
-  card: {
-    background: 'rgba(15,23,42,0.6)', borderRadius: 12, padding: 16,
-    border: '1px solid rgba(255,255,255,0.06)',
-  },
-  cardHeader: {
-    display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12,
-  },
-  cardLabel: {
-    fontSize: 14, fontWeight: 600, color: '#cbd5e1',
-  },
-  badge: {
-    fontSize: 14,
-  },
-  progressBg: {
-    height: 6, background: 'rgba(255,255,255,0.06)', borderRadius: 3,
-    marginBottom: 10, overflow: 'hidden',
-  },
-  progressFill: {
-    height: '100%', borderRadius: 3, transition: 'width 0.6s ease',
-  },
-  cardRow: {
-    display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 4,
-  },
-  muted: {
-    color: '#64748b', fontSize: 12,
-  },
-  statsRow: {
-    display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginBottom: 24,
-  },
-  statBox: {
-    textAlign: 'center' as const, background: 'rgba(15,23,42,0.4)',
-    borderRadius: 12, padding: '16px 12px',
-    border: '1px solid rgba(255,255,255,0.06)',
-  },
-  statValue: {
-    display: 'block', fontSize: 20, fontWeight: 700, color: '#22d3ee',
-  },
-  statLabel: {
-    display: 'block', fontSize: 12, color: '#94a3b8', marginTop: 4,
-  },
-  statSub: {
-    display: 'block', fontSize: 11, color: '#64748b', marginTop: 2,
-  },
-  section: {
-    background: 'rgba(15,23,42,0.4)', borderRadius: 12, padding: 20,
-    border: '1px solid rgba(255,255,255,0.06)', marginBottom: 20,
-  },
-  sectionHeader: {
-    display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16,
-  },
-  sectionTitle: {
-    fontSize: 15, fontWeight: 600, margin: 0, color: '#cbd5e1',
-  },
-  modelList: {
-    display: 'flex', flexDirection: 'column' as const, gap: 10,
-  },
-  modelRow: {
-    display: 'grid', gridTemplateColumns: '1fr 120px 100px', gap: 12, alignItems: 'center',
-  },
-  modelInfo: {
-    display: 'flex', flexDirection: 'column' as const,
-  },
-  modelName: {
-    fontSize: 13, fontWeight: 500, color: '#e2e8f0',
-  },
-  modelBar: {
-    height: 6, background: 'rgba(255,255,255,0.06)', borderRadius: 3, overflow: 'hidden',
-  },
-  modelBarFill: {
-    height: '100%', borderRadius: 3,
-    background: 'linear-gradient(90deg, #818cf8, #c084fc)',
-    transition: 'width 0.5s ease',
-  },
-  modelCost: {
-    fontSize: 12, color: '#94a3b8', textAlign: 'right' as const,
-  },
-  limitsGrid: {
-    display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16,
-  },
-  limitField: {
-    display: 'flex', flexDirection: 'column' as const, gap: 6,
-  },
-  limitLabel: {
-    fontSize: 12, fontWeight: 500, color: '#94a3b8',
-  },
-  inputGroup: {
-    display: 'flex', alignItems: 'center', gap: 4,
-    background: 'rgba(15,23,42,0.6)', borderRadius: 8,
-    border: '1px solid rgba(255,255,255,0.1)', padding: '6px 10px',
-  },
-  inputPrefix: {
-    color: '#64748b', fontSize: 13,
-  },
-  input: {
-    background: 'transparent', border: 'none', color: '#e2e8f0',
-    fontSize: 14, width: '100%', outline: 'none',
-  },
-  limitDisplay: {
-    display: 'flex', justifyContent: 'space-between', padding: '8px 0',
-  },
-  limitValue: {
-    fontWeight: 600, color: '#22d3ee',
-  },
-  editBtn: {
-    background: 'transparent', border: '1px solid rgba(255,255,255,0.1)',
-    color: '#94a3b8', padding: '6px 12px', borderRadius: 6, cursor: 'pointer',
-    fontSize: 12,
-  },
-  saveBtn: {
-    background: 'rgba(34,211,238,0.15)', border: '1px solid rgba(34,211,238,0.3)',
-    color: '#22d3ee', padding: '6px 12px', borderRadius: 6, cursor: 'pointer',
-    fontSize: 12,
-  },
-  cancelBtn: {
-    background: 'transparent', border: '1px solid rgba(255,255,255,0.1)',
-    color: '#94a3b8', padding: '6px 12px', borderRadius: 6, cursor: 'pointer',
-    fontSize: 12,
-  },
-  adviceBox: {
-    display: 'flex', alignItems: 'center', gap: 12, padding: 16,
-    background: 'rgba(15,23,42,0.4)', borderRadius: 12,
-    border: '1px solid', fontSize: 14, color: '#cbd5e1',
-  },
-  adviceIcon: {
-    fontSize: 20,
-  },
-  emptyState: {
-    display: 'flex', flexDirection: 'column' as const, alignItems: 'center',
-    justifyContent: 'center', height: 300, gap: 12, color: '#64748b',
-  },
-  emptyIcon: {
-    fontSize: 48,
-  },
-};

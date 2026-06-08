@@ -92,7 +92,7 @@ function MemoryGrid({
   return (
     <div className="memory-grid">
       {memories.map((memory) => (
-        <article key={memory.id} className="memory-card">
+        <article key={memory.id} className="memory-card glass-card">
           <div className="memory-card__meta">
             <span className="memory-card__kind">{memory.kind}</span>
             <span>{new Date(memory.updatedAt).toLocaleString('vi-VN')}</span>

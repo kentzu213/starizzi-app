@@ -6,7 +6,7 @@ import React from 'react';
  */
 export function SkeletonCard() {
   return (
-    <div className="skeleton-card" aria-hidden="true">
+    <div className="skeleton-card glass-card" aria-hidden="true">
       <div className="skeleton-card__icon skeleton-pulse" />
       <div className="skeleton-card__body">
         <div className="skeleton-card__title skeleton-pulse" />
@@ -36,7 +36,7 @@ export function SkeletonGrid({ count = 6 }: { count?: number }) {
  */
 export function SkeletonStatCard() {
   return (
-    <div className="skeleton-stat" aria-hidden="true">
+    <div className="skeleton-stat glass-card" aria-hidden="true">
       <div className="skeleton-stat__icon skeleton-pulse" />
       <div className="skeleton-stat__value skeleton-pulse" />
       <div className="skeleton-stat__label skeleton-pulse" />

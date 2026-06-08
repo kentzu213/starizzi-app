@@ -16,7 +16,7 @@ export function ChatEmptyState({
   onFinishSetup?: () => void;
 }) {
   return (
-    <div className="chat-empty-state">
+    <div className="chat-empty-state glass-panel">
       <div className="chat-empty-state__eyebrow">Managed Runner</div>
       <h2 className="chat-empty-state__title">Giao việc cho Izzi OpenClaw agent</h2>
       <p className="chat-empty-state__description">

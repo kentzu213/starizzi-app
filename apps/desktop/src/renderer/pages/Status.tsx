@@ -34,25 +34,25 @@ export function StatusPage() {
       </div>
 
       <div className="status-overview">
-        <div className="status-overview__card">
+        <div className="status-overview__card glass-card">
           <div className="status-overview__label">Current runner state</div>
           <AgentStatusBadge state={runtimeState.state} detail={runtimeState.lastError} />
         </div>
-        <div className="status-overview__card">
+        <div className="status-overview__card glass-card">
           <div className="status-overview__label">Current session</div>
           <div className="status-overview__value">{session?.title || 'Chưa có session'}</div>
         </div>
-        <div className="status-overview__card">
+        <div className="status-overview__card glass-card">
           <div className="status-overview__label">Stored tasks</div>
           <div className="status-overview__value">{tasks.length}</div>
         </div>
-        <div className="status-overview__card">
+        <div className="status-overview__card glass-card">
           <div className="status-overview__label">Stored memories</div>
           <div className="status-overview__value">{memories.length}</div>
         </div>
       </div>
 
-      <div className="card section-gap">
+      <div className="card glass-card section-gap">
         <div className="card__header">
           <h3 className="card__title">Recent run</h3>
         </div>
@@ -72,7 +72,7 @@ export function StatusPage() {
         </div>
       </div>
 
-      <div className="card section-gap">
+      <div className="card glass-card section-gap">
         <div className="card__header">
           <h3 className="card__title">Desktop updates</h3>
           <div className="action-row">
@@ -112,7 +112,7 @@ export function StatusPage() {
         {updaterState.error && <div className="status-inline-error">{updaterState.error}</div>}
       </div>
 
-      <div className="card">
+      <div className="card glass-card">
         <div className="card__header">
           <h3 className="card__title">Diagnostics</h3>
           <button className="btn btn--ghost btn--sm" onClick={() => void refreshDiagnostics(30)}>

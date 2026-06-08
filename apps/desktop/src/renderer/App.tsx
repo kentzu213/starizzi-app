@@ -324,11 +324,10 @@ export function App() {
 
   if (isLoading) {
     return (
-      <div style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#000' }}>
+      <div className="app-loader-paper" style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <div style={{
           width: 56,
           height: 56,
-          filter: 'drop-shadow(0 0 16px rgba(103, 232, 249, 0.4))',
           animation: 'pulse 2s ease-in-out infinite',
         }}>
           <AppLogoMark />

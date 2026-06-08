@@ -77,7 +77,7 @@ export function UpdateNotification({ updaterState, onDownload, onRestart }: Upda
 
   return (
     <div className="update-notification-overlay" onClick={handleDismiss}>
-      <div className="update-notification" onClick={(e) => e.stopPropagation()}>
+      <div className="update-notification glass-card" onClick={(e) => e.stopPropagation()}>
         <div className="update-notification__glow" />
 
         <div className="update-notification__header">

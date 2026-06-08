@@ -193,6 +193,61 @@ export const useAgentGatewayStore = create<AgentGatewayState>((set, get) => ({
 
     // Try to call agent's chat API
     try {
+      // Docker agents with an OpenAI-compatible endpoint (e.g. Hermes) route
+      // through the main process via IPC — the API key stays in main and is
+      // never exposed to the renderer.
+      const dockerAgentApi = (window as any).electronAPI?.dockerAgent;
+      const isOpenAiCompatible =
+        agent.setupMethod === 'docker' && agent.chatEndpoint === '/v1/chat/completions';
+
+      if (isOpenAiCompatible && dockerAgentApi?.chat) {
+        const r = await dockerAgentApi.chat(
+          { id: agent.id, defaultPort: agent.defaultPort },
+          content,
+        );
+
+        if (r.ok && r.reply) {
+          set((state) => ({
+            isSending: false,
+            sessions: state.sessions.map((s) =>
+              s.id === session.id
+                ? {
+                    ...s,
+                    messages: s.messages.map((m) =>
+                      m.id === assistantMsgId
+                        ? { ...m, content: r.reply as string, state: 'done' as const }
+                        : m,
+                    ),
+                  }
+                : s,
+            ),
+          }));
+          return true;
+        }
+
+        // Honest error from the agent/provider (no fallback simulation).
+        const errReply =
+          `⚠️ ${agent.displayName} chưa trả lời được.\n\n**Lỗi:** ${r.error ?? 'không rõ'}\n\n` +
+          'Nếu lỗi liên quan tới provider/model, hãy cấu hình model provider (API key) ' +
+          'hoặc chạy `hermes setup` cho agent, rồi thử lại.';
+
+        set((state) => ({
+          isSending: false,
+          errorMessage: null,
+          sessions: state.sessions.map((s) =>
+            s.id === session.id
+              ? {
+                  ...s,
+                  messages: s.messages.map((m) =>
+                    m.id === assistantMsgId ? { ...m, content: errReply, state: 'done' as const } : m,
+                  ),
+                }
+              : s,
+          ),
+        }));
+        return true;
+      }
+
       const url = `http://127.0.0.1:${agent.defaultPort}${agent.chatEndpoint}`;
 
       const response = await fetch(url, {

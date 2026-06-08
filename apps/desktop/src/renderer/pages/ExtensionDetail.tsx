@@ -357,7 +357,7 @@ export function ExtensionDetailPage({
               ))}
               {reviews.length === 0 && (
                 <div className="review-empty">
-                  <span style={{ fontSize: 36 }}>💬</span>
+                  <span className="review-empty__icon">💬</span>
                   <p>Chưa có đánh giá nào. Hãy là người đầu tiên!</p>
                 </div>
               )}

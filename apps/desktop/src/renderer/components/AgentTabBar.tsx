@@ -38,7 +38,7 @@ export function AgentTabBar({
 
   if (sessions.length === 0) {
     return (
-      <div className="gw-tabbar gw-tabbar--empty">
+      <div className="gw-tabbar gw-tabbar--empty glass-surface">
         <button className="gw-tabbar__add" onClick={onAddAgent} type="button">
           <span className="gw-tabbar__add-icon">+</span>
           <span>Chọn Agent để bắt đầu chat</span>
@@ -48,7 +48,7 @@ export function AgentTabBar({
   }
 
   return (
-    <div className="gw-tabbar">
+    <div className="gw-tabbar glass-surface">
       <div className="gw-tabbar__tabs">
         {sessions.map((session) => (
           <button

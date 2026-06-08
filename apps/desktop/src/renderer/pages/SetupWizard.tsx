@@ -50,10 +50,56 @@ const CHANNELS: { id: ChannelType; name: string; icon: string; desc: string; war
   { id: 'combo', name: 'Combo', icon: '🔗', desc: 'Telegram + Zalo cùng lúc' },
 ];
 
+// ── Agent runtime options (Express setup) ──
+// OpenClaw is the local-first default; Hermes & AutoGPT are real Docker agents
+// installed via the dockerAgent IPC bridge (pull + run). Metadata mirrors the
+// entries in types/agent-registry.ts (TOP_AGENTS).
+
+interface SetupAgentOption {
+  id: string;
+  name: string;
+  icon: string;
+  desc: string;
+  runtime: 'openclaw' | 'docker';
+  dockerImage?: string;
+  defaultPort?: number;
+  recommended?: boolean;
+}
+
+const AGENT_OPTIONS: SetupAgentOption[] = [
+  {
+    id: 'openclaw',
+    name: 'OpenClaw',
+    icon: '🦞',
+    desc: 'Local-first — Telegram/Zalo, skills, cron, memory',
+    runtime: 'openclaw',
+    recommended: true,
+  },
+  {
+    id: 'hermes',
+    name: 'Hermes Agent',
+    icon: '⚡',
+    desc: 'Self-improving (Nous Research) — Docker, 200+ models',
+    runtime: 'docker',
+    dockerImage: 'nousresearch/hermes-agent:latest',
+    defaultPort: 8642,
+  },
+  {
+    id: 'autogpt',
+    name: 'AutoGPT',
+    icon: '🧠',
+    desc: 'Autonomous goal-driven agent — Docker',
+    runtime: 'docker',
+    dockerImage: 'autogpt/autogpt:latest',
+    defaultPort: 8000,
+  },
+];
+
 // ── Izzi Models ──
 
 const IZZI_MODELS = [
   { id: 'izzi/auto', name: 'Izzi Smart Router', checked: true },
+  { id: 'gpt-5.5', name: 'GPT-5.5', checked: true },
   { id: 'gpt-5.4', name: 'GPT-5.4', checked: true },
   { id: 'gpt-5.2', name: 'GPT-5.2', checked: false },
   { id: 'gpt-5.1-codex', name: 'GPT-5.1 Codex', checked: false },
@@ -81,6 +127,7 @@ export function SetupWizardPage({ onComplete }: SetupWizardPageProps) {
   const [expressVerifying, setExpressVerifying] = useState(false);
   const [expressChannel, setExpressChannel] = useState<'telegram' | 'zalo'>('telegram');
   const [expressBotToken, setExpressBotToken] = useState('');
+  const [expressAgent, setExpressAgent] = useState<string>('openclaw');
 
   // Custom state — accordion sections
   const [customExpandedSection, setCustomExpandedSection] = useState<string>('channel');
@@ -174,21 +221,37 @@ export function SetupWizardPage({ onComplete }: SetupWizardPageProps) {
     try {
       if (window.electronAPI && (window.electronAPI as any).setup?.executeSetup) {
         const result = await (window.electronAPI as any).setup.executeSetup(config);
-        if (result.success) setInstallDone(true);
+        if (result.success) {
+          // For Docker-based agents (Hermes / AutoGPT), run the REAL docker
+          // pull + start path after the base config is written. OpenClaw uses
+          // the native gateway started by executeSetup, so it needs no extra step.
+          const selected = AGENT_OPTIONS.find(a => a.id === config.agentId);
+          if (selected && selected.runtime === 'docker' && selected.dockerImage) {
+            const ok = await installDockerAgent(selected, config);
+            setInstallDone(ok);
+          } else {
+            setInstallDone(true);
+          }
+        }
       } else {
         // Simulate for dev
+        const selected = AGENT_OPTIONS.find(a => a.id === config.agentId);
+        const agentLabel = selected?.name ?? 'OpenClaw';
+        const pullLine = selected?.runtime === 'docker' && selected.dockerImage
+          ? `$ docker pull ${selected.dockerImage}`
+          : '$ docker pull openclaw/gateway:latest';
         const steps = [
           { step: 'detect', percent: 10, message: '$ Phát hiện hệ thống... Windows 11 x64', isError: false },
           { step: 'docker', percent: 20, message: '$ Kiểm tra Docker... OK', isError: false },
           { step: 'verify', percent: 35, message: '$ Xác thực API key... ✓ Verified', isError: false },
-          { step: 'pull', percent: 50, message: '$ docker pull openclaw/gateway:latest', isError: false },
-          { step: 'config', percent: 65, message: '$ Ghi cấu hình .env → ~/.openclaw/', isError: false },
-          { step: 'agent', percent: 80, message: '$ Khởi tạo agent workspace...', isError: false },
+          { step: 'agent', percent: 50, message: `$ Agent đã chọn: ${agentLabel}`, isError: false },
+          { step: 'pull', percent: 65, message: pullLine, isError: false },
+          { step: 'config', percent: 80, message: '$ Ghi cấu hình .env → ~/.openclaw/', isError: false },
           { step: 'startup', percent: 90, message: '$ Tạo startup script...', isError: false },
-          { step: 'done', percent: 100, message: '✓ Setup hoàn tất — bot đã sẵn sàng!', isError: false },
+          { step: 'done', percent: 100, message: `✓ Setup hoàn tất — ${agentLabel} đã sẵn sàng!`, isError: false },
         ];
         for (const s of steps) {
-          await new Promise(r => setTimeout(r, 700));
+          await new Promise(r => setTimeout(r, 600));
           setInstallProgress(prev => [...prev, s]);
         }
         setInstallDone(true);
@@ -204,6 +267,68 @@ export function SetupWizardPage({ onComplete }: SetupWizardPageProps) {
     }
   }, []);
 
+  // Real Docker agent install (pull + run) via the dockerAgent IPC bridge.
+  // Streams docker output into the install terminal. Returns true on success.
+  const installDockerAgent = useCallback(
+    async (agent: SetupAgentOption, config: any): Promise<boolean> => {
+      const dockerAgentApi = (window.electronAPI as any)?.dockerAgent;
+      if (!dockerAgentApi) {
+        setInstallProgress(prev => [...prev, {
+          step: 'agent', percent: 92,
+          message: '⚠️ Không tìm thấy cầu nối Docker — bỏ qua cài agent runtime.',
+          isError: true,
+        }]);
+        return false;
+      }
+
+      const push = (message: string, percent: number, isError = false) =>
+        setInstallProgress(prev => [...prev, { step: 'agent', percent, message, isError }]);
+
+      // Live docker pull output → terminal
+      const off = dockerAgentApi.onProgress?.((data: { agentId: string; line: string }) => {
+        if (data.agentId === agent.id) push(`  ${data.line}`, 94);
+      });
+
+      try {
+        push(`$ docker info`, 92);
+        const available = await dockerAgentApi.isAvailable();
+        if (!available) {
+          push('  ✗ Docker daemon không phản hồi. Hãy mở Docker Desktop rồi thử lại.', 92, true);
+          return false;
+        }
+
+        const payload = {
+          id: agent.id,
+          dockerImage: agent.dockerImage,
+          defaultPort: agent.defaultPort ?? 8642,
+          provider: config.provider,
+          apiKey: config.apiKey,
+        };
+
+        push(`$ docker pull ${agent.dockerImage}`, 94);
+        const pull = await dockerAgentApi.install(payload);
+        if (!pull?.ok) {
+          push(`  ✗ Pull thất bại: ${pull?.error ?? 'không rõ'}`, 94, true);
+          return false;
+        }
+        push(`  ✓ Image đã sẵn sàng.`, 96);
+
+        push(`$ docker run -d --name izzi-agent-${agent.id} -p ${payload.defaultPort}:${payload.defaultPort} ${agent.dockerImage}`, 97);
+        const start = await dockerAgentApi.start(payload);
+        if (!start?.ok) {
+          push(`  ✗ Khởi động thất bại: ${start?.error ?? 'không rõ'}`, 97, true);
+          return false;
+        }
+
+        push(`🎉 ${agent.name} đang chạy trên cổng ${payload.defaultPort}.`, 100);
+        return true;
+      } finally {
+        off?.();
+      }
+    },
+    [],
+  );
+
   // ── Express Install ──
 
   const startExpressInstall = () => {
@@ -217,6 +342,7 @@ export function SetupWizardPage({ onComplete }: SetupWizardPageProps) {
       enableSkills: true,
       enablePlugins: true,
       selectedModels: IZZI_MODELS.filter(m => m.checked).map(m => m.id),
+      agentId: expressAgent,
     });
   };
 
@@ -334,6 +460,8 @@ export function SetupWizardPage({ onComplete }: SetupWizardPageProps) {
           setChannel={setExpressChannel}
           botToken={expressBotToken}
           setBotToken={setExpressBotToken}
+          agent={expressAgent}
+          setAgent={setExpressAgent}
           onInstall={startExpressInstall}
           onBack={() => setMode('welcome')}
           progress={installProgress}
@@ -428,7 +556,7 @@ function WelcomeScreen({
       {/* 3 Mode Cards */}
       <div className="izzi-setup__modes">
         <button
-          className="izzi-setup__mode-card izzi-setup__mode-card--express"
+          className="izzi-setup__mode-card izzi-setup__mode-card--express glass-card"
           onClick={() => onSelectMode('express')}
           id="mode-express"
         >
@@ -442,7 +570,7 @@ function WelcomeScreen({
         </button>
 
         <button
-          className="izzi-setup__mode-card izzi-setup__mode-card--custom"
+          className="izzi-setup__mode-card izzi-setup__mode-card--custom glass-card"
           onClick={() => onSelectMode('custom')}
           id="mode-custom"
         >
@@ -454,7 +582,7 @@ function WelcomeScreen({
         </button>
 
         <button
-          className="izzi-setup__mode-card izzi-setup__mode-card--restore"
+          className="izzi-setup__mode-card izzi-setup__mode-card--restore glass-card"
           onClick={() => onSelectMode('restore')}
           id="mode-restore"
         >
@@ -467,7 +595,7 @@ function WelcomeScreen({
       </div>
 
       {/* Management Panel */}
-      <div className="izzi-setup__mgmt">
+      <div className="izzi-setup__mgmt glass-panel">
         <div className="izzi-setup__mgmt-title">Quản lý OpenClaw</div>
         <div className="izzi-setup__mgmt-actions">
           <button
@@ -511,6 +639,7 @@ function WelcomeScreen({
 function ExpressMode({
   apiKey, setApiKey, verified, verifying,
   channel, setChannel, botToken, setBotToken,
+  agent, setAgent,
   onInstall, onBack,
   progress, isInstalling, isDone, onComplete,
 }: {
@@ -518,6 +647,7 @@ function ExpressMode({
   verified: boolean; verifying: boolean;
   channel: 'telegram' | 'zalo'; setChannel: (c: 'telegram' | 'zalo') => void;
   botToken: string; setBotToken: (v: string) => void;
+  agent: string; setAgent: (id: string) => void;
   onInstall: () => void; onBack: () => void;
   progress: SetupProgress[]; isInstalling: boolean; isDone: boolean;
   onComplete?: () => void;
@@ -553,13 +683,46 @@ function ExpressMode({
       <div className="izzi-setup__express-header">
         <div className="izzi-setup__express-icon">⚡</div>
         <h2>Express Setup</h2>
-        <p>Chỉ cần 2 thứ: API key & Bot token — xong!</p>
+        <p>Chọn agent, nhập API key & Bot token — xong!</p>
       </div>
 
-      {/* Step 1: API Key with auto-verify */}
+      {/* Step 1: Agent runtime picker */}
       <div className="izzi-setup__field-group">
         <label className="izzi-setup__field-label">
           <span className="izzi-setup__field-num">1</span>
+          Chọn Agent
+        </label>
+        <div className="izzi-setup__agent-grid">
+          {AGENT_OPTIONS.map(opt => (
+            <button
+              key={opt.id}
+              type="button"
+              className={`izzi-setup__agent-card ${agent === opt.id ? 'izzi-setup__agent-card--active' : ''}`}
+              onClick={() => setAgent(opt.id)}
+              id={`express-agent-${opt.id}`}
+              aria-pressed={agent === opt.id}
+            >
+              {opt.recommended && <span className="izzi-setup__agent-tag">Khuyên dùng</span>}
+              <span className="izzi-setup__agent-icon">{opt.icon}</span>
+              <span className="izzi-setup__agent-name">{opt.name}</span>
+              <span className="izzi-setup__agent-desc">{opt.desc}</span>
+              <span className="izzi-setup__agent-runtime">
+                {opt.runtime === 'docker' ? `Docker · cổng ${opt.defaultPort}` : 'Chạy native'}
+              </span>
+            </button>
+          ))}
+        </div>
+        {AGENT_OPTIONS.find(a => a.id === agent)?.runtime === 'docker' && (
+          <div className="izzi-setup__field-hint">
+            Agent này chạy qua Docker — cần Docker Desktop đang mở. Hệ thống sẽ tự pull image và khởi động container sau khi cấu hình xong.
+          </div>
+        )}
+      </div>
+
+      {/* Step 2: API Key with auto-verify */}
+      <div className="izzi-setup__field-group">
+        <label className="izzi-setup__field-label">
+          <span className="izzi-setup__field-num">2</span>
           Izzi API Key
         </label>
         <div className="izzi-setup__key-input-wrap">
@@ -589,10 +752,10 @@ function ExpressMode({
         </div>
       </div>
 
-      {/* Step 2: Channel quick-pick */}
+      {/* Step 3: Channel quick-pick */}
       <div className="izzi-setup__field-group">
         <label className="izzi-setup__field-label">
-          <span className="izzi-setup__field-num">2</span>
+          <span className="izzi-setup__field-num">3</span>
           Kênh chat
         </label>
         <div className="izzi-setup__pill-group">
@@ -611,10 +774,10 @@ function ExpressMode({
         </div>
       </div>
 
-      {/* Step 3: Bot Token */}
+      {/* Step 4: Bot Token */}
       <div className="izzi-setup__field-group">
         <label className="izzi-setup__field-label">
-          <span className="izzi-setup__field-num">3</span>
+          <span className="izzi-setup__field-num">4</span>
           {channel === 'telegram' ? 'Telegram Bot Token' : 'Zalo App ID'}
         </label>
         <input

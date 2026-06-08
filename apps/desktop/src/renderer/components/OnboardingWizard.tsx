@@ -62,7 +62,7 @@ export function OnboardingWizard({
   return (
     <div className="onboarding-modal">
       <div className="onboarding-modal__backdrop" />
-      <div className="onboarding-modal__panel" role="dialog" aria-modal="true" aria-label="Onboarding wizard">
+      <div className="onboarding-modal__panel glass-panel" role="dialog" aria-modal="true" aria-label="Onboarding wizard">
         <div className="onboarding-modal__header">
           <div>
             <div className="onboarding-modal__eyebrow">First-run Setup</div>
@@ -106,7 +106,7 @@ export function OnboardingWizard({
               <p className="onboarding-section__copy">
                 Managed runner là execution mode duy nhất trong app. OpenClaw local vẫn được giữ như một shortcut ngoài luồng.
               </p>
-              <div className="onboarding-runner-card">
+              <div className="onboarding-runner-card glass-card">
                 <div>
                   <div className="onboarding-runner-card__title">Managed Runner</div>
                   <div className="onboarding-runner-card__copy">
@@ -115,7 +115,7 @@ export function OnboardingWizard({
                 </div>
                 <AgentStatusBadge state={runtimeState.state} detail={runtimeState.lastError} />
               </div>
-              <div className="onboarding-runner-card">
+              <div className="onboarding-runner-card glass-card">
                 <div>
                   <div className="onboarding-runner-card__title">OpenClaw Local</div>
                   <div className="onboarding-runner-card__copy">
@@ -151,7 +151,7 @@ export function OnboardingWizard({
 
               <div className="integration-list">
                 {integrations.map((integration) => (
-                  <div key={integration.provider} className="integration-card">
+                  <div key={integration.provider} className="integration-card glass-card">
                     <div>
                       <div className="integration-card__title">{integration.provider}</div>
                       <div className="integration-card__meta">
@@ -240,7 +240,7 @@ export function OnboardingWizard({
 
 function SetupCard({ label, value }: { label: string; value: string }) {
   return (
-    <div className="setup-card">
+    <div className="setup-card glass-card">
       <div className="setup-card__label">{label}</div>
       <div className="setup-card__value">{value}</div>
     </div>

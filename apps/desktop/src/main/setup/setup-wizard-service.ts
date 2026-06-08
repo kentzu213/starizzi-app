@@ -42,6 +42,7 @@ export interface WizardConfig {
   autoStart: boolean;
   enableSkills: boolean;
   enablePlugins: boolean;
+  agentId?: string;               // Chosen agent runtime: 'openclaw' | 'hermes' | 'autogpt' | ...
 }
 
 export interface SetupProgress {
@@ -55,6 +56,7 @@ export interface SetupProgress {
 
 const IZZI_MODELS = [
   { id: 'izzi/auto', name: 'Izzi Smart Router', description: 'Auto-select best model' },
+  { id: 'gpt-5.5', name: 'GPT-5.5', description: 'Latest GPT model' },
   { id: 'gpt-5.4', name: 'GPT-5.4', description: 'Latest GPT model' },
   { id: 'gpt-5.2', name: 'GPT-5.2', description: 'Fast & reliable' },
   { id: 'gpt-5.1-codex', name: 'GPT-5.1 Codex', description: 'Optimized for code' },
@@ -356,6 +358,7 @@ export class SetupWizardService {
       ...existingConfig,
       baseUrl: baseUrl.replace(/\/v1\/?$/, ''), // Fix /v1 double-prefix issue
       apiKey: config.apiKey,
+      agentRuntime: config.agentId || existingConfig.agentRuntime || 'openclaw',
       models: config.selectedModels.length > 0
         ? config.selectedModels
         : (config.provider === 'izzi' ? IZZI_MODELS.map(m => m.id) : existingConfig.models || []),

@@ -86,7 +86,7 @@ export function DashboardPage({
         </p>
       </div>
 
-      <div className="card section-gap">
+      <div className="card glass-card section-gap">
         <div className="card__header">
           <h3 className="card__title">Agent workspace</h3>
         </div>
@@ -110,14 +110,14 @@ export function DashboardPage({
 
       <div className="stats-grid">
         {stats.map((stat) => (
-          <div key={stat.label} className="stat-card animate-in">
+          <div key={stat.label} className="stat-card glass-card animate-in">
             <div className="stat-card__value">{stat.value}</div>
             <div className="stat-card__label">{stat.label}</div>
           </div>
         ))}
       </div>
 
-      <div className="card section-gap">
+      <div className="card glass-card section-gap">
         <div className="card__header">
           <h3 className="card__title">Core actions</h3>
         </div>
@@ -145,7 +145,7 @@ export function DashboardPage({
         </div>
       </div>
 
-      <div className="card">
+      <div className="card glass-card">
         <div className="card__header">
           <h3 className="card__title">Recent activity</h3>
           <button className="btn btn--ghost btn--sm" onClick={() => void loadData()}>

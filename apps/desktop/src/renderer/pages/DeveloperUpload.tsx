@@ -282,7 +282,7 @@ export function DeveloperUploadPage({ onBack }: { onBack: () => void }) {
             <div className="dev-upload__error">⚠️ {formError}</div>
           )}
 
-          <button className="btn btn--primary" onClick={handleRegister} style={{ marginTop: '8px' }}>
+          <button className="btn btn--primary dev-upload__register-btn" onClick={handleRegister}>
             Tiếp tục → Upload Binary
           </button>
         </div>
@@ -303,18 +303,18 @@ export function DeveloperUploadPage({ onBack }: { onBack: () => void }) {
               ref={fileInputRef}
               type="file"
               accept=".ocx,.tar.gz"
-              style={{ display: 'none' }}
+              className="dev-upload__file-input"
               onChange={handleFileSelect}
             />
 
             {upload.status === 'success' ? (
               <div className="dev-upload__success-icon">
-                <span style={{ fontSize: 48 }}>✅</span>
+                <span className="dev-upload__success-glyph">✅</span>
                 <p className="dev-upload__success-text">Upload thành công!</p>
               </div>
             ) : upload.file ? (
               <div className="dev-upload__file-info">
-                <span style={{ fontSize: 36 }}>📦</span>
+                <span className="dev-upload__file-glyph">📦</span>
                 <div>
                   <div className="dev-upload__filename">{upload.file.name}</div>
                   <div className="dev-upload__filesize">{formatFileSize(upload.file.size)}</div>
@@ -328,7 +328,7 @@ export function DeveloperUploadPage({ onBack }: { onBack: () => void }) {
               </div>
             ) : (
               <>
-                <span style={{ fontSize: 48, opacity: 0.5 }}>📂</span>
+                <span className="dev-upload__drop-glyph">📂</span>
                 <p className="dev-upload__drop-text">
                   Kéo thả file <strong>.ocx</strong> vào đây
                 </p>

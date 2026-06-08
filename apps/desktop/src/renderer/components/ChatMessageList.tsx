@@ -25,7 +25,7 @@ export function ChatMessageList({
   }, [messages]);
 
   return (
-    <div className="chat-message-list" role="log" aria-live="polite">
+    <div className="chat-message-list glass-panel" role="log" aria-live="polite">
       {messages.map((message) => {
         const stateLabel = formatState(message);
         const bubbleClass =

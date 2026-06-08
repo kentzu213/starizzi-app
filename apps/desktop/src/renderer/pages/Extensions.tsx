@@ -205,20 +205,7 @@ export function ExtensionsPage({
     <div>
       {/* Notification Toast */}
       {notification && (
-        <div
-          className={`notification-toast notification-toast--${notification.type}`}
-          style={{
-            position: 'fixed', top: '80px', right: '24px', zIndex: 9999,
-            padding: '12px 20px', borderRadius: '10px',
-            background: notification.type === 'error' ? 'rgba(239,68,68,0.15)' :
-              notification.type === 'success' ? 'rgba(34,197,94,0.15)' : 'rgba(96,165,250,0.15)',
-            border: `1px solid ${notification.type === 'error' ? 'rgba(239,68,68,0.3)' :
-              notification.type === 'success' ? 'rgba(34,197,94,0.3)' : 'rgba(96,165,250,0.3)'}`,
-            color: 'var(--color-text-primary)',
-            fontSize: '14px', fontWeight: 500,
-            animation: 'fadeIn 0.3s ease',
-          }}
-        >
+        <div className={`notification-toast notification-toast--${notification.type}`}>
           {notification.type === 'success' ? '✅' : notification.type === 'error' ? '❌' : 'ℹ️'}{' '}
           {notification.message}
         </div>
@@ -226,19 +213,19 @@ export function ExtensionsPage({
 
       {/* Header */}
       <div className="page-header">
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div className="page-header__split-row">
           <div>
             <h1 className="page-header__title">🧩 Tiện ích mở rộng</h1>
             <p className="page-header__subtitle">
               Quản lý các tiện ích đã cài đặt trên Izzi OpenClaw
               {totalCount > 0 && (
-                <span style={{ marginLeft: '12px', fontSize: '13px', color: 'var(--color-text-tertiary)' }}>
+                <span className="extensions-running-count">
                   {runningCount}/{totalCount} đang chạy
                 </span>
               )}
             </p>
           </div>
-          <div style={{ display: 'flex', gap: '8px' }}>
+          <div className="extensions-header__actions">
             <button className="btn btn--secondary btn--sm" onClick={handleInstallOcx} title="Cài từ file .ocx">
               📦 Cài .ocx
             </button>
@@ -253,7 +240,7 @@ export function ExtensionsPage({
       {!loading && allExts.length > 0 && (
         <div className="ext-updates-panel animate-in">
           <div className="ext-updates-panel__header">
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <div className="ext-updates-panel__header-left">
               <span className="ext-updates-panel__icon">🔄</span>
               <span className="ext-updates-panel__title">Bản cập nhật có sẵn</span>
               <span className="ext-updates-panel__count">2</span>
@@ -263,14 +250,14 @@ export function ExtensionsPage({
           <div className="ext-updates-panel__list">
             <div className="ext-updates-panel__item">
               <span>🧩</span>
-              <span style={{ flex: 1 }}>Smart SEO Scanner</span>
-              <span style={{ fontSize: 12, color: 'var(--color-text-tertiary)' }}>v1.1.0 → v1.2.0</span>
+              <span className="ext-updates-panel__item-name">Smart SEO Scanner</span>
+              <span className="ext-updates-panel__item-version">v1.1.0 → v1.2.0</span>
               <button className="btn btn--ghost btn--sm">Cập nhật</button>
             </div>
             <div className="ext-updates-panel__item">
               <span>🧩</span>
-              <span style={{ flex: 1 }}>Chatbot Builder Pro</span>
-              <span style={{ fontSize: 12, color: 'var(--color-text-tertiary)' }}>v0.8.5 → v0.9.0</span>
+              <span className="ext-updates-panel__item-name">Chatbot Builder Pro</span>
+              <span className="ext-updates-panel__item-version">v0.8.5 → v0.9.0</span>
               <button className="btn btn--ghost btn--sm">Cập nhật</button>
             </div>
           </div>
@@ -279,19 +266,19 @@ export function ExtensionsPage({
 
       {/* Content */}
       {loading ? (
-        <div className="card" style={{ textAlign: 'center', padding: '48px' }}>
-          <div className="spinner" style={{ margin: '0 auto 16px' }} />
-          <p style={{ color: 'var(--color-text-secondary)' }}>Đang tải tiện ích...</p>
+        <div className="card glass-card ext-loading-card">
+          <div className="spinner ext-loading-card__spinner" />
+          <p className="ext-loading-card__text">Đang tải tiện ích...</p>
         </div>
       ) : allExts.length === 0 ? (
-        <div className="card">
+        <div className="card glass-card">
           <div className="empty-state">
             <div className="empty-state__icon">🧩</div>
             <h3 className="empty-state__title">Chưa có tiện ích nào</h3>
             <p className="empty-state__description">
               Truy cập Marketplace để khám phá và cài đặt các tiện ích mở rộng giúp tăng hiệu quả công việc.
             </p>
-            <div style={{ display: 'flex', gap: '10px', justifyContent: 'center', flexWrap: 'wrap' }}>
+            <div className="ext-empty-actions">
               <button className="btn btn--primary" onClick={onGoMarketplace}>🏪 Đi đến Marketplace</button>
               <button className="btn btn--secondary" onClick={handleInstallOcx}>📦 Cài từ file .ocx</button>
               <button className="btn btn--ghost" onClick={onOpenClawQuickInstall}>⚙️ Mở / cài OpenClaw CLI</button>
@@ -299,7 +286,7 @@ export function ExtensionsPage({
           </div>
         </div>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+        <div className="ext-list">
           {allExts.map((ext, i) => {
             const badge = STATE_BADGES[ext.state] || STATE_BADGES.installed;
             const isActioning = actioningId === ext.id;
@@ -308,20 +295,20 @@ export function ExtensionsPage({
             const grantedCount = ext.grantedPermissions?.length || 0;
 
             return (
-              <div key={ext.id} className="card animate-in" style={{ animationDelay: `${i * 60}ms` }}>
-                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '16px' }}>
+              <div key={ext.id} className="card glass-card animate-in" style={{ animationDelay: `${i * 60}ms` }}>
+                <div className="ext-list-card__body">
                   {/* Icon */}
-                  <div className="ext-card__icon" style={{ width: 48, height: 48, fontSize: 24, flexShrink: 0 }}>
+                  <div className="ext-card__icon ext-list-card__icon">
                     🧩
                   </div>
 
                   {/* Info */}
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px', flexWrap: 'wrap' }}>
-                      <span style={{ fontWeight: 700, fontSize: '15px' }}>
+                  <div className="ext-list-card__info">
+                    <div className="ext-list-card__title-row">
+                      <span className="ext-list-card__name">
                         {ext.displayName || ext.name}
                       </span>
-                      <span style={{ fontSize: '12px', color: 'var(--color-text-tertiary)' }}>
+                      <span className="ext-list-card__version">
                         v{ext.version}
                       </span>
                       <span className={`sync-badge ${badge.className}`}>
@@ -330,16 +317,16 @@ export function ExtensionsPage({
                     </div>
 
                     {ext.description && (
-                      <p style={{ fontSize: '13px', color: 'var(--color-text-secondary)', margin: '0 0 6px' }}>
+                      <p className="ext-list-card__desc">
                         {ext.description}
                       </p>
                     )}
 
-                    <div style={{ fontSize: '12px', color: 'var(--color-text-tertiary)', display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+                    <div className="ext-list-card__meta">
                       {ext.author && <span>👤 {ext.author}</span>}
                       {permCount > 0 && (
                         <span
-                          style={{ cursor: 'pointer', textDecoration: 'underline dotted' }}
+                          className="ext-list-card__perm"
                           onClick={() => isRuntime && handleShowPermissions(ext as RuntimeExtension)}
                           title="Xem quyền truy cập"
                         >
@@ -347,13 +334,13 @@ export function ExtensionsPage({
                         </span>
                       )}
                       {ext.state === 'crashed' && (
-                        <span style={{ color: 'var(--color-error)' }}>⚠️ Extension bị crash</span>
+                        <span className="ext-list-card__crash">⚠️ Extension bị crash</span>
                       )}
                     </div>
                   </div>
 
                   {/* Actions */}
-                  <div style={{ display: 'flex', gap: '6px', flexShrink: 0, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                  <div className="ext-list-card__actions">
                     {isRuntime && (
                       <>
                         {ext.state === 'running' ? (

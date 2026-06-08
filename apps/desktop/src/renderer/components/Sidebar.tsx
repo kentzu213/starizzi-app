@@ -78,7 +78,7 @@ export function Sidebar({ currentPage, onNavigate, user, updateCount = 0, appUpd
   };
 
   return (
-    <aside className="sidebar" role="complementary" aria-label="Thanh dieu huong">
+    <aside className="sidebar glass-panel" role="complementary" aria-label="Thanh dieu huong">
       <nav className="sidebar__nav" aria-label="Menu chinh">
         <div className="sidebar__section-title">Workspace</div>
         {WORKSPACE_ITEMS.map(renderItem)}
