@@ -24,6 +24,7 @@ interface SidebarProps {
 const WORKSPACE_ITEMS = [
   { id: 'setup', icon: SetupIcon, label: 'Setup Wizard', badge: 'New' },
   { id: 'chat', icon: ChatIcon, label: 'Agent Gateway', badge: 'v2' },
+  { id: 'graph', icon: () => <span style={{ fontSize: 16 }}>🕸️</span>, label: 'Graph Workspace', badge: 'New' },
   { id: 'tasks', icon: TasksIcon, label: 'Tasks' },
   { id: 'memory', icon: MemoryIcon, label: 'Memory' },
   { id: 'status', icon: StatusIcon, label: 'Status' },
