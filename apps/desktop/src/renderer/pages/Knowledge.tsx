@@ -1,138 +1,114 @@
-import React, { useEffect, useState } from 'react';
-import type { GraphNode } from '../../shared/graph-types';
+import React, { useEffect, useRef, useState } from 'react';
 
 /**
- * Read-only display row projected from the backend GraphNode. We copy only the
- * own properties we render (id, title, nodeType) — using the backend field
- * names and never following the prototype chain (Req 1.6, 9.3).
+ * Knowledge / Graph page — embeds the REAL izziapi.com knowledge-universe
+ * graphview ("vũ trụ tri thức") inside the desktop via an Electron <webview>,
+ * so it looks and behaves exactly like the web (single source of truth — the
+ * web owns the canonical graph UI; the desktop renders it).
+ *
+ * The public graph loads in guest mode without login; signing in on the embedded
+ * page unlocks the personal graph. The webview uses a persistent partition so the
+ * login is remembered. Token-only styling for the surrounding chrome (Req 11.4).
  */
-type KnowledgeNodeRow = Pick<GraphNode, 'id' | 'title'> & { nodeType?: string };
 
-type PageState = 'loading' | 'empty' | 'ready';
+const GRAPH_URL = 'https://izziapi.com/aibase/graph';
 
-/**
- * Knowledge/Graph page — read-only shell.
- *
- * Feature-detects graph data via `window.electronAPI?.graph?.list?.()`.
- * If available: displays a read-only list of graph nodes (title + type).
- * If unavailable: shows empty state + CTA to open izziapi.com/aibase/graph.
- *
- * Token-only styling (Req 11.4). No write surface without auth (Req 11.3).
- *
- * Validates: Req 11.3, 11.4
- */
+type LoadState = 'loading' | 'ready' | 'error';
+
+// Electron <webview> DOM element — typed loosely (custom element not in lib.dom).
+interface WebviewEl extends HTMLElement {
+  reload: () => void;
+  src: string;
+}
+
 export function KnowledgePage() {
-  const [nodes, setNodes] = useState<KnowledgeNodeRow[]>([]);
-  const [state, setState] = useState<PageState>('loading');
+  const webviewRef = useRef<WebviewEl | null>(null);
+  const [state, setState] = useState<LoadState>('loading');
 
   useEffect(() => {
-    let cancelled = false;
+    const el = webviewRef.current;
+    if (!el) return undefined;
 
-    async function loadGraph() {
-      setState('loading');
-      setNodes([]);
+    const onStart = () => setState('loading');
+    const onStop = () => setState('ready');
+    const onFail = (e: Event) => {
+      // errorCode -3 = ERR_ABORTED (navigation superseded) — not a real failure.
+      const code = (e as unknown as { errorCode?: number }).errorCode;
+      if (typeof code === 'number' && code === -3) return;
+      setState('error');
+    };
 
-      try {
-        // Feature-detect: electronAPI?.graph?.list must exist and be callable
-        const listFn = window.electronAPI?.graph?.list;
-        if (typeof listFn !== 'function') {
-          setState('empty');
-          return;
-        }
-
-        const raw = await listFn();
-        if (cancelled) return;
-
-        if (!Array.isArray(raw) || raw.length === 0) {
-          setState('empty');
-          return;
-        }
-
-        // Own-property access only — no prototype-chain traversal
-        const safe: KnowledgeNodeRow[] = [];
-        for (const item of raw) {
-          if (item != null && typeof item === 'object' && Object.hasOwn(item, 'id') && Object.hasOwn(item, 'title')) {
-            safe.push({
-              id: String(item.id),
-              title: String(item.title),
-              nodeType: Object.hasOwn(item, 'nodeType') ? String(item.nodeType) : undefined,
-            });
-          }
-        }
-
-        if (cancelled) return;
-
-        if (safe.length === 0) {
-          setState('empty');
-        } else {
-          setNodes(safe);
-          setState('ready');
-        }
-      } catch {
-        // API unavailable or errored — show empty state, no throw.
-        if (!cancelled) {
-          setState('empty');
-        }
-      }
-    }
-
-    void loadGraph();
+    el.addEventListener('did-start-loading', onStart);
+    el.addEventListener('did-stop-loading', onStop);
+    el.addEventListener('did-fail-load', onFail as EventListener);
     return () => {
-      cancelled = true;
+      el.removeEventListener('did-start-loading', onStart);
+      el.removeEventListener('did-stop-loading', onStop);
+      el.removeEventListener('did-fail-load', onFail as EventListener);
     };
   }, []);
 
-  function handleOpenGraph() {
+  function handleReload() {
+    const el = webviewRef.current;
+    if (el && typeof el.reload === 'function') {
+      setState('loading');
+      el.reload();
+    }
+  }
+
+  function handleOpenExternal() {
     const openExternal = window.electronAPI?.system?.openExternal;
     if (typeof openExternal === 'function') {
-      openExternal('https://izziapi.com/aibase/graph');
+      openExternal(GRAPH_URL);
     } else {
-      window.open('https://izziapi.com/aibase/graph', '_blank', 'noopener');
+      window.open(GRAPH_URL, '_blank', 'noopener');
     }
   }
 
   return (
-    <div className="knowledge-page">
-      <div className="page-header">
-        <h1 className="page-header__title">Knowledge Graph</h1>
-        <p className="page-header__subtitle">
-          Tri thức và đồ thị kết nối — đọc từ izziapi.com.
-        </p>
-      </div>
-
-      {state === 'loading' && (
-        <div className="knowledge-page__loading" aria-busy="true">
-          Đang tải…
-        </div>
-      )}
-
-      {state === 'empty' && (
-        <div className="knowledge-page__empty">
-          <p className="knowledge-page__empty-text">
-            Xem tri thức và đồ thị tại izziapi.com
-          </p>
-          <button
-            type="button"
-            className="knowledge-page__cta"
-            onClick={handleOpenGraph}
-          >
-            Mở Knowledge Graph
+    <div className="knowledge-page knowledge-page--embed">
+      <div className="knowledge-embed__bar">
+        <span className="knowledge-embed__title">Vũ trụ tri thức — Knowledge Graph</span>
+        <div className="knowledge-embed__actions">
+          <button type="button" className="knowledge-embed__btn" onClick={handleReload}>
+            Tải lại
+          </button>
+          <button type="button" className="knowledge-embed__btn" onClick={handleOpenExternal}>
+            Mở trên web
           </button>
         </div>
-      )}
+      </div>
 
-      {state === 'ready' && (
-        <ul className="knowledge-page__list">
-          {nodes.map((node) => (
-            <li key={node.id} className="knowledge-page__node">
-              <span className="knowledge-page__node-title">{node.title}</span>
-              {node.nodeType && (
-                <span className="knowledge-page__node-type">{node.nodeType}</span>
-              )}
-            </li>
-          ))}
-        </ul>
-      )}
+      <div className="knowledge-embed__stage">
+        {state === 'loading' && (
+          <div className="knowledge-embed__overlay" aria-busy="true">
+            Đang tải vũ trụ tri thức…
+          </div>
+        )}
+        {state === 'error' && (
+          <div className="knowledge-embed__overlay">
+            <p className="knowledge-page__empty-text">
+              Không tải được graphview (cần kết nối mạng).
+            </p>
+            <div className="knowledge-embed__actions">
+              <button type="button" className="knowledge-page__cta" onClick={handleReload}>
+                Thử lại
+              </button>
+              <button type="button" className="knowledge-embed__btn" onClick={handleOpenExternal}>
+                Mở trên web
+              </button>
+            </div>
+          </div>
+        )}
+        {React.createElement('webview', {
+          ref: webviewRef,
+          src: GRAPH_URL,
+          partition: 'persist:izzigraph',
+          allowpopups: 'true',
+          className: 'knowledge-embed__webview',
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        } as any)}
+      </div>
     </div>
   );
 }
