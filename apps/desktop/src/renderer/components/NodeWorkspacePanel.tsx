@@ -70,20 +70,27 @@ export function NodeWorkspacePanel() {
     .map((s, index) => ({ s, index }))
     .filter((x) => x.s.parentNodeId === node.id);
 
+  /**
+   * The node any chat/branch action should operate on. For an OWNED node that's
+   * the node itself; for a read-only SEED node we transparently adopt it into the
+   * user's graph first (create one `user_node`) so the conversation + branches
+   * persist. This is what makes clicking a universe/topic node "just work" —
+   * chat opens and replies in context, no dead end.
+   */
+  async function resolveWorkingNode(): Promise<GraphNode | null> {
+    if (!node) return null;
+    if (!seed) return node;
+    const ownedId = await adoptSeed(node.id);
+    if (!ownedId) return null;
+    return useGraphWorkspaceStore.getState().getNode(ownedId) ?? null;
+  }
+
   async function handleSend() {
-    if (!node || busy) return;
+    if (!node || busy || adopting) return;
     const parsed = parseCommand(draft);
     const text = parsed.arg;
 
-    if (parsed.command === 'branch') {
-      if (text) {
-        setDraft('');
-        const id = await branch(node.id, { title: text, nodeType: 'question', agent: 'manual' });
-        if (id) appendMessage(node.id, 'system', `🌿 Đã tạo nhánh: ${text}`);
-        else appendMessage(node.id, 'system', '⚠️ Không tạo được nhánh (cần đăng nhập / kết nối).');
-      }
-      return;
-    }
+    // Local-only commands operate on the current node id (no adopt needed).
     if (parsed.command === 'summarize') {
       const basis = summary || node.content || messages.map((m) => m.content).slice(-4).join(' ');
       appendMessage(node.id, 'system', `📝 Tóm tắt "${node.title}": ${basis || '(chưa có nội dung)'}`);
@@ -97,18 +104,43 @@ export function NodeWorkspacePanel() {
       return;
     }
 
-    // Normal chat turn.
+    if (parsed.command === 'branch') {
+      if (!text) return;
+      setDraft('');
+      setBusy(true);
+      try {
+        const target = await resolveWorkingNode();
+        if (!target) {
+          appendMessage(node.id, 'system', '⚠️ Không tạo được nhánh (cần đăng nhập / kết nối).');
+          return;
+        }
+        const id = await branch(target.id, { title: text, nodeType: 'question', agent: 'manual' });
+        if (id) appendMessage(target.id, 'system', `🌿 Đã tạo nhánh: ${text}`);
+        else appendMessage(target.id, 'system', '⚠️ Không tạo được nhánh (cần đăng nhập / kết nối).');
+      } finally {
+        setBusy(false);
+      }
+      return;
+    }
+
+    // Normal chat turn — adopt the seed first so the reply + any branch persist.
     if (!text) return;
-    const userMsg = appendMessage(node.id, 'user', text);
     setDraft('');
     setBusy(true);
     try {
-      const result = await runNodeAgent(node, ancestors, text);
-      appendMessage(node.id, 'assistant', result.reply);
+      const target = await resolveWorkingNode();
+      if (!target) {
+        appendMessage(node.id, 'system', '⚠️ Cần đăng nhập để chat với node này.');
+        return;
+      }
+      const userMsg = appendMessage(target.id, 'user', text);
+      const targetAncestors = seed ? [] : ancestors;
+      const result = await runNodeAgent(target, targetAncestors, text);
+      appendMessage(target.id, 'assistant', result.reply);
       const c = result.classification;
       if (c?.shouldCreateBranch) {
         if (c.confidence >= BRANCH_AUTOCREATE_THRESHOLD) {
-          const id = await branch(node.id, {
+          const id = await branch(target.id, {
             title: c.title,
             summary: c.summary,
             nodeType: c.nodeType,
@@ -116,7 +148,7 @@ export function NodeWorkspacePanel() {
             sourceMessageId: userMsg?.id ?? null,
             agent: 'izzi',
           });
-          if (id) appendMessage(node.id, 'system', `🌿 Tự tạo nhánh (${c.nodeType}): ${c.title}`);
+          if (id) appendMessage(target.id, 'system', `🌿 Tự tạo nhánh (${c.nodeType}): ${c.title}`);
         } else {
           useGraphWorkspaceStore.getState().addSuggestion(c);
         }
@@ -141,69 +173,15 @@ export function NodeWorkspacePanel() {
     }
   }
 
-  // Read-only seed node (from "Nạp Vũ trụ tri thức"): show its info + an explicit
-  // "start working" action that adopts it into the user's owned graph. The
-  // editable fields + AI chat stay hidden until the node is adopted (decision B:
-  // the shared universe is read-only; your work is yours).
-  if (seed) {
-    return (
-      <aside
-        className={`gw-panel gw-panel--seed ${pinned ? 'gw-panel--pinned' : ''}`}
-        aria-label="Workspace của node"
-      >
-        <header className="gw-panel__head">
-          <span className={`gw-panel__badge gw-node--${type}`}>
-            <span aria-hidden="true">{meta.icon}</span> {meta.label}
-            <span className="gw-panel__seed-tag">· Vũ trụ tri thức</span>
-          </span>
-          <div className="gw-panel__head-actions">
-            <button
-              type="button"
-              className="gw-panel__icon-btn"
-              aria-pressed={pinned}
-              title={pinned ? 'Bỏ ghim' : 'Ghim'}
-              onClick={() => setPinned((v) => !v)}
-            >
-              📌
-            </button>
-            <button type="button" className="gw-panel__icon-btn" title="Đóng" onClick={() => selectNode(null)}>
-              ✕
-            </button>
-          </div>
-        </header>
-
-        <div className="gw-panel__content">
-          <h3 className="gw-panel__seed-title">{node.title}</h3>
-          {summary && <p className="gw-panel__summary">{summary}</p>}
-          {tags.length > 0 && (
-            <div className="gw-panel__tags">
-              {tags.map((tag) => (
-                <span key={tag} className="gw-panel__tag">#{tag}</span>
-              ))}
-            </div>
-          )}
-          <p className="gw-panel__seed-note">
-            Node từ vũ trụ tri thức cộng đồng (chỉ đọc). Bắt đầu làm việc để tạo một node của riêng
-            bạn từ đây — chat &amp; nhánh sẽ lưu vào graph cá nhân.
-          </p>
-          <button
-            type="button"
-            className="gw-panel__btn gw-panel__btn--accent gw-panel__adopt"
-            disabled={adopting}
-            onClick={() => void handleAdopt()}
-          >
-            {adopting ? 'Đang tạo…' : '🚀 Bắt đầu làm việc từ node này'}
-          </button>
-        </div>
-      </aside>
-    );
-  }
-
   return (
-    <aside className={`gw-panel ${pinned ? 'gw-panel--pinned' : ''}`} aria-label="Workspace của node">
+    <aside
+      className={`gw-panel ${seed ? 'gw-panel--seed' : ''} ${pinned ? 'gw-panel--pinned' : ''}`}
+      aria-label="Workspace của node"
+    >
       <header className="gw-panel__head">
         <span className={`gw-panel__badge gw-node--${type}`}>
           <span aria-hidden="true">{meta.icon}</span> {meta.label}
+          {seed && <span className="gw-panel__seed-tag">· Vũ trụ tri thức</span>}
         </span>
         <div className="gw-panel__head-actions">
           <button
@@ -222,20 +200,26 @@ export function NodeWorkspacePanel() {
       </header>
 
       <div className="gw-panel__content">
-        <input
-          className="gw-panel__title-input"
-          value={node.title}
-          onChange={(e) => updateNodeContent(node.id, { title: e.target.value })}
-          aria-label="Tiêu đề node"
-        />
+        {seed ? (
+          <h3 className="gw-panel__seed-title">{node.title}</h3>
+        ) : (
+          <input
+            className="gw-panel__title-input"
+            value={node.title}
+            onChange={(e) => updateNodeContent(node.id, { title: e.target.value })}
+            aria-label="Tiêu đề node"
+          />
+        )}
         {summary && <p className="gw-panel__summary">{summary}</p>}
-        <textarea
-          className="gw-panel__body"
-          value={node.content ?? ''}
-          placeholder="Ghi chú / nội dung node…"
-          onChange={(e) => updateNodeContent(node.id, { body: e.target.value })}
-          rows={3}
-        />
+        {!seed && (
+          <textarea
+            className="gw-panel__body"
+            value={node.content ?? ''}
+            placeholder="Ghi chú / nội dung node…"
+            onChange={(e) => updateNodeContent(node.id, { body: e.target.value })}
+            rows={3}
+          />
+        )}
         {tags.length > 0 && (
           <div className="gw-panel__tags">
             {tags.map((tag) => (
@@ -243,9 +227,25 @@ export function NodeWorkspacePanel() {
             ))}
           </div>
         )}
+        {seed && (
+          <>
+            <p className="gw-panel__seed-note">
+              Node từ vũ trụ tri thức cộng đồng. Chat ngay bên dưới để khám phá — node sẽ tự thành
+              của bạn, hoặc bấm để tạo node làm việc.
+            </p>
+            <button
+              type="button"
+              className="gw-panel__btn gw-panel__btn--accent gw-panel__adopt"
+              disabled={adopting || busy}
+              onClick={() => void handleAdopt()}
+            >
+              {adopting ? 'Đang tạo…' : '🚀 Bắt đầu làm việc từ node này'}
+            </button>
+          </>
+        )}
       </div>
 
-      {nodeSuggestions.length > 0 && (
+      {!seed && nodeSuggestions.length > 0 && (
         <div className="gw-panel__suggestions">
           {nodeSuggestions.map(({ s, index }) => (
             <div key={index} className="gw-suggestion">
@@ -267,7 +267,11 @@ export function NodeWorkspacePanel() {
 
       <div className="gw-panel__chat">
         {messages.length === 0 ? (
-          <div className="gw-panel__chat-empty">Chat trong ngữ cảnh node này. Gõ /branch, /summarize, /merge.</div>
+          <div className="gw-panel__chat-empty">
+            {seed
+              ? 'Chat để khám phá node này. AI trả lời trong ngữ cảnh node; node sẽ tự thành của bạn.'
+              : 'Chat trong ngữ cảnh node này. Gõ /branch, /summarize, /merge.'}
+          </div>
         ) : (
           messages.map((m) => (
             <div key={m.id} className={`gw-msg gw-msg--${m.role}`}>
@@ -285,8 +289,8 @@ export function NodeWorkspacePanel() {
           ref={inputRef}
           className="gw-panel__input"
           value={draft}
-          disabled={busy}
-          placeholder={busy ? 'Đang xử lý…' : 'Nhắn cho agent… (/branch, /summarize)'}
+          disabled={busy || adopting}
+          placeholder={busy || adopting ? 'Đang xử lý…' : 'Nhắn cho agent… (/branch, /summarize)'}
           onChange={(e) => setDraft(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === 'Enter' && !e.shiftKey) {
@@ -298,7 +302,7 @@ export function NodeWorkspacePanel() {
         <button
           type="button"
           className="gw-panel__btn gw-panel__btn--accent"
-          disabled={busy || !draft.trim()}
+          disabled={busy || adopting || !draft.trim()}
           onClick={() => void handleSend()}
         >
           Gửi
