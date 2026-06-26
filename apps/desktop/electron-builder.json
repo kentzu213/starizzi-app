@@ -39,7 +39,6 @@
       }
     ],
     "icon": "build/icon.ico",
-    "publisherName": "Starizzi Technologies",
     "requestedExecutionLevel": "asInvoker",
     "signAndEditExecutable": false
   },
