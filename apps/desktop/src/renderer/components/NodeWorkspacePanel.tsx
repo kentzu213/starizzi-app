@@ -1,13 +1,22 @@
 import React, { useMemo, useRef, useState } from 'react';
 import { useGraphWorkspaceStore } from '../store/graphWorkspace';
 import { runNodeAgent, BRANCH_AUTOCREATE_THRESHOLD } from '../services/graphAgent';
-import { nodeTypeMeta, parseCommand, type WorkspaceNode } from '../types/graph-workspace';
+import {
+  nodeTypeMeta,
+  nodeViewType,
+  nodeSummary,
+  nodeTags,
+  nodeProvenance,
+  parseCommand,
+} from '../types/graph-workspace';
+import type { GraphNode } from '../../shared/graph-types';
 
 /**
  * Floating, non-blocking workspace panel for the selected node: node content +
- * an AI chat scoped to the node. Supports /branch, /summarize, /merge and
- * auto-creates child nodes when the agent's branch classifier is confident.
- * On small screens it becomes a full-height drawer (see .gw-panel CSS).
+ * an AI chat scoped to the node, over the SHARED graph (decision B). Branching
+ * creates real backend nodes/links. Supports /branch, /summarize, /merge and
+ * auto-creates child nodes when the agent's classifier is confident. On small
+ * screens it becomes a full-height drawer (see .gw-panel CSS).
  */
 export function NodeWorkspacePanel() {
   const selectedNodeId = useGraphWorkspaceStore((s) => s.selectedNodeId);
@@ -15,9 +24,9 @@ export function NodeWorkspacePanel() {
   const messagesByNode = useGraphWorkspaceStore((s) => s.messagesByNode);
   const suggestions = useGraphWorkspaceStore((s) => s.suggestions);
   const selectNode = useGraphWorkspaceStore((s) => s.selectNode);
-  const addBranch = useGraphWorkspaceStore((s) => s.addBranch);
+  const branch = useGraphWorkspaceStore((s) => s.branch);
   const appendMessage = useGraphWorkspaceStore((s) => s.appendMessage);
-  const updateNode = useGraphWorkspaceStore((s) => s.updateNode);
+  const updateNodeContent = useGraphWorkspaceStore((s) => s.updateNodeContent);
   const acceptSuggestion = useGraphWorkspaceStore((s) => s.acceptSuggestion);
   const dismissSuggestion = useGraphWorkspaceStore((s) => s.dismissSuggestion);
 
@@ -32,23 +41,26 @@ export function NodeWorkspacePanel() {
   );
 
   const ancestors = useMemo(() => {
-    if (!node) return [] as WorkspaceNode[];
-    const chain: WorkspaceNode[] = [];
-    let current = node.parentId;
+    if (!node) return [] as GraphNode[];
+    const chain: GraphNode[] = [];
     const guard = new Set<string>();
+    let current = nodeProvenance(node)?.parentId ?? null;
     while (current && !guard.has(current)) {
       guard.add(current);
       const parent = nodes.find((n) => n.id === current);
       if (!parent) break;
       chain.unshift(parent);
-      current = parent.parentId;
+      current = nodeProvenance(parent)?.parentId ?? null;
     }
     return chain;
   }, [node, nodes]);
 
   if (!node) return null;
 
-  const meta = nodeTypeMeta[node.type];
+  const type = nodeViewType(node);
+  const meta = nodeTypeMeta[type];
+  const summary = nodeSummary(node);
+  const tags = nodeTags(node);
   const messages = Object.hasOwn(messagesByNode, node.id) ? messagesByNode[node.id] : [];
   const nodeSuggestions = suggestions
     .map((s, index) => ({ s, index }))
@@ -61,14 +73,15 @@ export function NodeWorkspacePanel() {
 
     if (parsed.command === 'branch') {
       if (text) {
-        addBranch(node.id, { title: text, nodeType: 'question', agent: 'manual', sourceMessageId: null });
-        appendMessage(node.id, 'system', `🌿 Đã tạo nhánh: ${text}`);
+        setDraft('');
+        const id = await branch(node.id, { title: text, nodeType: 'question', agent: 'manual' });
+        if (id) appendMessage(node.id, 'system', `🌿 Đã tạo nhánh: ${text}`);
+        else appendMessage(node.id, 'system', '⚠️ Không tạo được nhánh (cần đăng nhập / kết nối).');
       }
-      setDraft('');
       return;
     }
     if (parsed.command === 'summarize') {
-      const basis = node.summary || node.body || messages.map((m) => m.content).slice(-4).join(' ');
+      const basis = summary || node.content || messages.map((m) => m.content).slice(-4).join(' ');
       appendMessage(node.id, 'system', `📝 Tóm tắt "${node.title}": ${basis || '(chưa có nội dung)'}`);
       setDraft('');
       return;
@@ -82,7 +95,7 @@ export function NodeWorkspacePanel() {
 
     // Normal chat turn.
     if (!text) return;
-    appendMessage(node.id, 'user', text);
+    const userMsg = appendMessage(node.id, 'user', text);
     setDraft('');
     setBusy(true);
     try {
@@ -91,14 +104,15 @@ export function NodeWorkspacePanel() {
       const c = result.classification;
       if (c?.shouldCreateBranch) {
         if (c.confidence >= BRANCH_AUTOCREATE_THRESHOLD) {
-          addBranch(node.id, {
+          const id = await branch(node.id, {
             title: c.title,
             summary: c.summary,
             nodeType: c.nodeType,
             tags: c.tags,
+            sourceMessageId: userMsg?.id ?? null,
             agent: 'izzi',
           });
-          appendMessage(node.id, 'system', `🌿 Tự tạo nhánh (${c.nodeType}): ${c.title}`);
+          if (id) appendMessage(node.id, 'system', `🌿 Tự tạo nhánh (${c.nodeType}): ${c.title}`);
         } else {
           useGraphWorkspaceStore.getState().addSuggestion(c);
         }
@@ -116,7 +130,7 @@ export function NodeWorkspacePanel() {
   return (
     <aside className={`gw-panel ${pinned ? 'gw-panel--pinned' : ''}`} aria-label="Workspace của node">
       <header className="gw-panel__head">
-        <span className={`gw-panel__badge gw-node--${node.type}`}>
+        <span className={`gw-panel__badge gw-node--${type}`}>
           <span aria-hidden="true">{meta.icon}</span> {meta.label}
         </span>
         <div className="gw-panel__head-actions">
@@ -129,12 +143,7 @@ export function NodeWorkspacePanel() {
           >
             📌
           </button>
-          <button
-            type="button"
-            className="gw-panel__icon-btn"
-            title="Đóng"
-            onClick={() => selectNode(null)}
-          >
+          <button type="button" className="gw-panel__icon-btn" title="Đóng" onClick={() => selectNode(null)}>
             ✕
           </button>
         </div>
@@ -144,20 +153,20 @@ export function NodeWorkspacePanel() {
         <input
           className="gw-panel__title-input"
           value={node.title}
-          onChange={(e) => updateNode(node.id, { title: e.target.value })}
+          onChange={(e) => updateNodeContent(node.id, { title: e.target.value })}
           aria-label="Tiêu đề node"
         />
-        {node.summary && <p className="gw-panel__summary">{node.summary}</p>}
+        {summary && <p className="gw-panel__summary">{summary}</p>}
         <textarea
           className="gw-panel__body"
-          value={node.body}
+          value={node.content ?? ''}
           placeholder="Ghi chú / nội dung node…"
-          onChange={(e) => updateNode(node.id, { body: e.target.value })}
+          onChange={(e) => updateNodeContent(node.id, { body: e.target.value })}
           rows={3}
         />
-        {node.tags.length > 0 && (
+        {tags.length > 0 && (
           <div className="gw-panel__tags">
-            {node.tags.map((tag) => (
+            {tags.map((tag) => (
               <span key={tag} className="gw-panel__tag">#{tag}</span>
             ))}
           </div>
@@ -172,7 +181,7 @@ export function NodeWorkspacePanel() {
                 Đề xuất nhánh ({s.nodeType}): <strong>{s.title}</strong>
               </span>
               <div className="gw-suggestion__actions">
-                <button type="button" className="gw-panel__btn gw-panel__btn--accent" onClick={() => acceptSuggestion(index)}>
+                <button type="button" className="gw-panel__btn gw-panel__btn--accent" onClick={() => void acceptSuggestion(index)}>
                   Tạo
                 </button>
                 <button type="button" className="gw-panel__btn" onClick={() => dismissSuggestion(index)}>

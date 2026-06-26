@@ -15,29 +15,36 @@ import {
 import '@xyflow/react/dist/style.css';
 import '../styles/graph-workspace.css';
 import { useGraphWorkspaceStore } from '../store/graphWorkspace';
-import { nodeTypeMeta, type WorkspaceNode, type WorkspaceEdge } from '../types/graph-workspace';
+import { nodeTypeMeta, nodeViewType } from '../types/graph-workspace';
+import type { GraphNode, GraphLink } from '../../shared/graph-types';
 import { NodeWorkspacePanel } from '../components/NodeWorkspacePanel';
 
-type RfNode = Node<{ wn: WorkspaceNode }, 'workspace'>;
+type RfNode = Node<{ node: GraphNode }, 'workspace'>;
 
-function toRfNode(wn: WorkspaceNode): RfNode {
-  return { id: wn.id, type: 'workspace', position: { x: wn.x, y: wn.y }, data: { wn } };
+function toRfNode(node: GraphNode): RfNode {
+  return {
+    id: node.id,
+    type: 'workspace',
+    position: { x: node.x ?? 0, y: node.y ?? 0 },
+    data: { node },
+  };
 }
 
-function toRfEdge(e: WorkspaceEdge): Edge {
-  return { id: e.id, source: e.sourceId, target: e.targetId, className: 'gw-edge' };
+function toRfEdge(link: GraphLink): Edge {
+  return { id: link.id, source: link.sourceId, target: link.targetId, className: 'gw-edge' };
 }
 
-/** Custom node — visually classified by type (color + icon). */
+/** Custom node — visually classified by its workspace type (color + icon). */
 function WorkspaceFlowNode({ data }: NodeProps) {
-  const wn = (data as { wn: WorkspaceNode }).wn;
-  const selected = useGraphWorkspaceStore((s) => s.selectedNodeId === wn.id);
-  const meta = nodeTypeMeta[wn.type];
+  const node = (data as { node: GraphNode }).node;
+  const type = nodeViewType(node);
+  const selected = useGraphWorkspaceStore((s) => s.selectedNodeId === node.id);
+  const meta = nodeTypeMeta[type];
   return (
-    <div className={`gw-node gw-node--${wn.type} ${selected ? 'gw-node--selected' : ''}`}>
+    <div className={`gw-node gw-node--${type} ${selected ? 'gw-node--selected' : ''}`}>
       <Handle type="target" position={Position.Left} className="gw-handle" />
       <span className="gw-node__icon" aria-hidden="true">{meta.icon}</span>
-      <span className="gw-node__title">{wn.title}</span>
+      <span className="gw-node__title">{node.title}</span>
       <Handle type="source" position={Position.Right} className="gw-handle" />
     </div>
   );
@@ -46,40 +53,47 @@ function WorkspaceFlowNode({ data }: NodeProps) {
 const nodeTypes = { workspace: WorkspaceFlowNode };
 
 /**
- * AI Branching Graph Workspace — the first-class graph view. Each node is an
- * idea / session / question / insight / task / artifact. Click a node to open its
- * workspace panel (content + AI chat). The agent branches new child nodes as new
- * subtopics emerge, building a knowledge tree.
+ * AI Branching Graph Workspace — a native view over the SHARED /api/aibase graph
+ * (decision B). Each node is an idea / session / question / insight / task /
+ * artifact. Click a node to open its workspace panel (content + AI chat). The
+ * agent branches new child nodes (real `user_node` + `user_link`) as subtopics
+ * emerge, building the second-brain knowledge tree.
  */
 export function GraphWorkspacePage() {
   const storeNodes = useGraphWorkspaceStore((s) => s.nodes);
-  const storeEdges = useGraphWorkspaceStore((s) => s.edges);
+  const storeLinks = useGraphWorkspaceStore((s) => s.links);
+  const status = useGraphWorkspaceStore((s) => s.status);
+  const bridge = useGraphWorkspaceStore((s) => s.bridge);
   const selectNode = useGraphWorkspaceStore((s) => s.selectNode);
   const setNodePosition = useGraphWorkspaceStore((s) => s.setNodePosition);
+  const refresh = useGraphWorkspaceStore((s) => s.refresh);
 
-  const [rfNodes, setRfNodes, onNodesChange] = useNodesState<RfNode>(storeNodes.map(toRfNode));
-  const [rfEdges, setRfEdges, onEdgesChange] = useEdgesState<Edge>(storeEdges.map(toRfEdge));
+  const [rfNodes, setRfNodes, onNodesChange] = useNodesState<RfNode>([]);
+  const [rfEdges, setRfEdges, onEdgesChange] = useEdgesState<Edge>([]);
 
-  // Sync store -> React Flow: append newly created branch nodes and refresh data.
+  // Load the graph (real backend or demo) once on mount.
+  useEffect(() => {
+    void refresh();
+  }, [refresh]);
+
+  // Sync store -> React Flow: append new nodes/edges, refresh node data.
   useEffect(() => {
     setRfNodes((prev) => {
       const ids = new Set(prev.map((n) => n.id));
       const merged = prev.map((p) => {
-        const wn = storeNodes.find((n) => n.id === p.id);
-        return wn ? { ...p, data: { wn } } : p;
+        const node = storeNodes.find((n) => n.id === p.id);
+        return node ? { ...p, data: { node } } : p;
       });
       const added = storeNodes.filter((n) => !ids.has(n.id)).map(toRfNode);
-      return added.length > 0 ? [...merged, ...added] : merged;
+      // Drop RF nodes no longer in the store (e.g., after a real refresh).
+      const live = merged.filter((p) => storeNodes.some((n) => n.id === p.id));
+      return [...live, ...added];
     });
   }, [storeNodes, setRfNodes]);
 
   useEffect(() => {
-    setRfEdges((prev) => {
-      const ids = new Set(prev.map((e) => e.id));
-      const added = storeEdges.filter((e) => !ids.has(e.id)).map(toRfEdge);
-      return added.length > 0 ? [...prev, ...added] : prev;
-    });
-  }, [storeEdges, setRfEdges]);
+    setRfEdges(() => storeLinks.map(toRfEdge));
+  }, [storeLinks, setRfEdges]);
 
   return (
     <div className="gw-page">
@@ -103,6 +117,16 @@ export function GraphWorkspacePage() {
           <Controls showInteractive={false} />
           <MiniMap pannable zoomable />
         </ReactFlow>
+
+        {status === 'loading' && (
+          <div className="gw-overlay" aria-busy="true">Đang tải graph…</div>
+        )}
+        {status === 'empty' && bridge && (
+          <div className="gw-overlay">
+            <p>Graph của bạn đang trống.</p>
+            <p className="gw-overlay__hint">Chọn một node rồi gõ /branch, hoặc chat để agent tạo nhánh.</p>
+          </div>
+        )}
       </div>
       <NodeWorkspacePanel />
     </div>

@@ -303,6 +303,74 @@ export class GraphClient {
     }
   }
 
+  // ── Links ──────────────────────────────────────────────────────────────
+
+  /**
+   * POST /api/aibase/links — create an edge between two nodes that both belong
+   * to the user. Returns the GraphLink or `{ error }` (fail-closed on no-auth /
+   * 401; pass-through on backend rejection, e.g. 403 not-owned, 409 duplicate).
+   * The target node must already exist on the backend (so branch = create node
+   * first → then link).
+   */
+  async createLink(
+    sourceId: string,
+    targetId: string,
+    label?: string,
+    color?: string,
+  ): Promise<GraphLink | { error: string }> {
+    if (!sourceId || !targetId) return { error: 'sourceId and targetId required' };
+
+    const token = await this.auth.getAccessToken();
+    if (token == null) return { error: 'unauthorized' };
+
+    try {
+      const res = await fetch(`${IZZI_API_BASE}/api/aibase/links`, {
+        method: 'POST',
+        headers: this.authHeaders(token),
+        body: JSON.stringify({ sourceId, targetId, label, color }),
+      });
+      if (res.status === 401) return { error: 'unauthorized' };
+      if (!res.ok) {
+        const message = await this.readBackendError(res);
+        this.logFailure('graph.createLink', res.status);
+        return { error: message };
+      }
+      const data = await res.json();
+      const linkId = ownValue(ownValue(data, 'link'), 'id');
+      const id = typeof linkId === 'string' ? linkId : `link-${sourceId}-${targetId}`;
+      const link: GraphLink = { id, sourceId, targetId };
+      if (typeof label === 'string') link.label = label;
+      if (typeof color === 'string') link.color = color;
+      return link;
+    } catch (err) {
+      this.logFailure('graph.createLink', undefined, shortError(err));
+      return { error: 'network error' };
+    }
+  }
+
+  /** DELETE /api/aibase/links/:id. Returns `{ ok }`, fail-closed on no-auth / 401. */
+  async removeLink(id: string): Promise<{ ok: boolean; error?: string }> {
+    const token = await this.auth.getAccessToken();
+    if (token == null) return { ok: false, error: 'unauthorized' };
+
+    try {
+      const res = await fetch(`${IZZI_API_BASE}/api/aibase/links/${encodeURIComponent(id)}`, {
+        method: 'DELETE',
+        headers: this.authHeaders(token),
+      });
+      if (res.status === 401) return { ok: false, error: 'unauthorized' };
+      if (!res.ok) {
+        const message = await this.readBackendError(res);
+        this.logFailure('graph.removeLink', res.status);
+        return { ok: false, error: message };
+      }
+      return { ok: true };
+    } catch (err) {
+      this.logFailure('graph.removeLink', undefined, shortError(err));
+      return { ok: false, error: 'network error' };
+    }
+  }
+
   /**
    * Look up the `updatedAt` of a cached node (populated by the SyncEngine's
    * graph-refresh step) to use as the LWW base. Returns undefined if not cached

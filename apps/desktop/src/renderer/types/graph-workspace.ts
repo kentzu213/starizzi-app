@@ -1,17 +1,22 @@
 /**
- * AI Branching Graph Workspace — data model + PURE helpers.
+ * AI Branching Graph Workspace — PURE adapters over the SHARED graph model.
  *
- * A graph of idea/session nodes. Each node holds a title/summary/body, a chat
- * transcript, and provenance. The AI agent can spawn child nodes (branches) when
- * a new subtopic/question/task/insight/artifact emerges, forming a knowledge tree.
+ * Decision B: the branching workspace IS the second-brain graph. The single
+ * source of truth is the shared `/api/aibase/*` backend (`GraphNode`/`GraphLink`
+ * from `shared/graph-types`), reached via the `electronAPI.graph` bridge. There
+ * is NO separate local node model.
  *
- * This module is PURE (no React, no side effects) so the branching logic is
- * unit-testable. UI (GraphWorkspace) and the LLM provider live elsewhere.
+ * Workspace-specific concepts (visual type, summary, tags, branch provenance)
+ * are carried in the node's `metadata` JSON — no schema change, no new endpoint.
+ * This module maps between the backend `GraphNode` and the workspace view, and
+ * builds the create payload for a new branch. All functions are PURE and
+ * own-property only (no prototype-chain), so they are unit-testable.
  *
  * @module types/graph-workspace
  */
+import type { GraphNode } from '../../shared/graph-types';
 
-/** Visual + semantic classification of a node. */
+/** Visual + semantic classification of a node (stored as `GraphNode.nodeType`). */
 export type WorkspaceNodeType =
   | 'root'
   | 'session'
@@ -20,36 +25,36 @@ export type WorkspaceNodeType =
   | 'task'
   | 'artifact';
 
-/** Provenance: where a node/branch came from (Req: always store provenance). */
-export interface NodeProvenance {
-  parentId: string | null;
-  sourceMessageId: string | null;
-  agent: string | null;
-  createdAt: string;
-}
+export const WORKSPACE_NODE_TYPES: readonly WorkspaceNodeType[] = [
+  'root',
+  'session',
+  'question',
+  'insight',
+  'task',
+  'artifact',
+];
 
-export interface WorkspaceNode {
-  id: string;
-  type: WorkspaceNodeType;
-  title: string;
-  summary: string;
-  body: string;
-  tags: string[];
-  parentId: string | null;
-  x: number;
-  y: number;
-  provenance: NodeProvenance;
-  createdAt: string;
-  updatedAt: string;
-}
+/** Per-type label + icon for the UI. Colors are in NODE_TYPE_COLORS / CSS. */
+export const nodeTypeMeta: Record<WorkspaceNodeType, { label: string; icon: string }> = {
+  root: { label: 'Gốc', icon: '🌱' },
+  session: { label: 'Phiên', icon: '💬' },
+  question: { label: 'Câu hỏi', icon: '❓' },
+  insight: { label: 'Insight', icon: '💡' },
+  task: { label: 'Task', icon: '✅' },
+  artifact: { label: 'Artifact', icon: '📦' },
+};
 
-export interface WorkspaceEdge {
-  id: string;
-  sourceId: string;
-  targetId: string;
-  type: 'branch' | 'merge';
-}
+/** Controlled per-type accent palette (sent as GraphNode.color on create). */
+export const NODE_TYPE_COLORS: Record<WorkspaceNodeType, string> = {
+  root: '#67e8f9',
+  session: '#22dcc2',
+  question: '#5ca7ff',
+  insight: '#ffc45c',
+  task: '#45d982',
+  artifact: '#a78bfa',
+};
 
+/** A node-scoped chat message. Transcripts are local (backend has no message API). */
 export interface WorkspaceMessage {
   id: string;
   nodeId: string;
@@ -58,7 +63,15 @@ export interface WorkspaceMessage {
   createdAt: string;
 }
 
-/** Structured output of the branch-intent classifier (internal, JSON). */
+/** Branch provenance carried in `GraphNode.metadata.provenance`. */
+export interface NodeProvenance {
+  parentId: string | null;
+  sourceMessageId: string | null;
+  agent: string | null;
+  createdAt: string;
+}
+
+/** Structured output of the branch-intent classifier (internal JSON). */
 export interface BranchClassification {
   shouldCreateBranch: boolean;
   parentNodeId: string;
@@ -73,27 +86,6 @@ export interface BranchClassification {
 /** Confidence at/above which a branch is auto-created; below = suggest only. */
 export const BRANCH_AUTOCREATE_THRESHOLD = 0.65;
 
-/** Per-type visual metadata. Colors live in CSS (.gw-node--<type>); no hex here. */
-export const nodeTypeMeta: Record<
-  WorkspaceNodeType,
-  { label: string; icon: string }
-> = {
-  root: { label: 'Gốc', icon: '🌱' },
-  session: { label: 'Phiên', icon: '💬' },
-  question: { label: 'Câu hỏi', icon: '❓' },
-  insight: { label: 'Insight', icon: '💡' },
-  task: { label: 'Task', icon: '✅' },
-  artifact: { label: 'Artifact', icon: '📦' },
-};
-
-/** Generate a stable-ish local id (crypto.randomUUID when available). */
-export function createNodeId(prefix = 'node'): string {
-  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
-    return `${prefix}-${crypto.randomUUID()}`;
-  }
-  return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-}
-
 /** Input describing the branch to create (from a command or the classifier). */
 export interface BranchIntent {
   title: string;
@@ -105,49 +97,60 @@ export interface BranchIntent {
   agent?: string | null;
 }
 
-/**
- * Create a child node branching from `parent`. PURE: deterministic position
- * (offset right of parent, spread vertically by existing sibling count) and full
- * provenance. Title is required and trimmed; falls back to a generic label.
- */
-export function createBranchNode(
-  parent: WorkspaceNode,
-  intent: BranchIntent,
-  siblingCount: number,
-  now: string = new Date().toISOString(),
-): WorkspaceNode {
-  const title = (intent.title || '').trim() || 'Nhánh mới';
-  const id = createNodeId('node');
-  const laneHeight = 96;
-  const spread = (siblingCount - 0) * laneHeight - (siblingCount > 0 ? laneHeight : 0) / 2;
-  return {
-    id,
-    type: intent.nodeType ?? 'question',
-    title,
-    summary: (intent.summary ?? '').trim(),
-    body: (intent.body ?? '').trim(),
-    tags: dedupeTags(intent.tags ?? []),
-    parentId: parent.id,
-    x: parent.x + 280,
-    y: parent.y + spread,
-    provenance: {
-      parentId: parent.id,
-      sourceMessageId: intent.sourceMessageId ?? null,
-      agent: intent.agent ?? null,
-      createdAt: now,
-    },
-    createdAt: now,
-    updatedAt: now,
-  };
+/** The shape passed to `electronAPI.graph.create` for a new branch node. */
+export interface BranchCreatePayload {
+  title: string;
+  nodeType: string;
+  color: string;
+  content?: string;
+  x: number;
+  y: number;
+  metadata: Record<string, unknown>;
 }
 
-/** Build the edge connecting a parent to its freshly-created branch child. */
-export function createBranchEdge(parentId: string, childId: string): WorkspaceEdge {
+// ── Own-property metadata accessors (no prototype-chain) ──
+
+function ownMeta(node: GraphNode): Record<string, unknown> {
+  const meta = node.metadata;
+  if (meta === null || typeof meta !== 'object' || Array.isArray(meta)) return {};
+  return meta as Record<string, unknown>;
+}
+
+/** Coerce an unknown value to a valid WorkspaceNodeType (default 'session'). */
+export function coerceNodeType(value: unknown): WorkspaceNodeType {
+  return WORKSPACE_NODE_TYPES.includes(value as WorkspaceNodeType)
+    ? (value as WorkspaceNodeType)
+    : 'session';
+}
+
+/** The workspace view type of a backend node (from its `nodeType`). */
+export function nodeViewType(node: GraphNode): WorkspaceNodeType {
+  return coerceNodeType(node.nodeType);
+}
+
+/** The node's summary (from `metadata.summary`), or ''. */
+export function nodeSummary(node: GraphNode): string {
+  const v = ownMeta(node).summary;
+  return typeof v === 'string' ? v : '';
+}
+
+/** The node's tags (from `metadata.tags`), or []. */
+export function nodeTags(node: GraphNode): string[] {
+  const v = ownMeta(node).tags;
+  if (!Array.isArray(v)) return [];
+  return v.filter((t): t is string => typeof t === 'string');
+}
+
+/** The node's branch provenance (from `metadata.provenance`), or null. */
+export function nodeProvenance(node: GraphNode): NodeProvenance | null {
+  const v = ownMeta(node).provenance;
+  if (v === null || typeof v !== 'object' || Array.isArray(v)) return null;
+  const p = v as Record<string, unknown>;
   return {
-    id: `edge-${parentId}-${childId}`,
-    sourceId: parentId,
-    targetId: childId,
-    type: 'branch',
+    parentId: typeof p.parentId === 'string' ? p.parentId : null,
+    sourceMessageId: typeof p.sourceMessageId === 'string' ? p.sourceMessageId : null,
+    agent: typeof p.agent === 'string' ? p.agent : null,
+    createdAt: typeof p.createdAt === 'string' ? p.createdAt : '',
   };
 }
 
@@ -163,6 +166,44 @@ export function dedupeTags(tags: string[]): string[] {
     }
   }
   return out;
+}
+
+/**
+ * Build the `electronAPI.graph.create` payload for a branch off `parent`. PURE:
+ * deterministic position (right of parent, vertically spread by sibling count),
+ * type→color mapping, and full provenance in metadata. Title trimmed with a
+ * generic fallback.
+ */
+export function branchCreateInput(
+  parent: GraphNode,
+  intent: BranchIntent,
+  siblingCount: number,
+  now: string = new Date().toISOString(),
+): BranchCreatePayload {
+  const nodeType: WorkspaceNodeType = intent.nodeType ?? 'question';
+  const title = (intent.title || '').trim() || 'Nhánh mới';
+  const laneHeight = 96;
+  const spread = siblingCount * laneHeight - (siblingCount > 0 ? laneHeight / 2 : 0);
+  const payload: BranchCreatePayload = {
+    title,
+    nodeType,
+    color: NODE_TYPE_COLORS[nodeType],
+    x: (parent.x ?? 0) + 280,
+    y: (parent.y ?? 0) + spread,
+    metadata: {
+      summary: (intent.summary ?? '').trim(),
+      tags: dedupeTags(intent.tags ?? []),
+      provenance: {
+        parentId: parent.id,
+        sourceMessageId: intent.sourceMessageId ?? null,
+        agent: intent.agent ?? null,
+        createdAt: now,
+      } satisfies NodeProvenance,
+    },
+  };
+  const body = (intent.body ?? '').trim();
+  if (body) payload.content = body;
+  return payload;
 }
 
 export type ParsedCommand =

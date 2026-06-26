@@ -15,6 +15,7 @@ import type {
 } from './agent/types';
 import type { DesktopUpdaterState } from './updater/types';
 import type { GraphNode, GraphLink, MemoryItemDTO } from '../shared/graph-types';
+import type { ParsedClassification } from './graph/graph-agent-core';
 
 const electronAPI = {
   window: {
@@ -267,11 +268,29 @@ const electronAPI = {
     remove: (id: string): Promise<{ ok: boolean; error?: string }> =>
       ipcRenderer.invoke('graph:remove', id),
     links: (): Promise<GraphLink[]> => ipcRenderer.invoke('graph:links'),
+    createLink: (
+      sourceId: string,
+      targetId: string,
+      label?: string,
+      color?: string,
+    ): Promise<GraphLink | { error: string }> =>
+      ipcRenderer.invoke('graph:createLink', sourceId, targetId, label, color),
+    removeLink: (id: string): Promise<{ ok: boolean; error?: string }> =>
+      ipcRenderer.invoke('graph:removeLink', id),
   },
 
   memory: {
     list: (agentId: string, limit?: number): Promise<MemoryItemDTO[]> =>
       ipcRenderer.invoke('memory:list', agentId, limit),
+  },
+
+  graphAgent: {
+    chat: (payload: {
+      node: GraphNode;
+      ancestors: GraphNode[];
+      message: string;
+    }): Promise<{ reply: string; classification: ParsedClassification | null }> =>
+      ipcRenderer.invoke('graphAgent:chat', payload),
   },
 
   platform: {

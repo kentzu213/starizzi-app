@@ -1,4 +1,5 @@
 import type { GraphNode, GraphLink, MemoryItemDTO } from '../../shared/graph-types';
+import type { BranchClassification } from './graph-workspace';
 
 export {};
 
@@ -13,11 +14,32 @@ declare global {
     ) => Promise<{ ok: true } | { error: string }>;
     remove: (id: string) => Promise<{ ok: boolean; error?: string }>;
     links: () => Promise<GraphLink[]>;
+    createLink: (
+      sourceId: string,
+      targetId: string,
+      label?: string,
+      color?: string,
+    ) => Promise<GraphLink | { error: string }>;
+    removeLink: (id: string) => Promise<{ ok: boolean; error?: string }>;
   }
 
   /** Renderer-facing memory IPC surface — mirrors the preload `memory` namespace (Req 7.2, 7.5). */
   interface ElectronMemoryApi {
     list: (agentId: string, limit?: number) => Promise<MemoryItemDTO[]>;
+  }
+
+  /**
+   * Renderer-facing graph-agent IPC surface — mirrors the preload `graphAgent`
+   * namespace. The Izzi key stays in main; the renderer only sees the reply +
+   * branch classification. `classification` is structurally the renderer
+   * `BranchClassification` (same 5-type union, same fields).
+   */
+  interface ElectronGraphAgentApi {
+    chat: (payload: {
+      node: GraphNode;
+      ancestors: GraphNode[];
+      message: string;
+    }) => Promise<{ reply: string; classification: BranchClassification | null }>;
   }
 
   /**
@@ -29,6 +51,7 @@ declare global {
   interface ElectronApi {
     graph?: ElectronGraphApi;
     memory?: ElectronMemoryApi;
+    graphAgent?: ElectronGraphAgentApi;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     [key: string]: any;
   }

@@ -284,3 +284,23 @@
     border-radius: var(--radius-glass-md) var(--radius-glass-md) 0 0;
   }
 }
+
+/* Loading / empty overlay over the canvas */
+.gw-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-xs);
+  pointer-events: none;
+  color: var(--color-text-tertiary);
+  font-size: var(--font-size-sm);
+  background: color-mix(in srgb, var(--color-bg-primary) 60%, transparent);
+}
+.gw-overlay__hint {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-tertiary);
+}

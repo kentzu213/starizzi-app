@@ -5,7 +5,8 @@ import { AuthManager } from './auth/auth-manager';
 import { DatabaseManager } from './db/database';
 import { SyncEngine } from './sync/sync-engine';
 import { GraphClient } from './graph/graph-client';
-import { registerGraphIpc } from './graph/graph-ipc';
+import { registerGraphIpc, registerGraphAgentIpc } from './graph/graph-ipc';
+import { GraphAgent } from './graph/graph-agent';
 import { ExtensionManager } from './extensions/manager';
 import { ExtensionLoader } from './extensions/extension-loader';
 import { PERMISSION_DEFINITIONS } from './extensions/permissions';
@@ -184,6 +185,10 @@ function setupIPC() {
   // ── Graph & Memory (shared backend /api/aibase/*; token stays in main) ──
   const graphClient = new GraphClient(authManager, dbManager);
   registerGraphIpc(graphClient);
+
+  // ── Graph Agent (Izzi LLM for the Branching Graph Workspace; key stays in main) ──
+  const graphAgent = new GraphAgent(authManager);
+  registerGraphAgentIpc(graphAgent);
 
   // ── Extensions (basic) ──
   ipcMain.handle('extensions:list', async () => {
