@@ -141,6 +141,17 @@ export function nodeTags(node: GraphNode): string[] {
   return v.filter((t): t is string => typeof t === 'string');
 }
 
+/** Whether a node is a READ-ONLY universe seed (from `metadata.seed`). */
+export function isSeedNode(node: GraphNode): boolean {
+  return ownMeta(node).seed === true;
+}
+
+/** The originating community-universe id for a seed node, or null. */
+export function universeIdOf(node: GraphNode): string | null {
+  const v = ownMeta(node).universeId;
+  return typeof v === 'string' ? v : null;
+}
+
 /** The node's branch provenance (from `metadata.provenance`), or null. */
 export function nodeProvenance(node: GraphNode): NodeProvenance | null {
   const v = ownMeta(node).provenance;

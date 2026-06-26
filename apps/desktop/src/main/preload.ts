@@ -258,6 +258,8 @@ const electronAPI = {
 
   graph: {
     list: (): Promise<GraphNode[]> => ipcRenderer.invoke('graph:list'),
+    universe: (): Promise<{ nodes: GraphNode[]; links: GraphLink[] }> =>
+      ipcRenderer.invoke('graph:universe'),
     create: (input: Partial<GraphNode> & { title: string }): Promise<GraphNode | { error: string }> =>
       ipcRenderer.invoke('graph:create', input),
     update: (

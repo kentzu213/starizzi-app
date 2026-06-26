@@ -15,7 +15,7 @@ import {
 import '@xyflow/react/dist/style.css';
 import '../styles/graph-workspace.css';
 import { useGraphWorkspaceStore } from '../store/graphWorkspace';
-import { nodeTypeMeta, nodeViewType } from '../types/graph-workspace';
+import { nodeTypeMeta, nodeViewType, isSeedNode } from '../types/graph-workspace';
 import type { GraphNode, GraphLink } from '../../shared/graph-types';
 import { NodeWorkspacePanel } from '../components/NodeWorkspacePanel';
 
@@ -38,10 +38,13 @@ function toRfEdge(link: GraphLink): Edge {
 function WorkspaceFlowNode({ data }: NodeProps) {
   const node = (data as { node: GraphNode }).node;
   const type = nodeViewType(node);
+  const seed = isSeedNode(node);
   const selected = useGraphWorkspaceStore((s) => s.selectedNodeId === node.id);
   const meta = nodeTypeMeta[type];
   return (
-    <div className={`gw-node gw-node--${type} ${selected ? 'gw-node--selected' : ''}`}>
+    <div
+      className={`gw-node gw-node--${type} ${seed ? 'gw-node--seed' : ''} ${selected ? 'gw-node--selected' : ''}`}
+    >
       <Handle type="target" position={Position.Left} className="gw-handle" />
       <span className="gw-node__icon" aria-hidden="true">{meta.icon}</span>
       <span className="gw-node__title">{node.title}</span>
@@ -67,6 +70,9 @@ export function GraphWorkspacePage() {
   const selectNode = useGraphWorkspaceStore((s) => s.selectNode);
   const setNodePosition = useGraphWorkspaceStore((s) => s.setNodePosition);
   const refresh = useGraphWorkspaceStore((s) => s.refresh);
+  const loadUniverse = useGraphWorkspaceStore((s) => s.loadUniverse);
+  const universeStatus = useGraphWorkspaceStore((s) => s.universeStatus);
+  const seedCount = useGraphWorkspaceStore((s) => s.seedCount);
 
   const [rfNodes, setRfNodes, onNodesChange] = useNodesState<RfNode>([]);
   const [rfEdges, setRfEdges, onEdgesChange] = useEdgesState<Edge>([]);
@@ -98,6 +104,28 @@ export function GraphWorkspacePage() {
   return (
     <div className="gw-page">
       <div className="gw-canvas">
+        <div className="gw-toolbar">
+          <button
+            type="button"
+            className="gw-toolbar__btn"
+            onClick={() => void loadUniverse()}
+            disabled={universeStatus === 'loading'}
+            title="Nạp toàn bộ vũ trụ tri thức cộng đồng vào workspace để bắt đầu làm việc"
+          >
+            <span aria-hidden="true">🌌</span>
+            {universeStatus === 'loading' ? 'Đang nạp…' : 'Nạp Vũ trụ tri thức'}
+          </button>
+          {seedCount > 0 && (
+            <span className="gw-toolbar__hint">
+              {seedCount} node tri thức · bấm một node rồi “Bắt đầu làm việc”
+            </span>
+          )}
+          {universeStatus === 'error' && (
+            <span className="gw-toolbar__hint gw-toolbar__hint--error">
+              Không nạp được vũ trụ tri thức (kiểm tra mạng).
+            </span>
+          )}
+        </div>
         <ReactFlow
           nodes={rfNodes}
           edges={rfEdges}

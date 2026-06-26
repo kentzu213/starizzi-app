@@ -304,3 +304,99 @@
   font-size: var(--font-size-xs);
   color: var(--color-text-tertiary);
 }
+
+/* ── "Nạp Vũ trụ tri thức" toolbar (top-left canvas overlay) ── */
+.gw-toolbar {
+  position: absolute;
+  top: var(--space-md);
+  left: var(--space-md);
+  z-index: 6;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-sm);
+  max-width: calc(100% - 420px);
+}
+.gw-toolbar__btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 16px;
+  border: 1px solid var(--color-border-accent);
+  border-radius: var(--radius-glass-md);
+  background: var(--color-bg-elevated);
+  color: var(--color-text-primary);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: var(--shadow-glow);
+  transition: transform var(--transition-fast), background var(--transition-fast);
+}
+.gw-toolbar__btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  background: var(--color-bg-hover);
+}
+.gw-toolbar__btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+.gw-toolbar__hint {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-tertiary);
+  padding: 4px 8px;
+  border-radius: var(--radius-glass-sm);
+  background: color-mix(in srgb, var(--color-bg-primary) 70%, transparent);
+}
+.gw-toolbar__hint--error {
+  color: var(--color-danger, #ff6b6b);
+}
+
+/* ── Read-only universe seed nodes (translucent + dashed) ── */
+.gw-node--seed {
+  opacity: 0.82;
+  border-style: dashed;
+  background: color-mix(in srgb, var(--color-bg-elevated) 72%, transparent);
+}
+.gw-node--seed:hover {
+  opacity: 1;
+}
+
+/* ── Seed node panel (read-only + adopt CTA) ── */
+.gw-panel--seed {
+  border-color: var(--color-border-accent);
+}
+.gw-panel__seed-tag {
+  margin-left: 4px;
+  font-weight: 500;
+  color: var(--color-text-tertiary);
+}
+.gw-panel__seed-title {
+  margin: 0;
+  font-size: var(--font-size-md);
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+.gw-panel__seed-note {
+  margin: 0;
+  font-size: var(--font-size-xs);
+  line-height: 1.5;
+  color: var(--color-text-tertiary);
+}
+.gw-panel__adopt {
+  width: 100%;
+  justify-content: center;
+  padding: 10px 16px;
+  margin-top: var(--space-xs);
+}
+
+/* Honor reduced-motion for the graph surface (per second-brain UI rule). */
+@media (prefers-reduced-motion: reduce) {
+  .gw-node,
+  .gw-toolbar__btn {
+    transition: none;
+  }
+  .gw-node:hover,
+  .gw-toolbar__btn:hover:not(:disabled) {
+    transform: none;
+  }
+}

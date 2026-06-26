@@ -7,6 +7,7 @@ declare global {
   /** Renderer-facing graph IPC surface — mirrors the preload `graph` namespace (Req 7.1, 7.5). */
   interface ElectronGraphApi {
     list: () => Promise<GraphNode[]>;
+    universe: () => Promise<{ nodes: GraphNode[]; links: GraphLink[] }>;
     create: (input: Partial<GraphNode> & { title: string }) => Promise<GraphNode | { error: string }>;
     update: (
       id: string,

@@ -31,9 +31,16 @@ import {
   memoryNodeToItem,
 } from '../../shared/graph-mapper';
 import type { GraphNode, GraphLink, MemoryItemDTO } from '../../shared/graph-types';
+import { buildUniverseSeed } from '../../shared/universe-adapter';
 
 /** Same base URL derivation as AuthManager / SyncEngine (HTTPS). */
 const IZZI_API_BASE = process.env.OPENCLAW_API_URL || 'https://api.izziapi.com';
+
+/**
+ * The web-app base. The PUBLIC community knowledge graph is served by the
+ * Next.js app (`GET /api/dochub/graph`), not the `/api/aibase` API host.
+ */
+const IZZI_WEB_BASE = process.env.OPENCLAW_WEB_URL || 'https://izziapi.com';
 
 /** Create input accepted by `createNode` — the writable node fields + a title. */
 export type NodeCreateInput = Partial<GraphNode> & { title: string };
@@ -164,8 +171,29 @@ export class GraphClient {
     }
   }
 
-  // ── Writes ─────────────────────────────────────────────────────────────
+  /**
+   * GET /api/dochub/graph (PUBLIC, guest-safe — NO token) on the web app host.
+   * Returns the SHARED community knowledge universe adapted to read-only seed
+   * `GraphNode[]` + `GraphLink[]` for the workspace overlay. The response is
+   * untrusted → parsed/validated/capped by the pure `buildUniverseSeed`. Returns
+   * an empty graph on any failure; never throws.
+   */
+  async fetchUniverse(): Promise<{ nodes: GraphNode[]; links: GraphLink[] }> {
+    try {
+      const res = await fetch(`${IZZI_WEB_BASE}/api/dochub/graph`);
+      if (!res.ok) {
+        this.logFailure('graph.universe', res.status);
+        return { nodes: [], links: [] };
+      }
+      const data = await res.json();
+      return buildUniverseSeed(data);
+    } catch (err) {
+      this.logFailure('graph.universe', undefined, shortError(err));
+      return { nodes: [], links: [] };
+    }
+  }
 
+  // ── Writes ─────────────────────────────────────────────────────────────
   /**
    * POST /api/aibase/nodes. Guards an empty/whitespace title BEFORE any network
    * call (Req 2.2). Returns the created GraphNode (mapped from `{ node }`) or

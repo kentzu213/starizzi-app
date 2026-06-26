@@ -14,8 +14,10 @@
  */
 import { create } from 'zustand';
 import type { GraphNode, GraphLink } from '../../shared/graph-types';
+import { buildUniverseSeed } from '../../shared/universe-adapter';
 import {
   branchCreateInput,
+  isSeedNode,
   NODE_TYPE_COLORS,
   type BranchClassification,
   type BranchIntent,
@@ -30,11 +32,17 @@ interface GraphWorkspaceState {
   status: Status;
   /** True once a real backend bridge has served data; false in demo mode. */
   bridge: boolean;
+  /** Status of the "Nạp Vũ trụ tri thức" seed overlay load. */
+  universeStatus: 'idle' | 'loading' | 'error' | 'ready';
+  /** Number of read-only universe seed nodes currently overlaid. */
+  seedCount: number;
   selectedNodeId: string | null;
   messagesByNode: Record<string, WorkspaceMessage[]>;
   suggestions: BranchClassification[];
 
   refresh: () => Promise<void>;
+  loadUniverse: () => Promise<void>;
+  adoptSeed: (seedId: string) => Promise<string | null>;
   selectNode: (id: string | null) => void;
   setNodePosition: (id: string, x: number, y: number) => void;
   updateNodeContent: (
@@ -131,11 +139,49 @@ function seedDemo(): { nodes: GraphNode[]; links: GraphLink[]; messages: Record<
   return { nodes, links, messages };
 }
 
+/**
+ * Demo universe (bridge absent / browser dev) — a small community graph run
+ * through the REAL adapter so the "Nạp Vũ trụ tri thức" button works in dev
+ * smoke tests exactly as it does in Electron.
+ */
+function demoUniverse(): { nodes: GraphNode[]; links: GraphLink[] } {
+  return buildUniverseSeed({
+    success: true,
+    data: {
+      nodes: [
+        { id: 'core', name: 'AI Knowledge', color: '#7c4dff', type: 'core', group: 'core' },
+        { id: 'ai-agent', name: 'AI Agent', color: '#5ca7ff', type: 'topic', group: 'ai-agent', topicId: 'ai-agent' },
+        { id: 'prompt', name: 'Prompt Engineering', color: '#22dcc2', type: 'topic', group: 'prompt', topicId: 'prompt' },
+        { id: 'rag', name: 'RAG', color: '#ffc45c', type: 'topic', group: 'rag', topicId: 'rag' },
+        { id: 'ai-agent--multi', name: 'Multi-Agent', type: 'child', group: 'ai-agent', topicId: 'ai-agent' },
+        { id: 'ai-agent--memory', name: 'Memory & Context', type: 'child', group: 'ai-agent', topicId: 'ai-agent' },
+        { id: 'prompt--cot', name: 'Chain of Thought', type: 'child', group: 'prompt', topicId: 'prompt' },
+        { id: 'rag--vector', name: 'Vector Search', type: 'child', group: 'rag', topicId: 'rag' },
+        { id: 'cnode--a1', name: 'Bài: Agentic workflow', type: 'article', group: 'ai-agent', topicId: 'ai-agent' },
+        { id: 'cnode--a2', name: 'Bài: RAG nâng cao', type: 'article', group: 'rag', topicId: 'rag' },
+      ],
+      links: [
+        { source: 'core', target: 'ai-agent' },
+        { source: 'core', target: 'prompt' },
+        { source: 'core', target: 'rag' },
+        { source: 'ai-agent', target: 'ai-agent--multi' },
+        { source: 'ai-agent', target: 'ai-agent--memory' },
+        { source: 'prompt', target: 'prompt--cot' },
+        { source: 'rag', target: 'rag--vector' },
+        { source: 'ai-agent', target: 'cnode--a1' },
+        { source: 'rag', target: 'cnode--a2' },
+      ],
+    },
+  });
+}
+
 export const useGraphWorkspaceStore = create<GraphWorkspaceState>((set, get) => ({
   nodes: [],
   links: [],
   status: 'idle',
   bridge: false,
+  universeStatus: 'idle',
+  seedCount: 0,
   selectedNodeId: null,
   messagesByNode: {},
   suggestions: [],
@@ -143,15 +189,18 @@ export const useGraphWorkspaceStore = create<GraphWorkspaceState>((set, get) => 
   refresh: async () => {
     const graph = window.electronAPI?.graph;
     if (!graph) {
+      const seeds = get().nodes.filter(isSeedNode);
+      const seedLinks = get().links.filter((l) => l.id.startsWith('useed-'));
       const demo = seedDemo();
       const current = get().selectedNodeId;
+      const nodes = [...demo.nodes, ...seeds];
       set({
-        nodes: demo.nodes,
-        links: demo.links,
+        nodes,
+        links: [...demo.links, ...seedLinks],
         messagesByNode: { ...demo.messages, ...get().messagesByNode },
         bridge: false,
         status: 'ready',
-        selectedNodeId: current && demo.nodes.some((n) => n.id === current) ? current : demo.nodes[0]?.id ?? null,
+        selectedNodeId: current && nodes.some((n) => n.id === current) ? current : demo.nodes[0]?.id ?? null,
       });
       return;
     }
@@ -161,17 +210,111 @@ export const useGraphWorkspaceStore = create<GraphWorkspaceState>((set, get) => 
       const [nodes, links] = await Promise.all([graph.list(), graph.links()]);
       const safeNodes = Array.isArray(nodes) ? nodes : [];
       const safeLinks = Array.isArray(links) ? links : [];
+      // Preserve any loaded universe seed overlay across a refresh.
+      const seeds = get().nodes.filter(isSeedNode);
+      const seedLinks = get().links.filter((l) => l.id.startsWith('useed-'));
+      const merged = [...safeNodes, ...seeds];
       const current = get().selectedNodeId;
       set({
-        nodes: safeNodes,
-        links: safeLinks,
-        status: safeNodes.length > 0 ? 'ready' : 'empty',
+        nodes: merged,
+        links: [...safeLinks, ...seedLinks],
+        status: merged.length > 0 ? 'ready' : 'empty',
         selectedNodeId:
-          current && safeNodes.some((n) => n.id === current) ? current : safeNodes[0]?.id ?? null,
+          current && merged.some((n) => n.id === current) ? current : safeNodes[0]?.id ?? null,
       });
     } catch {
       set({ status: 'error' });
     }
+  },
+
+  loadUniverse: async () => {
+    set({ universeStatus: 'loading' });
+    const graph = window.electronAPI?.graph;
+    let seed: { nodes: GraphNode[]; links: GraphLink[] };
+    try {
+      seed = graph?.universe ? await graph.universe() : demoUniverse();
+    } catch {
+      set({ universeStatus: 'error' });
+      return;
+    }
+    const safe = seed && Array.isArray(seed.nodes) ? seed : { nodes: [], links: [] };
+    if (safe.nodes.length === 0) {
+      set({ universeStatus: 'error' });
+      return;
+    }
+    // Replace any prior seed overlay; keep the user's OWNED nodes/links.
+    set((s) => {
+      const owned = s.nodes.filter((n) => !isSeedNode(n));
+      const ownedLinks = s.links.filter((l) => !l.id.startsWith('useed-'));
+      return {
+        nodes: [...owned, ...safe.nodes],
+        links: [...ownedLinks, ...safe.links],
+        status: 'ready',
+        universeStatus: 'ready',
+        seedCount: safe.nodes.length,
+      };
+    });
+  },
+
+  /**
+   * "Adopt" a read-only seed into the user's OWNED graph so they can work on it.
+   * Creates exactly one `user_node` (carrying the universe origin in metadata),
+   * replaces the seed in-place, and selects it. The rest of the seed overlay
+   * stays. No bulk copy; the existing branch/chat flow then runs on this owned node.
+   */
+  adoptSeed: async (seedId) => {
+    const seed = get().nodes.find((n) => n.id === seedId);
+    if (!seed || !isSeedNode(seed)) return null;
+    const meta = metaClone(seed);
+    const adoptMeta: Record<string, unknown> = {
+      summary: typeof meta.summary === 'string' ? meta.summary : '',
+      tags: Array.isArray(meta.tags) ? meta.tags.filter((t) => typeof t === 'string') : [],
+      source: 'universe',
+      universeId: typeof meta.universeId === 'string' ? meta.universeId : seedId,
+      provenance: { parentId: null, sourceMessageId: null, agent: 'universe', createdAt: nowIso() },
+    };
+    const x = (seed.x ?? 0) + 40;
+    const y = (seed.y ?? 0) + 40;
+    const ownedLocal = (id: string): GraphNode => ({
+      id,
+      title: seed.title,
+      nodeType: 'session',
+      color: NODE_TYPE_COLORS.session,
+      content: '',
+      x,
+      y,
+      metadata: adoptMeta,
+      createdAt: nowIso(),
+      updatedAt: nowIso(),
+    });
+    const replaceSeedWith = (owned: GraphNode) => {
+      set((s) => ({
+        nodes: [...s.nodes.filter((n) => n.id !== seedId), owned],
+        links: s.links.filter((l) => l.sourceId !== seedId && l.targetId !== seedId),
+        selectedNodeId: owned.id,
+        status: 'ready',
+      }));
+    };
+
+    const graph = window.electronAPI?.graph;
+    if (!graph) {
+      const owned = ownedLocal(newId('demo-node'));
+      replaceSeedWith(owned);
+      return owned.id;
+    }
+
+    const created = await graph.create({
+      title: seed.title,
+      nodeType: 'session',
+      color: NODE_TYPE_COLORS.session,
+      content: '',
+      x,
+      y,
+      metadata: adoptMeta,
+    });
+    if (!created || 'error' in created) return null;
+    replaceSeedWith(ownedLocal(created.id));
+    return created.id;
   },
 
   selectNode: (id) => set({ selectedNodeId: id }),
