@@ -18,6 +18,7 @@ import { AgentStorePage } from './pages/AgentStore';
 import { SettingsPage } from './pages/Settings';
 import { SetupWizardPage } from './pages/SetupWizard';
 import { CostDashboardPage } from './pages/CostDashboard';
+import { KnowledgePage } from './pages/Knowledge';
 import { useAgentWorkspaceStore } from './store/agentWorkspace';
 import { vi } from './i18n/vi';
 
@@ -32,7 +33,8 @@ type Page =
   | 'extensions'
   | 'settings'
   | 'setup'
-  | 'costs';
+  | 'costs'
+  | 'knowledge';
 
 const DEV_USER = {
   name: 'Demo User',
@@ -271,7 +273,14 @@ export function App() {
   function renderPage() {
     switch (currentPage) {
       case 'chat':
-        return <ChatPage onNavigateToDashboard={() => setCurrentPage('dashboard')} onNavigateToAgentHub={() => setCurrentPage('agents')} />;
+        return (
+          <ChatPage
+            user={currentUser}
+            onBuyApi={handleBuyApi}
+            onNavigateToDashboard={() => setCurrentPage('dashboard')}
+            onNavigateToAgentHub={() => setCurrentPage('agents')}
+          />
+        );
       case 'tasks':
         return <TasksPage />;
       case 'memory':
@@ -317,6 +326,8 @@ export function App() {
             onBuyApi={handleBuyApi}
           />
         );
+      case 'knowledge':
+        return <KnowledgePage />;
       default:
         return <ChatPage />;
     }

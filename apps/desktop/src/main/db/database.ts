@@ -16,6 +16,7 @@ import type {
 } from '../agent/types';
 import { runLegacyStoreMigration } from './migrations';
 import { ensureSqliteSchema } from './sqlite-schema';
+import type { QueueOp } from '../../shared/offline-queue';
 
 type SqliteDatabase = Database.Database;
 
@@ -92,6 +93,17 @@ interface InstalledExtensionRow {
   license_key?: string;
   installed_at: string;
   updated_at: string;
+}
+
+interface OfflineQueueRow {
+  seq: number;
+  op_type: QueueOp['opType'];
+  target: QueueOp['target'];
+  local_id: string | null;
+  backend_id: string | null;
+  base_updated_at: string | null;
+  payload: string;
+  created_at: string;
 }
 
 export class DatabaseManager {
@@ -636,6 +648,54 @@ export class DatabaseManager {
     this.db.prepare('DELETE FROM agent_memories WHERE id = ?').run(memoryId);
   }
 
+  // ── Offline write queue (Phase 2 — desktop-graph-backend-sync) ──
+  // Persists graph write operations made while the shared backend is unreachable.
+  // The pure coalesce/no-orphan/LWW logic lives in `shared/offline-queue.ts`; this
+  // layer is just FIFO persistence. No token is ever stored here (Req 9.2).
+
+  /** Append a pending write op; returns the auto-assigned FIFO `seq` (Req 4.1). */
+  enqueueOp(op: Omit<QueueOp, 'seq'>): number {
+    const info = this.db
+      .prepare(
+        `INSERT INTO offline_queue (op_type, target, local_id, backend_id, base_updated_at, payload, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      )
+      .run(
+        op.opType,
+        op.target,
+        op.localId ?? null,
+        op.backendId ?? null,
+        op.baseUpdatedAt ?? null,
+        JSON.stringify(op.payload ?? {}),
+        op.createdAt || new Date().toISOString(),
+      );
+    return Number(info.lastInsertRowid);
+  }
+
+  /** Read all pending ops in FIFO order (oldest first). */
+  peekQueue(): QueueOp[] {
+    return this.db
+      .prepare<[], OfflineQueueRow>(
+        `SELECT seq, op_type, target, local_id, backend_id, base_updated_at, payload, created_at
+         FROM offline_queue
+         ORDER BY seq ASC`,
+      )
+      .all()
+      .map((row) => this.mapQueueOp(row));
+  }
+
+  /** Remove a flushed op by its `seq`. */
+  dequeueOp(seq: number): void {
+    this.db.prepare('DELETE FROM offline_queue WHERE seq = ?').run(seq);
+  }
+
+  /** Replace the local id of a queued op with the resolved backend id (after a create syncs). */
+  remapQueuedBackendId(seq: number, backendId: string): void {
+    this.db
+      .prepare('UPDATE offline_queue SET backend_id = ? WHERE seq = ?')
+      .run(backendId, seq);
+  }
+
   close() {
     if (this.db?.open) {
       this.db.close();
@@ -692,6 +752,20 @@ export class DatabaseManager {
       createdAt: row.created_at,
       updatedAt: row.updated_at,
     };
+  }
+
+  private mapQueueOp(row: OfflineQueueRow): QueueOp {
+    const op: QueueOp = {
+      seq: row.seq,
+      opType: row.op_type,
+      target: row.target,
+      payload: this.parseJsonValue(row.payload) as Record<string, unknown>,
+      createdAt: row.created_at,
+    };
+    if (row.local_id !== null) op.localId = row.local_id;
+    if (row.backend_id !== null) op.backendId = row.backend_id;
+    if (row.base_updated_at !== null) op.baseUpdatedAt = row.base_updated_at;
+    return op;
   }
 
   private parseJsonValue(value: string) {

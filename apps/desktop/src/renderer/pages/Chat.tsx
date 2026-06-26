@@ -5,19 +5,29 @@ import { ChatComposer } from '../components/ChatComposer';
 import { ChatEmptyState } from '../components/ChatEmptyState';
 import { ChatMessageList } from '../components/ChatMessageList';
 import { ModelSelector } from '../components/ModelSelector';
+import { AgentRail } from '../components/AgentRail';
+import { ContextPanel } from '../components/ContextPanel';
+import { LoopDock } from '../components/LoopDock';
+import { BusinessStrip } from '../components/BusinessStrip';
 import { useAgentGatewayStore } from '../store/agentGateway';
 import { useAgentWorkspaceStore } from '../store/agentWorkspace';
 import type { AIProvider } from '../types/agent-registry';
+import { AGENT_LOOPS, loopStarterDraft, planLoopApplication, type AgentLoop, type LoopTask } from '../types/agent-loops';
 import '../styles/agent-gateway.css';
+import '../styles/agent-workspace.css';
 
 interface ChatPageProps {
+  user?: { plan?: string; balance?: number } | null;
+  onBuyApi?: () => void;
   onNavigateToDashboard?: () => void;
   onNavigateToAgentHub?: () => void;
 }
 
-export function ChatPage({ onNavigateToDashboard, onNavigateToAgentHub }: ChatPageProps) {
+export function ChatPage({ user, onBuyApi, onNavigateToDashboard, onNavigateToAgentHub }: ChatPageProps) {
   const [draft, setDraft] = useState('');
   const [showAgentPicker, setShowAgentPicker] = useState(false);
+  const [railCollapsed, setRailCollapsed] = useState(false);
+  const [activeTask, setActiveTask] = useState<LoopTask | null>(null);
 
   // Legacy workspace store (OpenClaw native)
   const session = useAgentWorkspaceStore((state) => state.session);
@@ -74,8 +84,30 @@ export function ChatPage({ onNavigateToDashboard, onNavigateToAgentHub }: ChatPa
     }
   }
 
+  function handleSelectAgentFromRail(agentId: string) {
+    gwOpenChat(agentId);
+  }
+
+  function handleSelectLoop(loop: AgentLoop) {
+    const plan = planLoopApplication(loop, activeGwSession, gwAgents);
+    if (plan.action === 'configure-existing' && activeGwSession) {
+      gwSetModel(activeGwSession.id, plan.model, plan.provider);
+    } else if (plan.action === 'open-new' && plan.agentId) {
+      gwOpenChat(plan.agentId);
+      const opened = useAgentGatewayStore.getState().activeSession();
+      if (opened) {
+        useAgentGatewayStore.getState().setSessionModel(opened.id, plan.model, plan.provider);
+      }
+    }
+    // Seed the composer draft with the loop's starter prompt (Req 9.1: DO NOT auto-send)
+    setDraft(loopStarterDraft(loop));
+    setActiveTask(loop.task);
+  }
+
   return (
-    <div className="chat-page">
+    <div className={`agent-workspace ${railCollapsed ? 'agent-workspace--collapsed' : ''}`}>
+      <div className="agent-workspace__main">
+        <div className="chat-page">
       {/* Header */}
       <header className="chat-page__header">
         <div>
@@ -287,6 +319,31 @@ export function ChatPage({ onNavigateToDashboard, onNavigateToAgentHub }: ChatPa
           </div>
         </div>
       )}
+        </div>
+      </div>
+
+      {railCollapsed && (
+        <button
+          type="button"
+          className="agent-workspace__reopen"
+          onClick={() => setRailCollapsed(false)}
+        >
+          ⟨ Agents
+        </button>
+      )}
+
+      <aside className="agent-workspace__rail glass-panel">
+        <BusinessStrip user={user ?? null} onBuyApi={onBuyApi} />
+        <AgentRail
+          agents={gwAgents}
+          activeAgentId={activeGwSession?.agentId ?? null}
+          collapsed={railCollapsed}
+          onToggleCollapse={() => setRailCollapsed((v) => !v)}
+          onSelectAgent={handleSelectAgentFromRail}
+        />
+        <ContextPanel agentId={activeGwSession?.agentId ?? null} />
+        <LoopDock loops={AGENT_LOOPS} activeTask={activeTask} onSelectLoop={handleSelectLoop} />
+      </aside>
     </div>
   );
 }

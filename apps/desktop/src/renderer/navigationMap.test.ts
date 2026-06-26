@@ -28,6 +28,7 @@ const BASELINE_PAGES = [
   'settings',
   'setup',
   'costs',
+  'knowledge',
 ] as const;
 
 function parsePageUnion(src: string): Set<string> {

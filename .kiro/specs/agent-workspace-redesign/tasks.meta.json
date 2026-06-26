@@ -1,0 +1,351 @@
+{
+  "pbtResults": {},
+  "executionHistory": {
+    "7.1 Thêm `starterPrompt` vào `AgentLoop` + 6 preset (`types/agent-loops.ts`); thêm hàm thuần `loopStarterDraft(loop)`": [
+      {
+        "executionId": "206ab0e1-d96d-4fff-ae26-d563258b8fd4",
+        "chatSessionId": "sess_55a6ae17-5562-4103-98d2-8a11349ec692",
+        "timestamp": 1782412114693
+      },
+      {
+        "executionId": "206ab0e1-d96d-4fff-ae26-d563258b8fd4",
+        "chatSessionId": "sess_55a6ae17-5562-4103-98d2-8a11349ec692",
+        "timestamp": 1782412198720
+      },
+      {
+        "executionId": "206ab0e1-d96d-4fff-ae26-d563258b8fd4",
+        "chatSessionId": "sess_55a6ae17-5562-4103-98d2-8a11349ec692",
+        "timestamp": 1782412883589
+      }
+    ],
+    "7.2 `Chat.tsx`: `handleSelectLoop` → `setDraft(loopStarterDraft(loop))` (KHÔNG tự gửi); đảm bảo `activeTask` phản chiếu loop gần nhất": [
+      {
+        "executionId": "206ab0e1-d96d-4fff-ae26-d563258b8fd4",
+        "chatSessionId": "sess_55a6ae17-5562-4103-98d2-8a11349ec692",
+        "timestamp": 1782412114875
+      },
+      {
+        "executionId": "206ab0e1-d96d-4fff-ae26-d563258b8fd4",
+        "chatSessionId": "sess_55a6ae17-5562-4103-98d2-8a11349ec692",
+        "timestamp": 1782412915548
+      },
+      {
+        "executionId": "206ab0e1-d96d-4fff-ae26-d563258b8fd4",
+        "chatSessionId": "sess_55a6ae17-5562-4103-98d2-8a11349ec692",
+        "timestamp": 1782413468697
+      }
+    ],
+    "7.3 `LoopDock.tsx`: hiển thị chi tiết loop (mô tả + agent/model gợi ý) khi hover/expand": [
+      {
+        "executionId": "206ab0e1-d96d-4fff-ae26-d563258b8fd4",
+        "chatSessionId": "sess_55a6ae17-5562-4103-98d2-8a11349ec692",
+        "timestamp": 1782412115009
+      },
+      {
+        "executionId": "206ab0e1-d96d-4fff-ae26-d563258b8fd4",
+        "chatSessionId": "sess_55a6ae17-5562-4103-98d2-8a11349ec692",
+        "timestamp": 1782413523534
+      },
+      {
+        "executionId": "206ab0e1-d96d-4fff-ae26-d563258b8fd4",
+        "chatSessionId": "sess_55a6ae17-5562-4103-98d2-8a11349ec692",
+        "timestamp": 1782414058205
+      }
+    ],
+    "7.4 Test `loopStarterDraft` (thuần, không side-effect); cập nhật test loop nếu cần": [
+      {
+        "executionId": "206ab0e1-d96d-4fff-ae26-d563258b8fd4",
+        "chatSessionId": "sess_55a6ae17-5562-4103-98d2-8a11349ec692",
+        "timestamp": 1782412115121
+      },
+      {
+        "executionId": "206ab0e1-d96d-4fff-ae26-d563258b8fd4",
+        "chatSessionId": "sess_55a6ae17-5562-4103-98d2-8a11349ec692",
+        "timestamp": 1782414088676
+      },
+      {
+        "executionId": "206ab0e1-d96d-4fff-ae26-d563258b8fd4",
+        "chatSessionId": "sess_55a6ae17-5562-4103-98d2-8a11349ec692",
+        "timestamp": 1782414657983
+      }
+    ],
+    "7.5 Checkpoint Phase 2: `pnpm --filter @openclaw/desktop build` + `vitest run` đạt, 0 fail mới": [
+      {
+        "executionId": "206ab0e1-d96d-4fff-ae26-d563258b8fd4",
+        "chatSessionId": "sess_55a6ae17-5562-4103-98d2-8a11349ec692",
+        "timestamp": 1782412115217
+      },
+      {
+        "executionId": "206ab0e1-d96d-4fff-ae26-d563258b8fd4",
+        "chatSessionId": "sess_55a6ae17-5562-4103-98d2-8a11349ec692",
+        "timestamp": 1782414691166
+      },
+      {
+        "executionId": "206ab0e1-d96d-4fff-ae26-d563258b8fd4",
+        "chatSessionId": "sess_55a6ae17-5562-4103-98d2-8a11349ec692",
+        "timestamp": 1782415071360
+      }
+    ],
+    "8.1 `types/agent-memory.ts`: `MemoryItem` + hàm thuần `normalizeMemoryItems(raw)` (own-property; loại mục thiếu `source` — no-orphan đọc)": [
+      {
+        "executionId": "206ab0e1-d96d-4fff-ae26-d563258b8fd4",
+        "chatSessionId": "sess_55a6ae17-5562-4103-98d2-8a11349ec692",
+        "timestamp": 1782412115395
+      },
+      {
+        "executionId": "206ab0e1-d96d-4fff-ae26-d563258b8fd4",
+        "chatSessionId": "sess_55a6ae17-5562-4103-98d2-8a11349ec692",
+        "timestamp": 1782415143759
+      },
+      {
+        "executionId": "206ab0e1-d96d-4fff-ae26-d563258b8fd4",
+        "chatSessionId": "sess_55a6ae17-5562-4103-98d2-8a11349ec692",
+        "timestamp": 1782415690993
+      }
+    ],
+    "8.2 `components/ContextPanel.tsx`: feature-detect `window.electronAPI?.memory?.list?.(agentId)`; read-only; empty state khi thiếu API; không hiển thị secret/PII": [
+      {
+        "executionId": "206ab0e1-d96d-4fff-ae26-d563258b8fd4",
+        "chatSessionId": "sess_55a6ae17-5562-4103-98d2-8a11349ec692",
+        "timestamp": 1782412115478
+      },
+      {
+        "executionId": "206ab0e1-d96d-4fff-ae26-d563258b8fd4",
+        "chatSessionId": "sess_55a6ae17-5562-4103-98d2-8a11349ec692",
+        "timestamp": 1782415712151
+      },
+      {
+        "executionId": "206ab0e1-d96d-4fff-ae26-d563258b8fd4",
+        "chatSessionId": "sess_55a6ae17-5562-4103-98d2-8a11349ec692",
+        "timestamp": 1782416425438
+      }
+    ],
+    "8.3 Style `.aw-context*` trong `styles/agent-workspace.css` (token-only); gắn ContextPanel vào rail trong `Chat.tsx`": [
+      {
+        "executionId": "206ab0e1-d96d-4fff-ae26-d563258b8fd4",
+        "chatSessionId": "sess_55a6ae17-5562-4103-98d2-8a11349ec692",
+        "timestamp": 1782412115555
+      },
+      {
+        "executionId": "206ab0e1-d96d-4fff-ae26-d563258b8fd4",
+        "chatSessionId": "sess_55a6ae17-5562-4103-98d2-8a11349ec692",
+        "timestamp": 1782416445834
+      },
+      {
+        "executionId": "206ab0e1-d96d-4fff-ae26-d563258b8fd4",
+        "chatSessionId": "sess_55a6ae17-5562-4103-98d2-8a11349ec692",
+        "timestamp": 1782417180232
+      }
+    ],
+    "8.4 Test `normalizeMemoryItems` (lọc no-source, không bịa dữ liệu)": [
+      {
+        "executionId": "206ab0e1-d96d-4fff-ae26-d563258b8fd4",
+        "chatSessionId": "sess_55a6ae17-5562-4103-98d2-8a11349ec692",
+        "timestamp": 1782412115694
+      },
+      {
+        "executionId": "206ab0e1-d96d-4fff-ae26-d563258b8fd4",
+        "chatSessionId": "sess_55a6ae17-5562-4103-98d2-8a11349ec692",
+        "timestamp": 1782417211907
+      },
+      {
+        "executionId": "206ab0e1-d96d-4fff-ae26-d563258b8fd4",
+        "chatSessionId": "sess_55a6ae17-5562-4103-98d2-8a11349ec692",
+        "timestamp": 1782417814338
+      }
+    ],
+    "8.5 Checkpoint Phase 3: build + vitest đạt, inlineStyleAudit 0 inline trình bày mới": [
+      {
+        "executionId": "206ab0e1-d96d-4fff-ae26-d563258b8fd4",
+        "chatSessionId": "sess_55a6ae17-5562-4103-98d2-8a11349ec692",
+        "timestamp": 1782412115762
+      },
+      {
+        "executionId": "206ab0e1-d96d-4fff-ae26-d563258b8fd4",
+        "chatSessionId": "sess_55a6ae17-5562-4103-98d2-8a11349ec692",
+        "timestamp": 1782417851372
+      },
+      {
+        "executionId": "206ab0e1-d96d-4fff-ae26-d563258b8fd4",
+        "chatSessionId": "sess_55a6ae17-5562-4103-98d2-8a11349ec692",
+        "timestamp": 1782418281633
+      }
+    ],
+    "9.1 `pages/Knowledge.tsx`: shell read-only; feature-detect dữ liệu graph; else empty + CTA `shell.openExternal('https://izziapi.com/aibase/graph')`; token-only": [
+      {
+        "executionId": "206ab0e1-d96d-4fff-ae26-d563258b8fd4",
+        "chatSessionId": "sess_55a6ae17-5562-4103-98d2-8a11349ec692",
+        "timestamp": 1782412115838
+      },
+      {
+        "executionId": "206ab0e1-d96d-4fff-ae26-d563258b8fd4",
+        "chatSessionId": "sess_55a6ae17-5562-4103-98d2-8a11349ec692",
+        "timestamp": 1782418318289
+      },
+      {
+        "executionId": "206ab0e1-d96d-4fff-ae26-d563258b8fd4",
+        "chatSessionId": "sess_55a6ae17-5562-4103-98d2-8a11349ec692",
+        "timestamp": 1782419159443
+      }
+    ],
+    "9.2 `App.tsx`: thêm `'knowledge'` vào union `Page` + `renderPage()` case; **giữ nguyên** mọi page/cặp điều hướng cũ": [
+      {
+        "executionId": "206ab0e1-d96d-4fff-ae26-d563258b8fd4",
+        "chatSessionId": "sess_55a6ae17-5562-4103-98d2-8a11349ec692",
+        "timestamp": 1782412115927
+      },
+      {
+        "executionId": "206ab0e1-d96d-4fff-ae26-d563258b8fd4",
+        "chatSessionId": "sess_55a6ae17-5562-4103-98d2-8a11349ec692",
+        "timestamp": 1782419182122
+      },
+      {
+        "executionId": "206ab0e1-d96d-4fff-ae26-d563258b8fd4",
+        "chatSessionId": "sess_55a6ae17-5562-4103-98d2-8a11349ec692",
+        "timestamp": 1782420529009
+      }
+    ],
+    "9.3 `Sidebar.tsx`: thêm mục `knowledge` vào EXPLORE_ITEMS (icon + label), dùng quy ước hiện có": [
+      {
+        "executionId": "206ab0e1-d96d-4fff-ae26-d563258b8fd4",
+        "chatSessionId": "sess_55a6ae17-5562-4103-98d2-8a11349ec692",
+        "timestamp": 1782412116075
+      },
+      {
+        "executionId": "206ab0e1-d96d-4fff-ae26-d563258b8fd4",
+        "chatSessionId": "sess_55a6ae17-5562-4103-98d2-8a11349ec692",
+        "timestamp": 1782420578545
+      },
+      {
+        "executionId": "206ab0e1-d96d-4fff-ae26-d563258b8fd4",
+        "chatSessionId": "sess_55a6ae17-5562-4103-98d2-8a11349ec692",
+        "timestamp": 1782421169289
+      }
+    ],
+    "9.4 Cập nhật `navigationMap.test.ts`: thêm `'knowledge'` vào `BASELINE_PAGES`; giữ mọi assert cũ đạt": [
+      {
+        "executionId": "206ab0e1-d96d-4fff-ae26-d563258b8fd4",
+        "chatSessionId": "sess_55a6ae17-5562-4103-98d2-8a11349ec692",
+        "timestamp": 1782412116146
+      },
+      {
+        "executionId": "206ab0e1-d96d-4fff-ae26-d563258b8fd4",
+        "chatSessionId": "sess_55a6ae17-5562-4103-98d2-8a11349ec692",
+        "timestamp": 1782421197832
+      },
+      {
+        "executionId": "206ab0e1-d96d-4fff-ae26-d563258b8fd4",
+        "chatSessionId": "sess_55a6ae17-5562-4103-98d2-8a11349ec692",
+        "timestamp": 1782421791147
+      }
+    ],
+    "9.5 Checkpoint Phase 4: build + vitest đạt (gồm navigationMap mới), 0 fail mới": [
+      {
+        "executionId": "206ab0e1-d96d-4fff-ae26-d563258b8fd4",
+        "chatSessionId": "sess_55a6ae17-5562-4103-98d2-8a11349ec692",
+        "timestamp": 1782412116243
+      },
+      {
+        "executionId": "206ab0e1-d96d-4fff-ae26-d563258b8fd4",
+        "chatSessionId": "sess_55a6ae17-5562-4103-98d2-8a11349ec692",
+        "timestamp": 1782421828408
+      },
+      {
+        "executionId": "206ab0e1-d96d-4fff-ae26-d563258b8fd4",
+        "chatSessionId": "sess_55a6ae17-5562-4103-98d2-8a11349ec692",
+        "timestamp": 1782422223250
+      }
+    ],
+    "10.1 Rà ContextPanel + KnowledgePage + workspace: 0 literal màu/nền ngoài Hệ_Token_Glass": [
+      {
+        "executionId": "206ab0e1-d96d-4fff-ae26-d563258b8fd4",
+        "chatSessionId": "sess_55a6ae17-5562-4103-98d2-8a11349ec692",
+        "timestamp": 1782412116326
+      },
+      {
+        "executionId": "206ab0e1-d96d-4fff-ae26-d563258b8fd4",
+        "chatSessionId": "sess_55a6ae17-5562-4103-98d2-8a11349ec692",
+        "timestamp": 1782422290254
+      },
+      {
+        "executionId": "206ab0e1-d96d-4fff-ae26-d563258b8fd4",
+        "chatSessionId": "sess_55a6ae17-5562-4103-98d2-8a11349ec692",
+        "timestamp": 1782423101043
+      }
+    ],
+    "10.2 Xác nhận bản đồ IA tab tool ↔ izzi trong `design.md` đầy đủ và cập nhật": [
+      {
+        "executionId": "206ab0e1-d96d-4fff-ae26-d563258b8fd4",
+        "chatSessionId": "sess_55a6ae17-5562-4103-98d2-8a11349ec692",
+        "timestamp": 1782412116414
+      },
+      {
+        "executionId": "206ab0e1-d96d-4fff-ae26-d563258b8fd4",
+        "chatSessionId": "sess_55a6ae17-5562-4103-98d2-8a11349ec692",
+        "timestamp": 1782423132445
+      },
+      {
+        "executionId": "206ab0e1-d96d-4fff-ae26-d563258b8fd4",
+        "chatSessionId": "sess_55a6ae17-5562-4103-98d2-8a11349ec692",
+        "timestamp": 1782423652952
+      }
+    ],
+    "10.3 Checkpoint cuối (desktop): `pnpm --filter @openclaw/desktop build` + `vitest run` + inlineStyleAudit đều đạt": [
+      {
+        "executionId": "206ab0e1-d96d-4fff-ae26-d563258b8fd4",
+        "chatSessionId": "sess_55a6ae17-5562-4103-98d2-8a11349ec692",
+        "timestamp": 1782412116516
+      },
+      {
+        "executionId": "206ab0e1-d96d-4fff-ae26-d563258b8fd4",
+        "chatSessionId": "sess_55a6ae17-5562-4103-98d2-8a11349ec692",
+        "timestamp": 1782423686365
+      },
+      {
+        "executionId": "206ab0e1-d96d-4fff-ae26-d563258b8fd4",
+        "chatSessionId": "sess_55a6ae17-5562-4103-98d2-8a11349ec692",
+        "timestamp": 1782424137055
+      }
+    ],
+    "11. STOP — KHÔNG tự tiếp tục. Báo cáo người dùng: Phase 2–5 (desktop) đã xong & verified.": [
+      {
+        "executionId": "206ab0e1-d96d-4fff-ae26-d563258b8fd4",
+        "chatSessionId": "sess_55a6ae17-5562-4103-98d2-8a11349ec692",
+        "timestamp": 1782412116591
+      },
+      {
+        "executionId": "206ab0e1-d96d-4fff-ae26-d563258b8fd4",
+        "chatSessionId": "sess_55a6ae17-5562-4103-98d2-8a11349ec692",
+        "timestamp": 1782424171730
+      }
+    ],
+    "7. Loop seeds prompt + chi tiết + ghi nhớ": [
+      {
+        "executionId": "206ab0e1-d96d-4fff-ae26-d563258b8fd4",
+        "chatSessionId": "sess_55a6ae17-5562-4103-98d2-8a11349ec692",
+        "timestamp": 1782415071553
+      }
+    ],
+    "8. Context/Memory panel (phía ĐỌC của second brain)": [
+      {
+        "executionId": "206ab0e1-d96d-4fff-ae26-d563258b8fd4",
+        "chatSessionId": "sess_55a6ae17-5562-4103-98d2-8a11349ec692",
+        "timestamp": 1782418281756
+      }
+    ],
+    "9. Thêm tab Knowledge/Graph (đồng bộ izzi /aibase/graph)": [
+      {
+        "executionId": "206ab0e1-d96d-4fff-ae26-d563258b8fd4",
+        "chatSessionId": "sess_55a6ae17-5562-4103-98d2-8a11349ec692",
+        "timestamp": 1782422223495
+      }
+    ],
+    "10. Token/IA sync + chốt phạm vi desktop": [
+      {
+        "executionId": "206ab0e1-d96d-4fff-ae26-d563258b8fd4",
+        "chatSessionId": "sess_55a6ae17-5562-4103-98d2-8a11349ec692",
+        "timestamp": 1782424137293
+      }
+    ]
+  }
+}

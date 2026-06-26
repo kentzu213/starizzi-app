@@ -127,6 +127,17 @@ export function ensureSqliteSchema(db: Database.Database): void {
       FOREIGN KEY (session_id) REFERENCES chat_sessions(id) ON DELETE SET NULL
     );
 
+    CREATE TABLE IF NOT EXISTS offline_queue (
+      seq INTEGER PRIMARY KEY AUTOINCREMENT,
+      op_type TEXT NOT NULL,
+      target TEXT NOT NULL,
+      local_id TEXT,
+      backend_id TEXT,
+      base_updated_at TEXT,
+      payload TEXT NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
     CREATE INDEX IF NOT EXISTS idx_user_data_type ON user_data(type);
     CREATE INDEX IF NOT EXISTS idx_installed_extensions_display_name ON installed_extensions(display_name);
     CREATE INDEX IF NOT EXISTS idx_diagnostic_events_timestamp ON diagnostic_events(timestamp DESC);
@@ -137,6 +148,7 @@ export function ensureSqliteSchema(db: Database.Database): void {
     CREATE INDEX IF NOT EXISTS idx_agent_tasks_status ON agent_tasks(status);
     CREATE INDEX IF NOT EXISTS idx_agent_memories_session_id ON agent_memories(session_id);
     CREATE INDEX IF NOT EXISTS idx_agent_memories_pinned ON agent_memories(pinned);
+    CREATE INDEX IF NOT EXISTS idx_offline_queue_seq ON offline_queue(seq ASC);
   `);
 
   ensureColumn(db, 'agent_tasks', 'summary', 'TEXT');

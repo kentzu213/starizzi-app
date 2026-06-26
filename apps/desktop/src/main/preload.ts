@@ -14,6 +14,7 @@ import type {
   OnboardingState,
 } from './agent/types';
 import type { DesktopUpdaterState } from './updater/types';
+import type { GraphNode, GraphLink, MemoryItemDTO } from '../shared/graph-types';
 
 const electronAPI = {
   window: {
@@ -252,6 +253,25 @@ const electronAPI = {
         ipcRenderer.removeListener('agents:event', handler);
       };
     },
+  },
+
+  graph: {
+    list: (): Promise<GraphNode[]> => ipcRenderer.invoke('graph:list'),
+    create: (input: Partial<GraphNode> & { title: string }): Promise<GraphNode | { error: string }> =>
+      ipcRenderer.invoke('graph:create', input),
+    update: (
+      id: string,
+      patch: Partial<GraphNode> & { isPublic?: boolean },
+    ): Promise<{ ok: true } | { error: string }> =>
+      ipcRenderer.invoke('graph:update', id, patch),
+    remove: (id: string): Promise<{ ok: boolean; error?: string }> =>
+      ipcRenderer.invoke('graph:remove', id),
+    links: (): Promise<GraphLink[]> => ipcRenderer.invoke('graph:links'),
+  },
+
+  memory: {
+    list: (agentId: string, limit?: number): Promise<MemoryItemDTO[]> =>
+      ipcRenderer.invoke('memory:list', agentId, limit),
   },
 
   platform: {

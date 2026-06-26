@@ -35,6 +35,7 @@ const EXPLORE_ITEMS = [
   { id: 'agents', icon: () => <span style={{ fontSize: 16 }}>🤖</span>, label: 'Agent Hub', badge: 'v2' },
   { id: 'marketplace', icon: MarketplaceIcon, label: 'Marketplace' },
   { id: 'extensions', icon: ExtensionIcon, label: 'Extensions' },
+  { id: 'knowledge', icon: () => <span style={{ fontSize: 16 }}>🧠</span>, label: 'Knowledge' },
 ];
 
 const SYSTEM_ITEMS = [{ id: 'settings', icon: SettingsIcon, label: 'Settings' }];

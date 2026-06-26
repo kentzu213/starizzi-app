@@ -1,0 +1,539 @@
+/* ============================================
+   Agent Workspace — 3-zone layout for the chat page
+   [ chat (center) | rail: business + agents + loops (right) ]
+   Token-only (Hệ_Token_Glass). New `.agent-workspace*` / `.aw-*` classes only —
+   does NOT modify existing `.chat-page` / `.gw-*` styling. Dark-only, cyan/purple brand.
+   ============================================ */
+
+.agent-workspace {
+  --aw-rail-width: 320px;
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) var(--aw-rail-width);
+  gap: var(--space-md);
+  height: 100%;
+  min-height: 0;
+}
+
+/* Center column keeps the existing .chat-page subtree intact. */
+.agent-workspace__main {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+.agent-workspace__main > .chat-page {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+/* Right rail — static glass surface (no extra backdrop-filter; .glass-panel = solid bg). */
+.agent-workspace__rail {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  min-height: 0;
+  padding: var(--space-md);
+  overflow: hidden;
+}
+
+/* Collapsed: hide rail, single column; floating reopen button takes over. */
+.agent-workspace--collapsed {
+  grid-template-columns: minmax(0, 1fr);
+}
+.agent-workspace--collapsed .agent-workspace__rail {
+  display: none;
+}
+
+.agent-workspace__reopen {
+  position: absolute;
+  top: 50%;
+  right: 0;
+  transform: translateY(-50%);
+  z-index: 5;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: 10px 12px;
+  border: 1px solid var(--color-border-accent);
+  border-right: none;
+  border-radius: var(--radius-glass-sm) 0 0 var(--radius-glass-sm);
+  background: var(--color-info-bg);
+  color: var(--color-accent-cyan);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: var(--shadow-glow);
+  transition: transform var(--transition-fast), background var(--transition-fast);
+}
+.agent-workspace__reopen:hover {
+  background: var(--color-bg-hover);
+  transform: translateY(-50%) translateX(-2px);
+}
+
+/* ── Business strip ── */
+.aw-business {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  padding: var(--space-md);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-glass-sm);
+  background: var(--color-bg-elevated);
+}
+.aw-business__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+}
+.aw-business__balance-block {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.1;
+}
+.aw-business__balance {
+  font-size: var(--font-size-xl);
+  font-weight: 800;
+  color: var(--color-text-primary);
+}
+.aw-business__vnd {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-tertiary);
+  margin-top: 2px;
+}
+.aw-business__plan {
+  padding: 3px 10px;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--color-border-accent);
+  background: var(--color-info-bg);
+  color: var(--color-accent-cyan);
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.aw-business__gauge {
+  height: 6px;
+  border-radius: var(--radius-full);
+  background: var(--color-bg-hover);
+  overflow: hidden;
+}
+.aw-business__gauge-fill {
+  height: 100%;
+  border-radius: var(--radius-full);
+  background: var(--color-accent-gradient);
+  transition: width var(--transition-base);
+}
+.aw-business__gauge-fill--warn { background: var(--color-warning); }
+.aw-business__gauge-fill--danger { background: var(--color-error); }
+.aw-business__gauge-label {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+}
+.aw-business__cta {
+  margin-top: var(--space-xs);
+  padding: 9px 14px;
+  border: none;
+  border-radius: var(--radius-glass-sm);
+  background: var(--color-accent-gradient);
+  color: var(--color-bg-primary);
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+}
+.aw-business__cta:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-glow);
+}
+.aw-business__cta:active { transform: translateY(0); }
+
+/* ── Agents panel ── */
+.aw-agents {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.aw-agents__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-sm);
+}
+.aw-agents__title {
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-text-secondary);
+}
+.aw-agents__collapse {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-text-tertiary);
+  cursor: pointer;
+  transition: color var(--transition-fast), border-color var(--transition-fast);
+}
+.aw-agents__collapse:hover {
+  color: var(--color-accent-cyan);
+  border-color: var(--color-border-accent);
+}
+.aw-agents__scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  scrollbar-width: thin;
+}
+.aw-agents__group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+.aw-agents__group-title {
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  color: var(--color-text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 0 var(--space-xs);
+}
+
+.aw-agent {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-glass-sm);
+  background: var(--color-bg-tertiary);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  text-align: left;
+  transition: background var(--transition-fast), border-color var(--transition-fast),
+    color var(--transition-fast), transform var(--transition-fast);
+}
+.aw-agent:hover {
+  background: var(--color-bg-hover);
+  color: var(--color-text-primary);
+  transform: translateY(-1px);
+}
+.aw-agent--active {
+  background: var(--color-info-bg);
+  border-color: var(--color-border-accent);
+  color: var(--color-accent-cyan);
+  box-shadow: var(--shadow-glow);
+}
+.aw-agent__dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: var(--color-text-tertiary);
+}
+.aw-agent__dot--running { background: var(--color-success); box-shadow: 0 0 6px var(--color-success); }
+.aw-agent__dot--stopped { background: var(--color-warning); }
+.aw-agent__dot--error { background: var(--color-error); }
+.aw-agent__dot--installing { background: var(--color-accent-secondary); animation: aw-pulse 1.5s ease-in-out infinite; }
+.aw-agent__dot--not-installed { background: var(--color-text-tertiary); }
+.aw-agent__icon { font-size: 16px; flex-shrink: 0; }
+.aw-agent__name {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.aw-agent__status {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-tertiary);
+  flex-shrink: 0;
+}
+
+/* ── Loop dock (bottom-right corner) ── */
+.aw-loops {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  padding-top: var(--space-md);
+  border-top: 1px solid var(--color-border);
+}
+.aw-loops__title {
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-text-secondary);
+}
+.aw-loops__list {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-xs);
+}
+.aw-loop {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: 8px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-glass-sm);
+  background: var(--color-bg-tertiary);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  text-align: left;
+  transition: background var(--transition-fast), border-color var(--transition-fast),
+    color var(--transition-fast), transform var(--transition-fast);
+}
+.aw-loop:hover {
+  background: var(--color-bg-hover);
+  color: var(--color-text-primary);
+  border-color: var(--color-border-hover);
+  transform: translateY(-1px);
+}
+.aw-loop--active {
+  border-color: var(--color-border-accent);
+  background: var(--color-info-bg);
+  color: var(--color-accent-cyan);
+}
+.aw-loop__icon { font-size: 16px; flex-shrink: 0; }
+.aw-loop__text { display: flex; flex-direction: column; min-width: 0; }
+.aw-loop__label {
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.aw-loop__desc {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-tertiary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ── Loop detail tooltip (hover/expand, Req 9.3) ── */
+.aw-loop__wrapper {
+  position: relative;
+}
+.aw-loop__detail {
+  position: absolute;
+  bottom: calc(100% + var(--space-xs));
+  left: 0;
+  right: 0;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  padding: var(--space-sm);
+  border: 1px solid var(--color-border-accent);
+  border-radius: var(--radius-glass-sm);
+  background: var(--color-bg-elevated);
+  box-shadow: var(--shadow-glow);
+  pointer-events: none;
+}
+.aw-loop__detail-desc {
+  margin: 0;
+  font-size: var(--font-size-xs);
+  color: var(--color-text-primary);
+  line-height: 1.4;
+}
+.aw-loop__detail-agent {
+  font-size: var(--font-size-xs);
+  color: var(--color-accent-cyan);
+  font-weight: 600;
+}
+.aw-loop__detail-model {
+  font-size: var(--font-size-xs);
+  color: var(--color-accent-secondary);
+  font-weight: 600;
+}
+
+/* ── Context/Memory panel (read-only, Req 10.1, 12.1) ── */
+.aw-context {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  padding: var(--space-md);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-glass-sm);
+  background: var(--color-bg-elevated);
+}
+.aw-context__title {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-text-secondary);
+}
+.aw-context__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+.aw-context__item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--space-xs) var(--space-sm);
+  border-radius: var(--radius-glass-sm);
+  background: var(--color-bg-tertiary);
+}
+.aw-context__item-title {
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  color: var(--color-text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.aw-context__item-source {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-tertiary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.aw-context__empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: var(--space-md) 0;
+  color: var(--color-text-tertiary);
+  font-size: var(--font-size-sm);
+  text-align: center;
+}
+.aw-context__empty p { margin: 0; }
+.aw-context__empty-hint {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-tertiary);
+}
+.aw-context__loading {
+  padding: var(--space-md) 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-tertiary);
+  text-align: center;
+}
+
+/* ── Knowledge page (read-only, Req 11.3, 11.4) ── */
+.knowledge-page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  padding: var(--space-lg);
+  min-height: 0;
+}
+.knowledge-page__loading {
+  padding: var(--space-lg) 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-tertiary);
+  text-align: center;
+}
+.knowledge-page__empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-md);
+  padding: var(--space-xl) 0;
+  text-align: center;
+}
+.knowledge-page__empty-text {
+  margin: 0;
+  font-size: var(--font-size-md);
+  color: var(--color-text-secondary);
+}
+.knowledge-page__cta {
+  padding: 10px 20px;
+  border: none;
+  border-radius: var(--radius-glass-sm);
+  background: var(--color-accent-gradient);
+  color: var(--color-bg-primary);
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+}
+.knowledge-page__cta:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-glow);
+}
+.knowledge-page__cta:active {
+  transform: translateY(0);
+}
+.knowledge-page__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+.knowledge-page__node {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  padding: var(--space-sm) var(--space-md);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-glass-sm);
+  background: var(--color-bg-elevated);
+}
+.knowledge-page__node-title {
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  color: var(--color-text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+.knowledge-page__node-type {
+  flex-shrink: 0;
+  font-size: var(--font-size-xs);
+  color: var(--color-accent-cyan);
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--color-border-accent);
+  background: var(--color-info-bg);
+}
+
+@keyframes aw-pulse { 0%, 100% { opacity: 0.4; } 50% { opacity: 1; } }
+
+/* Narrow windows: shrink the rail so the chat never loses its composer (Req 1.6). */
+@media (max-width: 1040px) {
+  .agent-workspace { --aw-rail-width: 260px; }
+  .aw-loops__list { grid-template-columns: 1fr; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .aw-agent,
+  .aw-loop,
+  .aw-business__cta,
+  .agent-workspace__reopen,
+  .aw-business__gauge-fill {
+    transition: none;
+  }
+  .aw-agent__dot--installing { animation: none; }
+}

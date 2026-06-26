@@ -4,6 +4,8 @@ import { execFile } from 'child_process';
 import { AuthManager } from './auth/auth-manager';
 import { DatabaseManager } from './db/database';
 import { SyncEngine } from './sync/sync-engine';
+import { GraphClient } from './graph/graph-client';
+import { registerGraphIpc } from './graph/graph-ipc';
 import { ExtensionManager } from './extensions/manager';
 import { ExtensionLoader } from './extensions/extension-loader';
 import { PERMISSION_DEFINITIONS } from './extensions/permissions';
@@ -177,6 +179,10 @@ function setupIPC() {
   ipcMain.handle('sync:status', async () => {
     return syncEngine.getStatus();
   });
+
+  // ── Graph & Memory (shared backend /api/aibase/*; token stays in main) ──
+  const graphClient = new GraphClient(authManager, dbManager);
+  registerGraphIpc(graphClient);
 
   // ── Extensions (basic) ──
   ipcMain.handle('extensions:list', async () => {
