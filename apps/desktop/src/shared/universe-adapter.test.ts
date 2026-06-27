@@ -4,6 +4,7 @@ import {
   parseUniverseResponse,
   adaptUniverse,
   buildUniverseSeed,
+  parseNodeDetail,
   UNIVERSE_NODE_CAP,
   type RawUniverse,
 } from './universe-adapter';
@@ -160,5 +161,34 @@ describe('buildUniverseSeed', () => {
       ),
       { numRuns: 100 },
     );
+  });
+});
+
+describe('parseNodeDetail', () => {
+  it('extracts full content + http url for an accessible node', () => {
+    const d = parseNodeDetail({
+      success: true,
+      data: { node: { id: 'cnode--1', title: 'Bài A', access: 'full', content: 'Nội dung đầy đủ', url: 'https://x.com/a', visibilitySource: 'public', nodeType: 'article' } },
+    });
+    expect(d).not.toBeNull();
+    expect(d!.title).toBe('Bài A');
+    expect(d!.content).toBe('Nội dung đầy đủ');
+    expect(d!.url).toBe('https://x.com/a');
+    expect(d!.access).toBe('full');
+    expect(d!.isPremium).toBe(false);
+  });
+
+  it('drops content for a preview-locked (paid) node and flags premium', () => {
+    const d = parseNodeDetail({ node: { id: 'cnode--2', title: 'Bài trả phí', access: 'preview', content: 'should be hidden', visibilitySource: 'paid' } });
+    expect(d!.content).toBe('');
+    expect(d!.access).toBe('preview');
+    expect(d!.isPremium).toBe(true);
+  });
+
+  it('rejects non-http urls (no javascript:/relative) and bad shapes', () => {
+    const d = parseNodeDetail({ node: { id: 'x', title: 'T', access: 'full', url: 'javascript:alert(1)' } });
+    expect(d!.url).toBe('');
+    expect(parseNodeDetail(null)).toBeNull();
+    expect(parseNodeDetail({ node: { title: 'no id' } })).toBeNull();
   });
 });

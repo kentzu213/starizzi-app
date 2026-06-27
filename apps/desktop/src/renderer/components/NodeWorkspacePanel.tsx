@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useGraphWorkspaceStore } from '../store/graphWorkspace';
 import { runNodeAgent, BRANCH_AUTOCREATE_THRESHOLD } from '../services/graphAgent';
 import {
@@ -8,9 +8,12 @@ import {
   nodeTags,
   nodeProvenance,
   isSeedNode,
+  universeIdOf,
+  universeTypeOf,
   parseCommand,
 } from '../types/graph-workspace';
 import type { GraphNode } from '../../shared/graph-types';
+import type { UniverseNodeDetail } from '../../shared/universe-adapter';
 
 /**
  * Floating, non-blocking workspace panel for the selected node: node content +
@@ -22,6 +25,7 @@ import type { GraphNode } from '../../shared/graph-types';
 export function NodeWorkspacePanel() {
   const selectedNodeId = useGraphWorkspaceStore((s) => s.selectedNodeId);
   const nodes = useGraphWorkspaceStore((s) => s.nodes);
+  const links = useGraphWorkspaceStore((s) => s.links);
   const messagesByNode = useGraphWorkspaceStore((s) => s.messagesByNode);
   const suggestions = useGraphWorkspaceStore((s) => s.suggestions);
   const selectNode = useGraphWorkspaceStore((s) => s.selectNode);
@@ -36,6 +40,8 @@ export function NodeWorkspacePanel() {
   const [busy, setBusy] = useState(false);
   const [adopting, setAdopting] = useState(false);
   const [pinned, setPinned] = useState(false);
+  const [detail, setDetail] = useState<UniverseNodeDetail | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
   const inputRef = useRef<HTMLInputElement | null>(null);
 
   const node = useMemo(
@@ -57,6 +63,46 @@ export function NodeWorkspacePanel() {
     }
     return chain;
   }, [node, nodes]);
+
+  // Nodes directly linked to the selected one (web "Chủ đề liên quan" parity).
+  const related = useMemo(() => {
+    if (!node) return [] as GraphNode[];
+    const linked = new Set<string>();
+    for (const l of links) {
+      if (l.sourceId === node.id) linked.add(l.targetId);
+      else if (l.targetId === node.id) linked.add(l.sourceId);
+    }
+    return nodes.filter((n) => linked.has(n.id)).slice(0, 8);
+  }, [node, links, nodes]);
+
+  // Fetch the REAL detail (content/url) for an article/community seed node from
+  // the public node-detail endpoint, so the panel shows actual content not just a title.
+  useEffect(() => {
+    setDetail(null);
+    setDetailLoading(false);
+    if (!node || !isSeedNode(node)) return undefined;
+    const utype = universeTypeOf(node);
+    const looksArticle =
+      utype === 'article' || node.id.startsWith('cnode--') || node.id.startsWith('article--');
+    const api = window.electronAPI?.graph;
+    if (!looksArticle || typeof api?.nodeDetail !== 'function') return undefined;
+    let cancelled = false;
+    setDetailLoading(true);
+    void api
+      .nodeDetail(universeIdOf(node) ?? node.id)
+      .then((d) => {
+        if (!cancelled) setDetail(d);
+      })
+      .catch(() => {
+        if (!cancelled) setDetail(null);
+      })
+      .finally(() => {
+        if (!cancelled) setDetailLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [node]);
 
   if (!node) return null;
 
@@ -173,6 +219,20 @@ export function NodeWorkspacePanel() {
     }
   }
 
+  function focusChat() {
+    inputRef.current?.focus();
+  }
+
+  function openExternal(url: string) {
+    const fn = window.electronAPI?.shell?.openExternal;
+    if (typeof fn === 'function') void fn(url);
+    else window.open(url, '_blank', 'noopener');
+  }
+
+  function handleOpenDocs() {
+    openExternal(detail?.url || 'https://izziapi.com/aibase/graph');
+  }
+
   return (
     <aside
       className={`gw-panel ${seed ? 'gw-panel--seed' : ''} ${pinned ? 'gw-panel--pinned' : ''}`}
@@ -227,8 +287,38 @@ export function NodeWorkspacePanel() {
             ))}
           </div>
         )}
+        {related.length > 0 && (
+          <div className="gw-panel__related">
+            <h4 className="gw-panel__related-title">Liên quan</h4>
+            {related.map((r) => (
+              <button
+                key={r.id}
+                type="button"
+                className="gw-panel__related-row"
+                onClick={() => selectNode(r.id)}
+                title={r.title}
+              >
+                <span aria-hidden="true">{nodeTypeMeta[nodeViewType(r)].icon}</span>
+                <span className="gw-panel__related-name">{r.title}</span>
+              </button>
+            ))}
+          </div>
+        )}
         {seed && (
           <>
+            {detailLoading && <p className="gw-panel__summary">Đang tải nội dung…</p>}
+            {detail?.content && <p className="gw-panel__detail">{detail.content}</p>}
+            {detail?.access === 'preview' && (
+              <p className="gw-panel__seed-note">🔒 Node trả phí — mở trên web để xem đầy đủ.</p>
+            )}
+            <div className="gw-panel__actions">
+              <button type="button" className="gw-panel__action" onClick={focusChat}>
+                💬 Mở chat
+              </button>
+              <button type="button" className="gw-panel__action" onClick={handleOpenDocs}>
+                📄 Xem tài liệu
+              </button>
+            </div>
             <p className="gw-panel__seed-note">
               Node từ vũ trụ tri thức cộng đồng. Chat ngay bên dưới để khám phá — node sẽ tự thành
               của bạn, hoặc bấm để tạo node làm việc.

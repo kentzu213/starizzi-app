@@ -23,6 +23,7 @@ import type { GraphAgent } from './graph-agent';
 export function registerGraphIpc(client: GraphClient): void {
   ipcMain.handle('graph:list', () => client.listNodes());
   ipcMain.handle('graph:universe', () => client.fetchUniverse());
+  ipcMain.handle('graph:nodeDetail', (_e, id) => client.fetchNodeDetail(id));
   ipcMain.handle('graph:create', (_e, input) => client.createNode(input));
   ipcMain.handle('graph:update', (_e, id, patch) => client.updateNode(id, patch));
   ipcMain.handle('graph:remove', (_e, id) => client.removeNode(id));

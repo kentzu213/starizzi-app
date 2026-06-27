@@ -233,3 +233,46 @@ export function buildUniverseSeed(
   if (parsed === null) return { nodes: [], links: [] };
   return adaptUniverse(parsed, now);
 }
+
+/** Real detail of a community/article node (from GET /api/dochub/graph/nodes/:id). */
+export interface UniverseNodeDetail {
+  id: string;
+  title: string;
+  content: string; // '' when none or preview-locked
+  url: string; // '' when none / non-http
+  access: 'full' | 'preview';
+  nodeType: string;
+  isPremium: boolean;
+}
+
+/**
+ * Parse the node-detail response (`{success,data:{node}}` or `{node}` or a bare
+ * node) into a UniverseNodeDetail. UNTRUSTED → own-property reads, http-only url,
+ * content dropped unless access === 'full'. Returns null if unusable. PURE.
+ */
+export function parseNodeDetail(raw: unknown): UniverseNodeDetail | null {
+  if (!isObj(raw)) return null;
+  const data = Object.hasOwn(raw, 'data') && isObj(raw.data) ? raw.data : raw;
+  const node = isObj(data) && Object.hasOwn(data, 'node') && isObj(data.node) ? data.node : data;
+  if (!isObj(node)) return null;
+
+  const id = ownStr(node, 'id');
+  const title = ownStr(node, 'title');
+  if (!id || !title) return null;
+
+  const access = ownStr(node, 'access') === 'full' ? 'full' : 'preview';
+  const rawContent = access === 'full' ? ownStr(node, 'content') ?? '' : '';
+  const rawUrl = ownStr(node, 'url') ?? '';
+  const url = /^https?:\/\//i.test(rawUrl) ? rawUrl : '';
+  const visibility = ownStr(node, 'visibilitySource');
+
+  return {
+    id,
+    title,
+    content: rawContent,
+    url,
+    access,
+    nodeType: ownStr(node, 'nodeType') ?? 'article',
+    isPremium: visibility === 'paid',
+  };
+}

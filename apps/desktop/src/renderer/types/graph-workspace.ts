@@ -152,6 +152,12 @@ export function universeIdOf(node: GraphNode): string | null {
   return typeof v === 'string' ? v : null;
 }
 
+/** The originating universe node type (core|topic|child|article) for a seed, or ''. */
+export function universeTypeOf(node: GraphNode): string {
+  const v = ownMeta(node).universeType;
+  return typeof v === 'string' ? v : '';
+}
+
 /** The node's branch provenance (from `metadata.provenance`), or null. */
 export function nodeProvenance(node: GraphNode): NodeProvenance | null {
   const v = ownMeta(node).provenance;

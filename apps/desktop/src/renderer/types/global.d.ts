@@ -1,5 +1,6 @@
 import type { GraphNode, GraphLink, MemoryItemDTO } from '../../shared/graph-types';
 import type { BranchClassification } from './graph-workspace';
+import type { UniverseNodeDetail } from '../../shared/universe-adapter';
 
 export {};
 
@@ -8,6 +9,7 @@ declare global {
   interface ElectronGraphApi {
     list: () => Promise<GraphNode[]>;
     universe: () => Promise<{ nodes: GraphNode[]; links: GraphLink[] }>;
+    nodeDetail: (id: string) => Promise<UniverseNodeDetail | null>;
     create: (input: Partial<GraphNode> & { title: string }) => Promise<GraphNode | { error: string }>;
     update: (
       id: string,

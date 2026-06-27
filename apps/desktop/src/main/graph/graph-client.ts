@@ -31,7 +31,7 @@ import {
   memoryNodeToItem,
 } from '../../shared/graph-mapper';
 import type { GraphNode, GraphLink, MemoryItemDTO } from '../../shared/graph-types';
-import { buildUniverseSeed } from '../../shared/universe-adapter';
+import { buildUniverseSeed, parseNodeDetail, type UniverseNodeDetail } from '../../shared/universe-adapter';
 
 /** Same base URL derivation as AuthManager / SyncEngine (HTTPS). */
 const IZZI_API_BASE = process.env.OPENCLAW_API_URL || 'https://api.izziapi.com';
@@ -194,6 +194,25 @@ export class GraphClient {
   }
 
   // ── Writes ─────────────────────────────────────────────────────────────
+  /**
+   * GET /api/dochub/graph/nodes/:id (PUBLIC, guest-safe — NO token) on the web
+   * app host. Returns the real detail (content/url/access) of a community/article
+   * node so the workspace can show it. Returns null on 404 (scaffold topic/child
+   * nodes have no detail) or any failure; never throws.
+   */
+  async fetchNodeDetail(id: string): Promise<UniverseNodeDetail | null> {
+    if (typeof id !== 'string' || id.length === 0) return null;
+    try {
+      const res = await fetch(`${IZZI_WEB_BASE}/api/dochub/graph/nodes/${encodeURIComponent(id)}`);
+      if (!res.ok) return null; // 404 for structural nodes — expected, not logged as error
+      const data = await res.json();
+      return parseNodeDetail(data);
+    } catch (err) {
+      this.logFailure('graph.nodeDetail', undefined, shortError(err));
+      return null;
+    }
+  }
+
   /**
    * POST /api/aibase/nodes. Guards an empty/whitespace title BEFORE any network
    * call (Req 2.2). Returns the created GraphNode (mapped from `{ node }`) or

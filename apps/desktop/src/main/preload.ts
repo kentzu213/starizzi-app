@@ -16,6 +16,7 @@ import type {
 import type { DesktopUpdaterState } from './updater/types';
 import type { GraphNode, GraphLink, MemoryItemDTO } from '../shared/graph-types';
 import type { ParsedClassification } from './graph/graph-agent-core';
+import type { UniverseNodeDetail } from '../shared/universe-adapter';
 
 const electronAPI = {
   window: {
@@ -260,6 +261,8 @@ const electronAPI = {
     list: (): Promise<GraphNode[]> => ipcRenderer.invoke('graph:list'),
     universe: (): Promise<{ nodes: GraphNode[]; links: GraphLink[] }> =>
       ipcRenderer.invoke('graph:universe'),
+    nodeDetail: (id: string): Promise<UniverseNodeDetail | null> =>
+      ipcRenderer.invoke('graph:nodeDetail', id),
     create: (input: Partial<GraphNode> & { title: string }): Promise<GraphNode | { error: string }> =>
       ipcRenderer.invoke('graph:create', input),
     update: (
