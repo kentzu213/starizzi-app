@@ -45,6 +45,16 @@ declare global {
     }) => Promise<{ reply: string; classification: BranchClassification | null }>;
   }
 
+  /** Renderer-facing izzi-native agent IPC (Socrates/Orchestrator). Key stays in main. */
+  interface ElectronIzziAgentApi {
+    chat: (payload: {
+      systemPrompt: string;
+      message: string;
+      history?: { role: 'system' | 'user' | 'assistant'; content: string }[];
+      model?: string;
+    }) => Promise<{ reply: string; error?: string }>;
+  }
+
   /**
    * The renderer view of the preload `electronAPI`. The new graph/memory
    * namespaces are typed precisely from the shared models (Req 7.4); all other
@@ -55,6 +65,7 @@ declare global {
     graph?: ElectronGraphApi;
     memory?: ElectronMemoryApi;
     graphAgent?: ElectronGraphAgentApi;
+    izziAgent?: ElectronIzziAgentApi;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     [key: string]: any;
   }

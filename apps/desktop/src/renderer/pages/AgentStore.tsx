@@ -270,7 +270,11 @@ export function AgentStorePage() {
                   <span className="agent-hub__top-card-icon">{agent.icon}</span>
                   <div className="agent-hub__top-card-info">
                     <h3 className="agent-hub__top-card-name">{agent.displayName}</h3>
-                    <div className="agent-hub__top-card-stars">⭐ {agent.githubStars} GitHub stars</div>
+                    <div className="agent-hub__top-card-stars">
+                      {agent.runtime === 'izzi'
+                        ? '⚡ by Izzi · chạy qua Izzi API'
+                        : `⭐ ${agent.githubStars} GitHub stars`}
+                    </div>
                   </div>
                   <span className="agent-hub__top-card-category">{agent.category}</span>
                 </div>
@@ -282,12 +286,22 @@ export function AgentStorePage() {
                 </div>
                 <div className="agent-hub__top-card-actions">
                   {agent.status === 'not-installed' ? (
-                    <button
-                      className="agent-hub__top-card-btn agent-hub__top-card-btn--setup"
-                      onClick={() => setSetupAgent(agent)}
-                    >
-                      ⚙️ Hướng dẫn & Kết nối
-                    </button>
+                    agent.runtime === 'izzi' ? (
+                      <button
+                        className="agent-hub__top-card-btn agent-hub__top-card-btn--setup"
+                        onClick={() => updateAgentStatus(agent.id, 'running')}
+                        title="Cài đặt tức thì — chạy qua Izzi API, không cần Docker"
+                      >
+                        🚀 Cài đặt (1 lệnh)
+                      </button>
+                    ) : (
+                      <button
+                        className="agent-hub__top-card-btn agent-hub__top-card-btn--setup"
+                        onClick={() => setSetupAgent(agent)}
+                      >
+                        ⚙️ Hướng dẫn & Kết nối
+                      </button>
+                    )
                   ) : agent.status === 'running' ? (
                     <button
                       className="agent-hub__top-card-btn agent-hub__top-card-btn--chat"

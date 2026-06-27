@@ -298,6 +298,16 @@ const electronAPI = {
       ipcRenderer.invoke('graphAgent:chat', payload),
   },
 
+  izziAgent: {
+    chat: (payload: {
+      systemPrompt: string;
+      message: string;
+      history?: { role: 'system' | 'user' | 'assistant'; content: string }[];
+      model?: string;
+    }): Promise<{ reply: string; error?: string }> =>
+      ipcRenderer.invoke('izziAgent:chat', payload),
+  },
+
   platform: {
     isElectron: true,
     os: process.platform,

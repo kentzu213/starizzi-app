@@ -35,8 +35,8 @@ export interface ModelOption {
 
 // ── External Agent Types ──
 
-export type AgentSetupMethod = 'docker' | 'npm' | 'pip' | 'native';
-export type AgentCategory = 'autonomous' | 'platform' | 'orchestration' | 'workflow';
+export type AgentSetupMethod = 'docker' | 'npm' | 'pip' | 'native' | 'izzi';
+export type AgentCategory = 'autonomous' | 'platform' | 'orchestration' | 'workflow' | 'reasoning';
 export type ExternalAgentStatus = 'not-installed' | 'installing' | 'running' | 'stopped' | 'error';
 
 export interface ExternalAgent {
@@ -61,6 +61,16 @@ export interface ExternalAgent {
   setupSteps: string[];
   features: string[];
   tags: string[];
+  /**
+   * Runtime kind. 'local' (default) = a Docker/port agent the user runs on their
+   * machine. 'izzi' = an Izzi-hosted persona agent that runs through the Izzi API
+   * (no Docker, no port) — installs instantly and chats via `izziAgent:chat`.
+   */
+  runtime?: 'local' | 'izzi';
+  /** Persona system prompt for an izzi-native agent. */
+  systemPrompt?: string;
+  /** Default Izzi model id for an izzi-native agent. */
+  model?: string;
 }
 
 // ── Chat Gateway Types ──
@@ -175,7 +185,89 @@ export const MODEL_PROVIDERS: ModelProviderConfig[] = [
   },
 ];
 
+/** Public persona for Socrates — distilled from ~/.kiro/agents/socrates.md (no internal infra refs). */
+const SOCRATES_SYSTEM_PROMPT = [
+  'Bạn là Socrates — người phản biện và kiểm chứng bằng cách ĐẶT CÂU HỎI, không vội khẳng định.',
+  'Nguyên tắc:',
+  '1) Không chấp nhận một tuyên bố chỉ vì nó nghe thuyết phục — hỏi "làm sao biết điều đó?".',
+  '2) Trước khi bác bỏ, hãy dựng phiên bản mạnh nhất của lập luận (steel-man) rồi mới xét.',
+  '3) Tách câu hỏi kiểm chứng độc lập cho từng tuyên bố quan trọng, đối chiếu bằng chứng.',
+  '4) Fail-closed: thiếu bằng chứng thì nói rõ "chưa đủ cơ sở", không gật cho qua.',
+  '5) Gắn độ tin cậy (cao/trung bình/thấp) cho mỗi kết luận và nêu điều gì sẽ làm bạn đổi ý.',
+  '6) Đừng hỏi quá đà — cân theo mức rủi ro; việc nhỏ không cần chất vấn dài.',
+  'Khi duyệt nội dung/quyết định, kết luận theo mẫu: PHÁN QUYẾT (ĐẠT/SỬA/TỪ CHỐI/CẦN THÊM THÔNG TIN) · Độ tin cậy · Vấn đề chính · Việc cần sửa.',
+  'Trả lời ngắn gọn, đi vào trọng tâm, bằng ngôn ngữ của người dùng.',
+].join('\n');
+
+/** Public persona for the Orchestrator — distilled from ~/.kiro/agents/orchestrator.md. */
+const ORCHESTRATOR_SYSTEM_PROMPT = [
+  'Bạn là Orchestrator — kỹ sư cấp cao điều phối công việc một cách CÂN ĐỐI theo độ phức tạp và rủi ro.',
+  'Nguyên tắc:',
+  '1) Phân loại độ khó trước (việc vặt / tiêu chuẩn / phức tạp / rủi ro), rồi áp đúng mức quy trình — không làm quá.',
+  '2) Nêu giả định thay vì đoán mò; chọn giải pháp đơn giản nhất chạy được; thay đổi đúng phạm vi yêu cầu.',
+  '3) Việc nhiều bước: đưa kế hoạch ngắn, mỗi bước kèm cách kiểm chứng.',
+  '4) Việc chạm bảo mật/thanh toán/dữ liệu khách/triển khai: nêu rõ rủi ro và xin xác nhận trước khi làm điều khó đảo ngược.',
+  '5) Kết thúc bằng: đã làm gì + đã kiểm chứng gì.',
+  'Trả lời súc tích, bằng ngôn ngữ của người dùng.',
+].join('\n');
+
 export const TOP_AGENTS: ExternalAgent[] = [
+  {
+    id: 'socrates',
+    name: 'socrates',
+    displayName: 'Socrates',
+    description: 'Người phản biện & kiểm chứng của Izzi — chất vấn, đối chiếu bằng chứng, fail-closed. Duyệt nội dung/quyết định và chỉ ra việc cần sửa.',
+    longDescription: 'Socrates là agent giám sát của izziapi.com: đạt tới sự thật bằng cách đặt câu hỏi, không vội khẳng định. Dùng để soi nội dung trước khi xuất bản, chất vấn một quyết định khó đảo ngược, hoặc kiểm chứng một lập luận. Chạy trực tiếp qua Izzi API — không cần cài Docker.',
+    icon: '🏛️',
+    githubUrl: 'https://izziapi.com',
+    githubStars: 'Izzi',
+    category: 'reasoning',
+    setupMethod: 'izzi',
+    runtime: 'izzi',
+    systemPrompt: SOCRATES_SYSTEM_PROMPT,
+    model: 'izzi/auto',
+    defaultPort: 0,
+    chatEndpoint: '',
+    healthEndpoint: '',
+    status: 'not-installed',
+    version: '1.0.0',
+    supportedProviders: ['izzi'],
+    setupSteps: [
+      'Bấm "Cài đặt" — agent chạy ngay qua Izzi API (không cần Docker)',
+      'Đảm bảo đã đăng nhập Izzi để dùng API key của bạn',
+      'Bấm "Chat Now" và đặt câu hỏi / dán nội dung cần duyệt',
+    ],
+    features: ['Phản biện Socratic', 'Kiểm chứng theo bằng chứng', 'Fail-closed', 'Phán quyết kèm độ tin cậy', 'Chạy qua Izzi API'],
+    tags: ['reasoning', 'review', 'izzi', 'governance'],
+  },
+  {
+    id: 'orchestrator',
+    name: 'orchestrator',
+    displayName: 'Orchestrator',
+    description: 'Điều phối viên của Izzi — phân loại độ khó, lập kế hoạch theo bước kèm kiểm chứng, cân rigor theo rủi ro. Không làm quá tay.',
+    longDescription: 'Orchestrator là persona kỹ sư cấp cao của izzi toolkit: chia nhỏ tác vụ, lập kế hoạch có bước kiểm chứng, và áp đúng mức quy trình theo độ phức tạp/rủi ro. Chạy trực tiếp qua Izzi API — không cần cài Docker.',
+    icon: '🧭',
+    githubUrl: 'https://izziapi.com',
+    githubStars: 'Izzi',
+    category: 'orchestration',
+    setupMethod: 'izzi',
+    runtime: 'izzi',
+    systemPrompt: ORCHESTRATOR_SYSTEM_PROMPT,
+    model: 'izzi/auto',
+    defaultPort: 0,
+    chatEndpoint: '',
+    healthEndpoint: '',
+    status: 'not-installed',
+    version: '1.0.0',
+    supportedProviders: ['izzi'],
+    setupSteps: [
+      'Bấm "Cài đặt" — agent chạy ngay qua Izzi API (không cần Docker)',
+      'Đảm bảo đã đăng nhập Izzi để dùng API key của bạn',
+      'Bấm "Chat Now" và mô tả mục tiêu để nhận kế hoạch theo bước',
+    ],
+    features: ['Phân loại độ khó', 'Kế hoạch theo bước + kiểm chứng', 'Cân rigor theo rủi ro', 'Thay đổi đúng phạm vi', 'Chạy qua Izzi API'],
+    tags: ['orchestration', 'planning', 'izzi', 'engineering'],
+  },
   {
     id: 'openclaw',
     name: 'openclaw',

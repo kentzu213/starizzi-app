@@ -70,6 +70,7 @@ export const useAgentGatewayStore = create<AgentGatewayState>((set, get) => ({
 
     for (const agent of agents) {
       if (agent.status === 'not-installed') continue;
+      if (agent.runtime === 'izzi') continue; // izzi-native agents have no local port to poll
 
       try {
         const url = `http://127.0.0.1:${agent.defaultPort}${agent.healthEndpoint}`;
@@ -193,6 +194,65 @@ export const useAgentGatewayStore = create<AgentGatewayState>((set, get) => ({
 
     // Try to call agent's chat API
     try {
+      // Izzi-native persona agents (Socrates, Orchestrator) run through the Izzi
+      // API in the MAIN process — the key stays in main, never in the renderer.
+      if (agent.runtime === 'izzi') {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const izziApi = (window as any).electronAPI?.izziAgent;
+        if (izziApi?.chat) {
+          const history = session.messages
+            .filter((m) => m.state === 'done' && m.content)
+            .slice(-8)
+            .map((m) => ({ role: m.role, content: m.content }));
+          const r = await izziApi.chat({
+            systemPrompt: agent.systemPrompt ?? '',
+            message: content,
+            history,
+            model: session.model,
+          });
+          const reply = r?.reply
+            ? r.reply
+            : r?.error === 'no-key'
+              ? '⚠️ Cần đăng nhập Izzi (hoặc cấu hình API key) để chat với agent này.'
+              : `⚠️ ${agent.displayName} chưa trả lời được (${r?.error ?? 'không rõ'}).`;
+          set((state) => ({
+            isSending: false,
+            sessions: state.sessions.map((s) =>
+              s.id === session.id
+                ? {
+                    ...s,
+                    messages: s.messages.map((m) =>
+                      m.id === assistantMsgId ? { ...m, content: reply, state: 'done' as const } : m,
+                    ),
+                  }
+                : s,
+            ),
+          }));
+          return true;
+        }
+        // No bridge (browser dev) — be honest, don't fake a reply.
+        set((state) => ({
+          isSending: false,
+          sessions: state.sessions.map((s) =>
+            s.id === session.id
+              ? {
+                  ...s,
+                  messages: s.messages.map((m) =>
+                    m.id === assistantMsgId
+                      ? {
+                          ...m,
+                          content: 'ℹ️ Mở trong app Izzi (đã đăng nhập) để chat với agent này.',
+                          state: 'done' as const,
+                        }
+                      : m,
+                  ),
+                }
+              : s,
+          ),
+        }));
+        return true;
+      }
+
       // Docker agents with an OpenAI-compatible endpoint (e.g. Hermes) route
       // through the main process via IPC — the API key stays in main and is
       // never exposed to the renderer.

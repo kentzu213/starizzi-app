@@ -115,6 +115,7 @@ export const AGENT_LOOPS: AgentLoop[] = [
 
 /** Vietnamese labels for agent categories shown as group titles in the Agent Rail. */
 export const CATEGORY_LABELS: Record<AgentCategory, string> = {
+  reasoning: 'Lý luận',
   autonomous: 'Tự chủ',
   platform: 'Nền tảng',
   orchestration: 'Điều phối',
@@ -123,6 +124,7 @@ export const CATEGORY_LABELS: Record<AgentCategory, string> = {
 
 /** Stable display order of categories in the rail. */
 export const CATEGORY_ORDER: AgentCategory[] = [
+  'reasoning',
   'autonomous',
   'platform',
   'orchestration',

@@ -20,6 +20,7 @@ import { UpdaterService } from './updater/updater-service';
 import { SetupWizardService } from './setup/setup-wizard-service';
 import { registerAgentIpcHandlers, shutdownAgents } from './agents';
 import { DockerAgentService, type DockerAgentPayload } from './agents/docker-agent-service';
+import { IzziAgent, registerIzziAgentIpc } from './agents/izzi-agent';
 
 let mainWindow: BrowserWindow | null = null;
 let authManager: AuthManager;
@@ -189,6 +190,10 @@ function setupIPC() {
   // ── Graph Agent (Izzi LLM for the Branching Graph Workspace; key stays in main) ──
   const graphAgent = new GraphAgent(authManager);
   registerGraphAgentIpc(graphAgent);
+
+  // ── Izzi-native persona agents (Socrates, Orchestrator) — Agent Hub; key in main ──
+  const izziAgent = new IzziAgent(authManager);
+  registerIzziAgentIpc(izziAgent);
 
   // ── Extensions (basic) ──
   ipcMain.handle('extensions:list', async () => {
