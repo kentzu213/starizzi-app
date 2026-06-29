@@ -282,6 +282,8 @@ const electronAPI = {
       ipcRenderer.invoke('graph:createLink', sourceId, targetId, label, color),
     removeLink: (id: string): Promise<{ ok: boolean; error?: string }> =>
       ipcRenderer.invoke('graph:removeLink', id),
+    openMyGraphWeb: (): Promise<{ ok: boolean; url?: string }> =>
+      ipcRenderer.invoke('graph:openMyGraphWeb'),
   },
 
   memory: {

@@ -29,8 +29,8 @@ khoản requirement nó kiểm, dùng `fast-check` `{ numRuns: 100 }` với chú
 
 ## Tasks — Phase 1 (bắt buộc)
 
-- [ ] 1. Type dùng chung + mapper thuần (nền tảng, test không cần Electron)
-  - [ ] 1.1 Tạo `shared/graph-types.ts` — nguồn sự thật type duy nhất
+- [x] 1. Type dùng chung + mapper thuần (nền tảng, test không cần Electron)
+  - [x] 1.1 Tạo `shared/graph-types.ts` — nguồn sự thật type duy nhất
     - Tạo `apps/desktop/src/shared/graph-types.ts`
     - Khai báo `GraphNode` phản chiếu **đúng** `UserNode` (id, title, nodeType, content?,
       url?, metadata?, color, parentId?, topicId?, x?, y?, createdAt, updatedAt)
@@ -42,7 +42,7 @@ khoản requirement nó kiểm, dùng `fast-check` `{ numRuns: 100 }` với chú
     - Import được từ cả tiến trình main lẫn renderer; không tạo cấu trúc lệch khỏi UserNode/UserLink
     - _Requirements: 1.3, 3.2, 7.4_
 
-  - [ ] 1.2 Cài đặt `shared/graph-mapper.ts` — hàm THUẦN
+  - [x] 1.2 Cài đặt `shared/graph-mapper.ts` — hàm THUẦN
     - Tạo `apps/desktop/src/shared/graph-mapper.ts`
     - `userNodeToModel(raw: unknown): GraphNode | null` — đọc bằng `Object.hasOwn` +
       kiểm `typeof`; thiếu id/title → `null`; không theo prototype-chain
@@ -55,7 +55,7 @@ khoản requirement nó kiểm, dùng `fast-check` `{ numRuns: 100 }` với chú
     - Mọi hàm không side-effect, không throw, không bịa dữ liệu
     - _Requirements: 1.2, 1.3, 1.6, 2.1, 2.3, 8.2, 9.3_
 
-  - [ ]* 1.3 Viết property test round-trip cho mapper
+  - [x]* 1.3 Viết property test round-trip cho mapper
     - Tạo `apps/desktop/src/shared/graph-mapper.test.ts`
     - **Property 1: Ánh xạ node round-trip giữ nguyên trường được giữ**
     - **Validates: Requirements 1.2, 1.3, 2.3, 11.1, 11.5**
@@ -67,8 +67,8 @@ khoản requirement nó kiểm, dùng `fast-check` `{ numRuns: 100 }` với chú
       metadata); payload **chỉ** chứa khoá whitelist
     - `{ numRuns: 100 }`, chú thích `// Feature: desktop-graph-backend-sync, Property 1: ...`
 
-- [ ] 2. Tầng HTTP `GraphClient` (Tiến_Trình_Chính, token chỉ ở main)
-  - [ ] 2.1 Cài đặt `main/graph/graph-client.ts`
+- [x] 2. Tầng HTTP `GraphClient` (Tiến_Trình_Chính, token chỉ ở main)
+  - [x] 2.1 Cài đặt `main/graph/graph-client.ts`
     - Tạo `apps/desktop/src/main/graph/graph-client.ts`, lớp `GraphClient(auth, db)`
     - Lấy token qua `AuthManager.getAccessToken()`; build header `Authorization: Bearer <token>`
       + `Content-Type: application/json`; base `IZZI_API_BASE` đúng như AuthManager/SyncEngine (HTTPS)
@@ -86,7 +86,7 @@ khoản requirement nó kiểm, dùng `fast-check` `{ numRuns: 100 }` với chú
     - Dùng endpoint `/api/aibase/*` hiện có; KHÔNG tạo endpoint backend mới
     - _Requirements: 1.1, 1.4, 1.5, 2.1, 2.2, 2.3, 2.4, 2.5, 2.6, 6.1, 6.2, 6.4, 8.1, 9.1, 9.2, 9.4, 9.5_
 
-  - [ ]* 2.2 Viết unit test cho `GraphClient` (mock `fetch` + `AuthManager`)
+  - [x]* 2.2 Viết unit test cho `GraphClient` (mock `fetch` + `AuthManager`)
     - Tạo `apps/desktop/src/main/graph/graph-client.test.ts`
     - token null → đọc trả `[]`, **không** gọi BE (1.4); 401 → fail-closed, ghi `{error}` (9.5)
     - lỗi mạng → `[]` + diagnostic **không chứa token** (1.5, 9.2)
@@ -95,8 +95,8 @@ khoản requirement nó kiểm, dùng `fast-check` `{ numRuns: 100 }` với chú
     - body POST/PATCH chỉ chứa trường whitelist (2.1, 2.3); 403 truyền nguyên trạng (2.6)
     - _Requirements: 1.4, 1.5, 2.2, 2.6, 6.4, 7.3, 9.2, 9.5_
 
-- [ ] 3. Cầu IPC graph + memory (renderer không bao giờ thấy token)
-  - [ ] 3.1 Cài đặt `main/graph/graph-ipc.ts`
+- [x] 3. Cầu IPC graph + memory (renderer không bao giờ thấy token)
+  - [x] 3.1 Cài đặt `main/graph/graph-ipc.ts`
     - Tạo `apps/desktop/src/main/graph/graph-ipc.ts`, export `registerGraphIpc(client: GraphClient)`
     - Đăng ký `ipcMain.handle`: `graph:list`, `graph:create`, `graph:update`, `graph:remove`,
       `graph:links`, `memory:list`
@@ -105,7 +105,7 @@ khoản requirement nó kiểm, dùng `fast-check` `{ numRuns: 100 }` với chú
     - Handler chỉ trả model (GraphNode/GraphLink/MemoryItemDTO) — **không** trả token
     - _Requirements: 7.1, 7.2, 7.3, 7.5, 8.1_
 
-  - [ ] 3.2 Thêm namespace `graph` + `memory` vào `main/preload.ts`
+  - [x] 3.2 Thêm namespace `graph` + `memory` vào `main/preload.ts`
     - Sửa `apps/desktop/src/main/preload.ts` (additive)
     - `graph`: `list()`, `create(input)`, `update(id, patch)`, `remove(id)`, `links()` —
       mỗi cái `ipcRenderer.invoke('graph:*', ...)`
@@ -114,14 +114,14 @@ khoản requirement nó kiểm, dùng `fast-check` `{ numRuns: 100 }` với chú
       `ContextPanel.tsx` (`memory.list(agentId)` trả mảng item); không truyền token qua bridge
     - _Requirements: 7.1, 7.2, 7.4, 7.5_
 
-  - [ ] 3.3 Khởi tạo `GraphClient` + gọi `registerGraphIpc` trong `main/index.ts`
+  - [x] 3.3 Khởi tạo `GraphClient` + gọi `registerGraphIpc` trong `main/index.ts`
     - Sửa `setupIPC()` trong `apps/desktop/src/main/index.ts` (sau khối Sync): tạo
       `new GraphClient(authManager, db)` và gọi `registerGraphIpc(graphClient)`
     - Giữ nguyên các đăng ký IPC hiện có; không đổi luồng khởi tạo khác
     - _Requirements: 7.1, 7.3, 9.1_
 
-- [ ] 4. Store ghi renderer (state phản chiếu phản hồi backend)
-  - [ ] 4.1 Cài đặt `renderer/store/knowledgeGraph.ts`
+- [x] 4. Store ghi renderer (state phản chiếu phản hồi backend)
+  - [x] 4.1 Cài đặt `renderer/store/knowledgeGraph.ts`
     - Tạo `apps/desktop/src/renderer/store/knowledgeGraph.ts` theo khuôn `agentWorkspace.ts`
     - State: `nodes`, `links`, `status: 'idle'|'loading'|'ready'|'empty'`
     - `refresh()` → `graph.list()` + `graph.links()`, set state từ phản hồi (3.3)
@@ -131,33 +131,33 @@ khoản requirement nó kiểm, dùng `fast-check` `{ numRuns: 100 }` với chú
     - Feature-detect `window.electronAPI?.graph` thiếu → giữ rỗng, no-op (10.1); đọc field bằng own-property (9.3)
     - _Requirements: 3.1, 3.2, 3.3, 3.4, 9.3, 10.1_
 
-  - [ ]* 4.2 Viết unit test cho store (mock `window.electronAPI`)
+  - [x]* 4.2 Viết unit test cho store (mock `window.electronAPI`)
     - Tạo `apps/desktop/src/renderer/store/knowledgeGraph.store.test.ts`
     - write thành công → state lấy id/trường từ phản hồi (3.1); `refresh()` → khớp list mock (3.3)
     - ghi trả `{error}` → state **không đổi** (3.4); thiếu `electronAPI.graph` → rỗng + no-op (6.3, 10.1)
     - _Requirements: 3.1, 3.3, 3.4, 6.3, 10.1_
 
-- [ ] 5. Wire renderer vào dữ liệu thật (tối thiểu, giữ feature-detect)
-  - [ ] 5.1 Sửa `renderer/pages/Knowledge.tsx` — field fix + dùng type chung
+- [x] 5. Wire renderer vào dữ liệu thật (tối thiểu, giữ feature-detect)
+  - [x] 5.1 Sửa `renderer/pages/Knowledge.tsx` — field fix + dùng type chung
     - Đổi **đúng một** chỗ đọc trường ở nhánh thành công: `'type'` → `nodeType`
       (đọc bằng `Object.hasOwn(item,'nodeType') ? String(item.nodeType) : ...`)
     - Import `GraphNode` từ `shared/graph-types`, bỏ interface cục bộ lệch tên
     - Giữ nguyên feature-detect, empty-state, vòng lặp own-property, tên class `.knowledge-page*`
     - _Requirements: 1.6, 10.1, 10.2_
 
-  - [ ]* 5.2 (Tuỳ chọn) Khai báo type `graph`/`memory` trong `renderer/types/global.d.ts`
+  - [x]* 5.2 (Tuỳ chọn) Khai báo type `graph`/`memory` trong `renderer/types/global.d.ts`
     - Khai báo namespace `graph`/`memory` trên `window.electronAPI` thay cho `any`
     - Thuần cải thiện type-safety; build vẫn chạy nếu bỏ qua (không phải lõi Phase 1)
     - _Requirements: 7.4_
 
-- [ ] 6. Mở rộng `Sync_Engine` (giữ nguyên hành vi cũ)
-  - [ ] 6.1 Thêm bước refresh graph vào `main/sync/sync-engine.ts`
+- [x] 6. Mở rộng `Sync_Engine` (giữ nguyên hành vi cũ)
+  - [x] 6.1 Thêm bước refresh graph vào `main/sync/sync-engine.ts`
     - Trong `startSync()` (sau bước billing): gọi `graphClient.listNodes()` và cache qua
       `db.cacheUserData('graph_nodes','graph_nodes', ...)`
     - Giữ nguyên 5 bước profile/keys/usage/billing/refreshProfile và chu kỳ 5 phút
     - _Requirements: 5.3, 5.4, 10.3_
 
-- [ ] 7. Checkpoint Phase 1 — build + test xanh + smoke chéo
+- [x] 7. Checkpoint Phase 1 — build + test xanh + smoke chéo
   - Chạy `pnpm --filter @openclaw/desktop build` → 0 lỗi build mới so với baseline (10.4)
   - Chạy `pnpm --filter @openclaw/desktop test` (vitest run) → 0 thất bại mới, skip không
     tăng so với baseline (10.5)
@@ -173,8 +173,8 @@ khoản requirement nó kiểm, dùng `fast-check` `{ numRuns: 100 }` với chú
 > Mọi sub-task dưới đây đánh dấu `*` để "run all" trên Phase 1 bỏ qua và vẫn cho ra bản
 > build cài được. Triển khai Phase 2 ở spec/PR riêng khi sẵn sàng.
 
-- [ ] 8. Logic hàng đợi offline thuần (module tách rời `shared/offline-queue.ts`)
-  - [ ]* 8.1 Cài đặt `shared/offline-queue.ts` — hàm THUẦN
+- [x] 8. Logic hàng đợi offline thuần (module tách rời `shared/offline-queue.ts`)
+  - [x]* 8.1 Cài đặt `shared/offline-queue.ts` — hàm THUẦN
     - Tạo `apps/desktop/src/shared/offline-queue.ts`; type `QueueOp`
     - `coalesce(q)` — gộp update cùng node thành mới nhất; triệt tiêu cặp create-rồi-delete
       chưa tới BE thành không thao tác (Quy_Tắc_Hợp_Nhất)
@@ -184,42 +184,42 @@ khoản requirement nó kiểm, dùng `fast-check` `{ numRuns: 100 }` với chú
     - Không side-effect, không Electron, không mạng
     - _Requirements: 4.3, 4.4, 4.5, 4.7_
 
-  - [ ]* 8.2 Property test — coalesce idempotent
+  - [x]* 8.2 Property test — coalesce idempotent
     - Trong `apps/desktop/src/shared/offline-queue.test.ts`
     - **Property 2: Hợp nhất hàng đợi là idempotent** (`coalesce(coalesce(q)) == coalesce(q)`)
     - **Validates: Requirements 4.3, 11.2**
     - `fast-check` `{ numRuns: 100 }`, chú thích `// Feature: desktop-graph-backend-sync, Property 2: ...`
 
-  - [ ]* 8.3 Property test — coalesce không tăng số thao tác
+  - [x]* 8.3 Property test — coalesce không tăng số thao tác
     - Trong `apps/desktop/src/shared/offline-queue.test.ts`
     - **Property 3: Hợp nhất không làm tăng số thao tác** (`len(coalesce(q)) <= len(q)`)
     - **Validates: Requirements 4.3, 11.3**
     - `fast-check` `{ numRuns: 100 }`, chú thích `// Feature: desktop-graph-backend-sync, Property 3: ...`
 
-  - [ ]* 8.4 Property test — bất biến no-orphan
+  - [x]* 8.4 Property test — bất biến no-orphan
     - Trong `apps/desktop/src/shared/offline-queue.test.ts`
     - **Property 4: Bất biến no-orphan của hàng đợi** — mọi link op gửi đi có cả `sourceId`
       lẫn `targetId` resolve trong `K`; link tham chiếu node chưa khả dụng bị giữ lại
     - **Validates: Requirements 4.4, 4.7, 11.4**
     - `fast-check` `{ numRuns: 100 }`, chú thích `// Feature: desktop-graph-backend-sync, Property 4: ...`
 
-- [ ] 9. Lưu bền hàng đợi trong SQLite
-  - [ ]* 9.1 Thêm bảng `offline_queue` + helper vào `DatabaseManager`
+- [x] 9. Lưu bền hàng đợi trong SQLite
+  - [x]* 9.1 Thêm bảng `offline_queue` + helper vào `DatabaseManager`
     - Thêm `CREATE TABLE IF NOT EXISTS offline_queue (...)` + index `idx_offline_queue_seq`
       vào `ensureSqliteSchema` trong `apps/desktop/src/main/db/sqlite-schema.ts` (idempotent,
       theo khuôn bảng hiện có; không đổi schema cũ)
     - Thêm helper `enqueue` / `peek` / `dequeue` vào `apps/desktop/src/main/db/database.ts`
     - _Requirements: 4.1_
 
-- [ ] 10. Tích hợp flush + phát hiện offline (không đổi hợp đồng IPC Phase 1)
-  - [ ]* 10.1 Thêm bước flush hàng đợi vào `Sync_Engine`
+- [x] 10. Tích hợp flush + phát hiện offline (không đổi hợp đồng IPC Phase 1)
+  - [x]* 10.1 Thêm bước flush hàng đợi vào `Sync_Engine`
     - Trong `main/sync/sync-engine.ts` `startSync()` thêm bước cuối: nếu online,
       `coalesce(queue)` → `sendableLinkOps` → gửi FIFO theo `seq` → áp `resolveConflict`
       khi BE trả `updatedAt` mới hơn; op nhắm node đã xoá trên BE → drop + ghi diagnostic
     - Giữ nguyên 5 bước sync cũ + bước refresh graph (6.1) + chu kỳ 5 phút
     - _Requirements: 4.2, 4.5, 4.6_
 
-  - [ ]* 10.2 Wire phát hiện offline vào `GraphClient`
+  - [x]* 10.2 Wire phát hiện offline vào `GraphClient`
     - Trong `main/graph/graph-client.ts`: khi ghi thất bại vì offline (lỗi mạng) → `enqueue`
       thao tác thay vì trả `{error}`; giữ nguyên chữ ký `create/update/remove`
       (renderer không cần biết online/offline). Gợi ý `navigator.onLine` ở renderer; không health-check

@@ -14,7 +14,7 @@ export function TitleBar() {
         </div>
         <div className="titlebar__brand-text">
           <span className="titlebar__brand-name">IZZI</span>
-          <span className="titlebar__brand-suffix">OPENCLAW</span>
+          <span className="titlebar__brand-suffix">MEMORY UNIVERSE</span>
         </div>
       </div>
       <div className="titlebar__controls">

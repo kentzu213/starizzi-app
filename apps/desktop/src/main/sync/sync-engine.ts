@@ -3,6 +3,7 @@ import { DatabaseManager } from '../db/database';
 import { GraphClient, type NodeCreateInput } from '../graph/graph-client';
 import { coalesceGroups, resolveConflict, type QueueOp } from '../../shared/offline-queue';
 import type { GraphNode } from '../../shared/graph-types';
+import { IZZI_API_BASE } from '../config/public-config';
 
 export type SyncStatus = 'idle' | 'syncing' | 'error' | 'success';
 
@@ -12,9 +13,6 @@ interface SyncState {
   error: string | null;
   progress: number;
 }
-
-// IzziAPI.com backend URL
-const IZZI_API_BASE = process.env.OPENCLAW_API_URL || 'https://api.izziapi.com';
 
 export class SyncEngine {
   private auth: AuthManager;

@@ -24,6 +24,7 @@ declare global {
       color?: string,
     ) => Promise<GraphLink | { error: string }>;
     removeLink: (id: string) => Promise<{ ok: boolean; error?: string }>;
+    openMyGraphWeb: () => Promise<{ ok: boolean; url?: string }>;
   }
 
   /** Renderer-facing memory IPC surface — mirrors the preload `memory` namespace (Req 7.2, 7.5). */

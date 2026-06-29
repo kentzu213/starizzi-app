@@ -1,6 +1,6 @@
 {
   "name": "@openclaw/desktop",
-  "version": "1.3.0",
+  "version": "1.3.1",
   "private": true,
   "description": "Izzi OpenClaw Desktop App - Electron",
   "author": "kentzu213",
@@ -16,7 +16,7 @@
     "dev:renderer": "vite",
     "build": "tsc -p tsconfig.main.json && vite build",
     "start": "electron .",
-    "pack": "electron-builder --dir",
+    "pack": "pnpm build && electron-builder --dir",
     "dist": "electron-builder",
     "build:win": "pnpm build && electron-builder --win",
     "build:mac": "pnpm build && electron-builder --mac",

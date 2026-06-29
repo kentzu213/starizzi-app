@@ -224,8 +224,8 @@ describe('Token_Glass declarations in index.css :root', () => {
   it('declares --color-accent-gradient as a single locked accent (izzi cyan) (Req 1.5)', () => {
     const gradient = getToken(tokens, '--color-accent-gradient').toLowerCase();
     expect(gradient).toContain('linear-gradient');
-    // theme accent is izzi cyan #67e8f9 (with a near-flat darker cyan stop)
-    expect(gradient).toContain('#67e8f9');
+    // theme accent is current izziapi.com AIBase cyan #22dcc2.
+    expect(gradient).toContain('#22dcc2');
   });
 
   it('provides a fallback for every var(--glass-*) reference inside :root (Req 1.7)', () => {

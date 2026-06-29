@@ -1,3 +1,6 @@
+// MUST be first: loads .env into process.env before any module reads its
+// env-derived constants (auth/sync/graph base URLs, Izzi key). Side-effecting.
+import { IZZI_WEB_BASE } from './config/public-config';
 import { app, BrowserWindow, ipcMain, shell, dialog, nativeImage } from 'electron';
 import * as path from 'path';
 import { execFile } from 'child_process';
@@ -186,6 +189,13 @@ function setupIPC() {
   // ── Graph & Memory (shared backend /api/aibase/*; token stays in main) ──
   const graphClient = new GraphClient(authManager, dbManager);
   registerGraphIpc(graphClient);
+
+  // Open the user's personal graph on the web (same second-brain data) in the browser.
+  ipcMain.handle('graph:openMyGraphWeb', async () => {
+    const url = `${IZZI_WEB_BASE}/aibase/my-graph`;
+    await shell.openExternal(url);
+    return { ok: true, url };
+  });
 
   // ── Graph Agent (Izzi LLM for the Branching Graph Workspace; key stays in main) ──
   const graphAgent = new GraphAgent(authManager);

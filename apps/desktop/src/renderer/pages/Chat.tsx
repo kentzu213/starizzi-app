@@ -111,15 +111,23 @@ export function ChatPage({ user, onBuyApi, onNavigateToDashboard, onNavigateToAg
       {/* Header */}
       <header className="chat-page__header">
         <div>
-          <div className="chat-page__eyebrow">Agent Gateway</div>
+          <div className="chat-page__eyebrow">Memory relay</div>
           <h1 className="chat-page__title">
             🔀 {isGatewayMode && activeGwSession
               ? `${activeGwSession.agentIcon} ${activeGwSession.agentName}`
-              : 'Multi-Agent Gateway'}
+              : 'Turn memory into actions that run again'}
           </h1>
           <p className="chat-page__subtitle">
             Chat đồng thời với nhiều AI Agent. IzziAPI recommended cho tất cả model.
           </p>
+          <div className="chat-page__route-strip" aria-label="Memory workflow stages">
+            {['Capture', 'Structure', 'Recall', 'Replay'].map((stage, index) => (
+              <span key={stage}>
+                <small>{String(index + 1).padStart(2, '0')}</small>
+                {stage}
+              </span>
+            ))}
+          </div>
         </div>
 
         <div className="chat-page__header-actions">

@@ -491,6 +491,11 @@
   opacity: 0.6;
   cursor: default;
 }
+.gw-toolbar__btn--ghost {
+  background: color-mix(in srgb, var(--color-bg-primary) 70%, transparent);
+  border-color: var(--color-border);
+  box-shadow: none;
+}
 .gw-toolbar__hint {
   font-size: var(--font-size-xs);
   color: var(--color-text-tertiary);

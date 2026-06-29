@@ -32,15 +32,7 @@ import {
 } from '../../shared/graph-mapper';
 import type { GraphNode, GraphLink, MemoryItemDTO } from '../../shared/graph-types';
 import { buildUniverseSeed, parseNodeDetail, type UniverseNodeDetail } from '../../shared/universe-adapter';
-
-/** Same base URL derivation as AuthManager / SyncEngine (HTTPS). */
-const IZZI_API_BASE = process.env.OPENCLAW_API_URL || 'https://api.izziapi.com';
-
-/**
- * The web-app base. The PUBLIC community knowledge graph is served by the
- * Next.js app (`GET /api/dochub/graph`), not the `/api/aibase` API host.
- */
-const IZZI_WEB_BASE = process.env.OPENCLAW_WEB_URL || 'https://izziapi.com';
+import { IZZI_API_BASE, IZZI_WEB_BASE } from '../config/public-config';
 
 /** Create input accepted by `createNode` — the writable node fields + a title. */
 export type NodeCreateInput = Partial<GraphNode> & { title: string };

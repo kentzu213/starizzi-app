@@ -15,7 +15,7 @@ function BaseIcon({
       viewBox={viewBox}
       fill="none"
       stroke="currentColor"
-      strokeWidth="1.8"
+      strokeWidth="1.7"
       strokeLinecap="round"
       strokeLinejoin="round"
       aria-hidden="true"
@@ -45,8 +45,9 @@ export function AppLogoMark({ className }: IconProps) {
           <feComposite in="SourceGraphic" in2="blur" operator="over" />
         </filter>
         <linearGradient id="izzi-accent" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%" stopColor="#67e8f9" />
-          <stop offset="100%" stopColor="#a78bfa" />
+          <stop offset="0%" stopColor="#22dcc2" />
+          <stop offset="58%" stopColor="#7ecfff" />
+          <stop offset="100%" stopColor="#8e5cff" />
         </linearGradient>
       </defs>
       {/* S-curve dual paths */}
@@ -69,7 +70,7 @@ export function AppLogoMark({ className }: IconProps) {
       {/* Star accent */}
       <path
         d="M18 14l1.5-3 1.5 3 3 0.5-2.2 2 0.7 3-3-1.5-3 1.5 0.7-3-2.2-2z"
-        fill="#67e8f9"
+        fill="#22dcc2"
         filter="url(#izzi-glow)"
       />
     </svg>
@@ -195,6 +196,46 @@ export function RefreshIcon({ className }: IconProps) {
     <BaseIcon className={className}>
       <path d="M20 11a8 8 0 1 0 2 5.3" />
       <path d="M20 4v7h-7" />
+    </BaseIcon>
+  );
+}
+
+export function GraphIcon({ className }: IconProps) {
+  return (
+    <BaseIcon className={className}>
+      <circle cx="6.5" cy="7" r="2.25" />
+      <circle cx="17.5" cy="7" r="2.25" />
+      <circle cx="12" cy="17" r="2.25" />
+      <path d="M8.55 8.05h6.9M7.5 9.05 11 15M16.5 9.05 13 15" />
+    </BaseIcon>
+  );
+}
+
+export function CostIcon({ className }: IconProps) {
+  return (
+    <BaseIcon className={className}>
+      <path d="M12 3v18" />
+      <path d="M17 7.5c0-1.65-2.05-2.75-5-2.75S7 5.85 7 7.5s2.05 2.75 5 2.75 5 1.1 5 2.75-2.05 2.75-5 2.75-5-1.1-5-2.75" />
+    </BaseIcon>
+  );
+}
+
+export function AgentHubIcon({ className }: IconProps) {
+  return (
+    <BaseIcon className={className}>
+      <rect x="7" y="8" width="10" height="8" rx="2" />
+      <path d="M9.5 8V6.5A2.5 2.5 0 0 1 12 4a2.5 2.5 0 0 1 2.5 2.5V8" />
+      <path d="M9.5 12h.01M14.5 12h.01M5 12H3M21 12h-2M10 16.5v1M14 16.5v1" />
+    </BaseIcon>
+  );
+}
+
+export function KnowledgeIcon({ className }: IconProps) {
+  return (
+    <BaseIcon className={className}>
+      <path d="M12 5a4 4 0 0 0-4 4c0 1.45.74 2.67 1.62 3.62.63.68 1.13 1.5 1.13 2.43V16h2.5v-.95c0-.93.5-1.75 1.13-2.43A5.24 5.24 0 0 0 16 9a4 4 0 0 0-4-4z" />
+      <path d="M10 19h4M10.5 16h3" />
+      <path d="M5 10H3M21 10h-2M6.2 5.2 4.8 3.8M19.2 3.8l-1.4 1.4" />
     </BaseIcon>
   );
 }

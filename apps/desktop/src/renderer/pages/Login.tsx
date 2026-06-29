@@ -38,11 +38,11 @@ export function LoginPage({ onLogin, onGoogleLogin, onSignup }: LoginPageProps) 
         if (err) {
           setError(err);
         } else {
-          setSuccessMessage('🎉 Đăng ký thành công! Kiểm tra email để xác thực tài khoản.');
+          setSuccessMessage('Đăng ký thành công. Kiểm tra email để xác thực tài khoản.');
           setMode('login');
         }
       } else {
-        setSuccessMessage('🎉 Đăng ký thành công! (Demo mode)');
+        setSuccessMessage('Đăng ký thành công. Demo mode đã sẵn sàng.');
         setMode('login');
       }
 
@@ -92,12 +92,29 @@ export function LoginPage({ onLogin, onGoogleLogin, onSignup }: LoginPageProps) 
 
   return (
     <div className="login-page">
+      <section className="login-hero-panel" aria-label="IzziAI Memory Universe overview">
+        <div className="login-hero-panel__kicker">IzziAI Memory Universe</div>
+        <h2>Remember how your agents work.</h2>
+        <p>
+          Store task loops, prompts, click paths and reviewed workflows. When similar work returns,
+          OpenClaw can recall the route instead of asking for every step again.
+        </p>
+        <div className="login-hero-panel__steps" aria-label="Memory workflow">
+          {['Capture', 'Structure', 'Recall', 'Replay'].map((step, index) => (
+            <div className="login-hero-panel__step" key={step}>
+              <span>{String(index + 1).padStart(2, '0')}</span>
+              {step}
+            </div>
+          ))}
+        </div>
+      </section>
+
       <div className="login-card glass-card">
         <div className="login-card__logo">
           <div className="login-card__logo-icon">
             <AppLogoMark />
           </div>
-          <h1>IZZI OPENCLAW</h1>
+          <h1>IzziAI OpenClaw</h1>
           <p>
             {mode === 'login'
               ? 'Kết nối với IzziAPI.com để bắt đầu'
@@ -105,7 +122,7 @@ export function LoginPage({ onLogin, onGoogleLogin, onSignup }: LoginPageProps) 
           </p>
         </div>
 
-        {error && <div className="login-card__error">⚠️ {error}</div>}
+        {error && <div className="login-card__error">Error · {error}</div>}
         {successMessage && (
           <div className="login-card__success login-card__success-banner">
             {successMessage}
@@ -163,10 +180,10 @@ export function LoginPage({ onLogin, onGoogleLogin, onSignup }: LoginPageProps) 
             disabled={isLoading}
           >
             {isLoading
-              ? '⏳ Đang xử lý...'
+              ? 'Đang xử lý...'
               : mode === 'login'
-                ? '🔐 Đăng nhập'
-                : '🚀 Đăng ký'}
+                ? 'Đăng nhập'
+                : 'Đăng ký'}
           </button>
         </form>
 

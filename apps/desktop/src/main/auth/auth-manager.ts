@@ -10,6 +10,7 @@ import { createClient, SupabaseClient, Session } from '@supabase/supabase-js';
 import { safeStorage, shell, BrowserWindow } from 'electron';
 import { DatabaseManager } from '../db/database';
 import { scryptSync, randomBytes, timingSafeEqual } from 'crypto';
+import { IZZI_API_BASE, IZZI_WEB_BASE, SUPABASE_URL, SUPABASE_ANON_KEY } from '../config/public-config';
 
 // Demo password hashing helpers (Node.js built-in crypto — zero new deps)
 function hashPassword(password: string): string {
@@ -27,14 +28,6 @@ function verifyPassword(password: string, stored: string): boolean {
   const derived = scryptSync(password, salt, 64);
   return timingSafeEqual(Buffer.from(key, 'hex'), derived);
 }
-
-// IzziAPI.com Backend URL
-const IZZI_API_BASE = process.env.OPENCLAW_API_URL || 'https://api.izziapi.com';
-
-// Supabase config — MUST be set via .env (no hardcoded keys in source)
-// Without these, the app falls back to demo mode (intended for unconfigured installs)
-const SUPABASE_URL = process.env.OPENCLAW_SUPABASE_URL || '';
-const SUPABASE_ANON_KEY = process.env.OPENCLAW_SUPABASE_ANON_KEY || '';
 
 export interface User {
   id: string;
@@ -81,6 +74,7 @@ export class AuthManager {
         auth: {
           autoRefreshToken: true,
           persistSession: false, // We handle persistence ourselves via safeStorage
+          flowType: 'implicit', // Electron popup reads access/refresh tokens from the redirect hash.
         },
       });
       console.log('[Auth] Supabase client initialized');
@@ -281,8 +275,10 @@ export class AuthManager {
     }
 
     try {
-      // Use Supabase's own callback URL (no custom protocol needed)
-      const redirectUrl = `${SUPABASE_URL}/auth/v1/callback`;
+      // Use the web app as the final redirect target. Supabase's callback
+      // endpoint is an internal hop; pointing redirectTo back at it can produce
+      // a PKCE code without the verifier stored in this Electron process.
+      const redirectUrl = `${IZZI_WEB_BASE}/auth/callback`;
 
       const { data, error } = await this.supabase.auth.signInWithOAuth({
         provider: 'google',
@@ -385,40 +381,15 @@ export class AuthManager {
         refreshToken = parsed.searchParams.get('refresh_token');
       }
 
-      // Also check for authorization code flow
-      const code = parsed.searchParams.get('code');
-
       if (accessToken && refreshToken) {
         console.log('[Auth] Got OAuth tokens from URL');
         const result = await this.setSessionFromTokens(accessToken, refreshToken);
         finish(result);
-      } else if (code && this.supabase) {
-        // Exchange authorization code for session
-        console.log('[Auth] Got OAuth code, exchanging for session');
-        const { data, error } = await this.supabase.auth.exchangeCodeForSession(code);
-        if (error || !data.session) {
-          finish({ success: false, error: error?.message || 'Failed to exchange code' });
-        } else {
-          const profile = await this.fetchProfile(data.session.access_token);
-          const user: User = profile || {
-            id: data.user?.id || '',
-            email: data.user?.email || '',
-            name: data.user?.user_metadata?.full_name || data.user?.user_metadata?.name || data.user?.email?.split('@')[0] || '',
-            plan: 'free',
-          };
-
-          this.saveSession({
-            accessToken: data.session.access_token,
-            refreshToken: data.session.refresh_token,
-            expiresAt: (data.session.expires_at || 0) * 1000,
-            user,
-          });
-
-          this.db.appendDiagnosticEvent({ type: 'auth.login', status: 'success', detail: `Google OAuth: ${user.email}` });
-          finish({ success: true, user });
-        }
       }
-      // If no tokens/code found, let navigation continue (user is still in OAuth flow)
+      // If no tokens were found, let navigation continue (user is still in OAuth flow).
+      // Do NOT call exchangeCodeForSession here: this popup flow intentionally uses
+      // implicit tokens, and exchanging a stray PKCE code without a verifier produces
+      // "both auth code and code verifier should be non-empty".
     } catch {
       // URL parse errors are expected for non-callback URLs — ignore them
     }
@@ -494,17 +465,7 @@ export class AuthManager {
         return await this.setSessionFromTokens(accessToken, refreshToken);
       }
 
-      // Try code exchange
-      const code = parsed.searchParams.get('code');
-      if (code) {
-        const { data, error } = await this.supabase.auth.exchangeCodeForSession(code);
-        if (error || !data.session) {
-          return { success: false, error: error?.message || 'Failed to exchange code' };
-        }
-        return await this.setSessionFromTokens(data.session.access_token, data.session.refresh_token);
-      }
-
-      return { success: false, error: 'No tokens or code in callback URL' };
+      return { success: false, error: 'No OAuth tokens in callback URL' };
     } catch (err: any) {
       return { success: false, error: err.message };
     }

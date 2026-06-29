@@ -104,13 +104,14 @@ export function App() {
   }, [checkForUpdates, currentPage, isAuthenticated]);
 
   useEffect(() => {
-    if (!isAuthenticated || !window.electronAPI?.extensionUpdates) {
+    const extensionUpdates = window.electronAPI?.extensionUpdates;
+    if (!isAuthenticated || !extensionUpdates) {
       return undefined;
     }
 
     async function pollUpdates() {
       try {
-        const result = await window.electronAPI.extensionUpdates.getPending();
+        const result = await extensionUpdates.getPending();
         setExtensionUpdateCount(result?.count || 0);
       } catch {
         setExtensionUpdateCount(0);

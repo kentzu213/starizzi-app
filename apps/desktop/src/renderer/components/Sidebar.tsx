@@ -1,7 +1,11 @@
 import React from 'react';
 import {
+  AgentHubIcon,
   ChatIcon,
+  CostIcon,
   ExtensionIcon,
+  GraphIcon,
+  KnowledgeIcon,
   MarketplaceIcon,
   MemoryIcon,
   OverviewIcon,
@@ -22,21 +26,21 @@ interface SidebarProps {
 }
 
 const WORKSPACE_ITEMS = [
-  { id: 'setup', icon: SetupIcon, label: 'Setup Wizard', badge: 'New' },
-  { id: 'chat', icon: ChatIcon, label: 'Agent Gateway', badge: 'v2' },
-  { id: 'graph', icon: () => <span style={{ fontSize: 16 }}>🕸️</span>, label: 'Graph Workspace', badge: 'New' },
-  { id: 'tasks', icon: TasksIcon, label: 'Tasks' },
-  { id: 'memory', icon: MemoryIcon, label: 'Memory' },
-  { id: 'status', icon: StatusIcon, label: 'Status' },
-  { id: 'dashboard', icon: OverviewIcon, label: 'Overview' },
-  { id: 'costs', icon: () => <span style={{ fontSize: 16 }}>💰</span>, label: 'Chi phí' },
+  { id: 'setup', icon: SetupIcon, label: 'Capture setup', badge: '01' },
+  { id: 'chat', icon: ChatIcon, label: 'Agent relay', badge: 'Live' },
+  { id: 'graph', icon: GraphIcon, label: 'Memory graph', badge: '02' },
+  { id: 'tasks', icon: TasksIcon, label: 'Replay tasks' },
+  { id: 'memory', icon: MemoryIcon, label: 'Recall library' },
+  { id: 'status', icon: StatusIcon, label: 'Guardrails' },
+  { id: 'dashboard', icon: OverviewIcon, label: 'Operations' },
+  { id: 'costs', icon: CostIcon, label: 'Chi phí' },
 ];
 
 const EXPLORE_ITEMS = [
-  { id: 'agents', icon: () => <span style={{ fontSize: 16 }}>🤖</span>, label: 'Agent Hub', badge: 'v2' },
-  { id: 'marketplace', icon: MarketplaceIcon, label: 'Marketplace' },
-  { id: 'extensions', icon: ExtensionIcon, label: 'Extensions' },
-  { id: 'knowledge', icon: () => <span style={{ fontSize: 16 }}>🧠</span>, label: 'Knowledge' },
+  { id: 'agents', icon: AgentHubIcon, label: 'Agent hub', badge: 'v2' },
+  { id: 'marketplace', icon: MarketplaceIcon, label: 'Knowledge library' },
+  { id: 'extensions', icon: ExtensionIcon, label: 'Workflow imports' },
+  { id: 'knowledge', icon: KnowledgeIcon, label: 'Source truth' },
 ];
 
 const SYSTEM_ITEMS = [{ id: 'settings', icon: SettingsIcon, label: 'Settings' }];
@@ -57,7 +61,8 @@ export function Sidebar({ currentPage, onNavigate, user, updateCount = 0, appUpd
     const badge = item.id === 'extensions' && updateCount > 0 ? `${updateCount} up` : item.badge;
 
     return (
-      <div
+      <button
+        type="button"
         key={item.id}
         className={`sidebar__item ${currentPage === item.id ? 'sidebar__item--active' : ''}`}
         onClick={() => onNavigate(item.id)}
@@ -75,17 +80,23 @@ export function Sidebar({ currentPage, onNavigate, user, updateCount = 0, appUpd
             {badge}
           </span>
         )}
-      </div>
+      </button>
     );
   };
 
   return (
     <aside className="sidebar glass-panel" role="complementary" aria-label="Thanh dieu huong">
+      <div className="sidebar__brand-panel" aria-label="IzziAI Memory Universe">
+        <span className="sidebar__brand-kicker">IzziAI Memory Universe</span>
+        <strong>Recall routes for repeat work.</strong>
+        <span className="sidebar__brand-flow">Capture / Structure / Recall / Replay</span>
+      </div>
+
       <nav className="sidebar__nav" aria-label="Menu chinh">
-        <div className="sidebar__section-title">Workspace</div>
+        <div className="sidebar__section-title">Memory core</div>
         {WORKSPACE_ITEMS.map(renderItem)}
 
-        <div className="sidebar__section-title">Explore</div>
+        <div className="sidebar__section-title">Operational surface</div>
         {EXPLORE_ITEMS.map(renderItem)}
 
         <div className="sidebar__section-title">System</div>
@@ -94,7 +105,8 @@ export function Sidebar({ currentPage, onNavigate, user, updateCount = 0, appUpd
 
       <div className="sidebar__user">
         {(appUpdateAvailable || appUpdateDownloaded) && (
-          <div
+          <button
+            type="button"
             className={`sidebar__update-prompt ${appUpdateDownloaded ? 'sidebar__update-prompt--ready' : ''}`}
             onClick={onUpdateClick}
           >
@@ -105,9 +117,9 @@ export function Sidebar({ currentPage, onNavigate, user, updateCount = 0, appUpd
             <span className="sidebar__update-prompt-action">
               {appUpdateDownloaded ? 'Cài đặt' : 'Tải xuống'}
             </span>
-          </div>
+          </button>
         )}
-        <div className="sidebar__user-card" onClick={() => onNavigate('settings')}>
+        <button type="button" className="sidebar__user-card" onClick={() => onNavigate('settings')}>
           <div className="sidebar__avatar">
             {user?.avatar && typeof user.avatar === 'string' && user.avatar.length <= 2
               ? user.avatar
@@ -117,7 +129,7 @@ export function Sidebar({ currentPage, onNavigate, user, updateCount = 0, appUpd
             <div className="sidebar__user-name">{user?.name || 'User'}</div>
             <div className="sidebar__user-plan">{user?.plan || 'Free'} plan</div>
           </div>
-        </div>
+        </button>
       </div>
     </aside>
   );

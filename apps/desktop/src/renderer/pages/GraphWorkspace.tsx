@@ -186,6 +186,15 @@ export function GraphWorkspacePage() {
               <span aria-hidden="true">🌌</span>
               {universeStatus === 'loading' ? 'Đang nạp…' : 'Nạp Vũ trụ tri thức'}
             </button>
+            <button
+              type="button"
+              className="gw-toolbar__btn gw-toolbar__btn--ghost"
+              onClick={() => void window.electronAPI?.graph?.openMyGraphWeb?.()}
+              title="Mở graph cá nhân của bạn trên izziapi.com (cùng dữ liệu)"
+            >
+              <span aria-hidden="true">🔗</span>
+              Mở trên web
+            </button>
             {universeStatus === 'error' && (
               <span className="gw-toolbar__hint gw-toolbar__hint--error">
                 Không nạp được vũ trụ tri thức (kiểm tra mạng).
