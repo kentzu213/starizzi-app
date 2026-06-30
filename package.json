@@ -24,5 +24,10 @@
   "engines": {
     "node": ">=20.0.0",
     "pnpm": ">=9.0.0"
+  },
+  "pnpm": {
+    "overrides": {
+      "shell-quote": "1.8.4"
+    }
   }
 }
