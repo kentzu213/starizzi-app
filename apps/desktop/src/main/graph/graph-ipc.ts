@@ -32,6 +32,13 @@ export function registerGraphIpc(client: GraphClient): void {
     client.createLink(sourceId, targetId, label, color),
   );
   ipcMain.handle('graph:removeLink', (_e, id) => client.removeLink(id));
+  ipcMain.handle('graph:updateLink', (_e, id, patch) => client.updateLink(id, patch));
+  // Discovery / knowledge-universe ops (parity with web /aibase/graph).
+  ipcMain.handle('graph:search', (_e, query, limit) => client.searchNodes(query, limit));
+  ipcMain.handle('graph:communities', () => client.fetchCommunities());
+  ipcMain.handle('graph:importUrl', (_e, url) => client.importUrl(url));
+  ipcMain.handle('graph:extractDocument', (_e, input) => client.extractDocument(input));
+  ipcMain.handle('graph:synthesize', (_e, input) => client.synthesizeTopic(input));
   // `_agentId` matches the renderer feature-detect signature `memory.list(agentId)`
   // (Req 7.5). The shared backend does not filter memory by agent yet, so the
   // parameter is currently advisory (unused) — kept to preserve the contract

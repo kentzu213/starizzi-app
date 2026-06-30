@@ -83,3 +83,63 @@ export interface MemoryItemDTO {
   source: string;
   createdAt: string;
 }
+
+/**
+ * A community/cluster of nodes returned by `GET /api/aibase/communities`.
+ * Mirrors the web `Community` type exactly so the canvas can draw hulls.
+ */
+export interface GraphCommunity {
+  id: number;
+  label: string;
+  color: string;
+  nodeIds: string[];
+  size: number;
+  centroid: { x: number; y: number } | null;
+}
+
+/**
+ * A single search hit from `GET /api/aibase/search`. Mirrors the web `SearchHit`
+ * type exactly so the search bar renders identically.
+ */
+export interface GraphSearchHit {
+  id: string;
+  title: string;
+  nodeType: string;
+  color: string;
+  matchedField: string;
+  matchSnippet: string;
+  score: number;
+  x: number | null;
+  y: number | null;
+}
+
+/** Metadata returned by `POST /api/aibase/import-url` for a single URL. */
+export interface ImportUrlResult {
+  title: string;
+  description: string;
+  nodeType: string;
+  url: string;
+  metadata: Record<string, unknown>;
+}
+
+/** Preview returned by `POST /api/aibase/extract-document` (nodes/links to confirm). */
+export interface ExtractDocumentResult {
+  nodes: unknown[];
+  links: unknown[];
+  title: string;
+  isDuplicate?: boolean;
+  warning?: string;
+  crossLinks?: unknown[];
+}
+
+/** Result of `POST /api/aibase/graph/synthesize` (build a learning-path map). */
+export interface SynthesizeTopicResult {
+  ok: boolean;
+  topic: string;
+  rootTitle: string;
+  milestones: number;
+  nodesAdded: number;
+  free?: boolean;
+  charged?: number;
+  balance?: number;
+}

@@ -14,7 +14,16 @@ import type {
   OnboardingState,
 } from './agent/types';
 import type { DesktopUpdaterState } from './updater/types';
-import type { GraphNode, GraphLink, MemoryItemDTO } from '../shared/graph-types';
+import type {
+  GraphNode,
+  GraphLink,
+  MemoryItemDTO,
+  GraphCommunity,
+  GraphSearchHit,
+  ImportUrlResult,
+  ExtractDocumentResult,
+  SynthesizeTopicResult,
+} from '../shared/graph-types';
 import type { ParsedClassification } from './graph/graph-agent-core';
 import type { UniverseNodeDetail } from '../shared/universe-adapter';
 
@@ -282,8 +291,28 @@ const electronAPI = {
       ipcRenderer.invoke('graph:createLink', sourceId, targetId, label, color),
     removeLink: (id: string): Promise<{ ok: boolean; error?: string }> =>
       ipcRenderer.invoke('graph:removeLink', id),
+    updateLink: (
+      id: string,
+      patch: { label?: string; color?: string },
+    ): Promise<GraphLink | { error: string }> =>
+      ipcRenderer.invoke('graph:updateLink', id, patch),
     openMyGraphWeb: (): Promise<{ ok: boolean; url?: string }> =>
       ipcRenderer.invoke('graph:openMyGraphWeb'),
+    // Discovery / knowledge-universe ops (parity with web /aibase/graph).
+    search: (query: string, limit?: number): Promise<GraphSearchHit[]> =>
+      ipcRenderer.invoke('graph:search', query, limit),
+    communities: (): Promise<GraphCommunity[]> =>
+      ipcRenderer.invoke('graph:communities'),
+    importUrl: (url: string): Promise<ImportUrlResult | { error: string }> =>
+      ipcRenderer.invoke('graph:importUrl', url),
+    extractDocument: (
+      input: { url?: string; text?: string },
+    ): Promise<ExtractDocumentResult | { error: string }> =>
+      ipcRenderer.invoke('graph:extractDocument', input),
+    synthesizeTopic: (
+      input: { topic: string; rootTitle?: string; queries?: string[] },
+    ): Promise<SynthesizeTopicResult | { error: string }> =>
+      ipcRenderer.invoke('graph:synthesizeTopic', input),
   },
 
   memory: {

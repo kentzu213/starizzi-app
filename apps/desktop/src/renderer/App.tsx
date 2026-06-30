@@ -18,7 +18,7 @@ import { AgentStorePage } from './pages/AgentStore';
 import { SettingsPage } from './pages/Settings';
 import { SetupWizardPage } from './pages/SetupWizard';
 import { CostDashboardPage } from './pages/CostDashboard';
-import { KnowledgePage } from './pages/Knowledge';
+import KnowledgeUniversePage from './pages/KnowledgeUniverse';
 import { GraphWorkspacePage } from './pages/GraphWorkspace';
 import { useAgentWorkspaceStore } from './store/agentWorkspace';
 import { vi } from './i18n/vi';
@@ -330,7 +330,7 @@ export function App() {
           />
         );
       case 'knowledge':
-        return <KnowledgePage />;
+        return <KnowledgeUniversePage />;
       case 'graph':
         return <GraphWorkspacePage />;
       default:

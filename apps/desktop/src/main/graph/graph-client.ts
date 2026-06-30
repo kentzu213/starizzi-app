@@ -30,7 +30,16 @@ import {
   modelToPatchPayload,
   memoryNodeToItem,
 } from '../../shared/graph-mapper';
-import type { GraphNode, GraphLink, MemoryItemDTO } from '../../shared/graph-types';
+import type {
+  GraphNode,
+  GraphLink,
+  MemoryItemDTO,
+  GraphCommunity,
+  GraphSearchHit,
+  ImportUrlResult,
+  ExtractDocumentResult,
+  SynthesizeTopicResult,
+} from '../../shared/graph-types';
 import { buildUniverseSeed, parseNodeDetail, type UniverseNodeDetail } from '../../shared/universe-adapter';
 import { IZZI_API_BASE, IZZI_WEB_BASE } from '../config/public-config';
 
@@ -407,6 +416,242 @@ export class GraphClient {
     } catch (err) {
       this.logFailure('graph.removeLink', undefined, shortError(err));
       return { ok: false, error: 'network error' };
+    }
+  }
+
+  /**
+   * PATCH /api/aibase/links/:id — update an edge's label/color. Returns the
+   * updated GraphLink or `{ error }` (fail-closed on no-auth / 401; pass-through
+   * on backend rejection). Parity with the web link-label editor.
+   */
+  async updateLink(
+    id: string,
+    patch: { label?: string; color?: string },
+  ): Promise<GraphLink | { error: string }> {
+    if (!id) return { error: 'id required' };
+
+    const token = await this.auth.getAccessToken();
+    if (token == null) return { error: 'unauthorized' };
+
+    const body: { label?: string; color?: string } = {};
+    if (typeof patch?.label === 'string') body.label = patch.label;
+    if (typeof patch?.color === 'string') body.color = patch.color;
+
+    try {
+      const res = await fetch(`${IZZI_API_BASE}/api/aibase/links/${encodeURIComponent(id)}`, {
+        method: 'PATCH',
+        headers: this.authHeaders(token),
+        body: JSON.stringify(body),
+      });
+      if (res.status === 401) return { error: 'unauthorized' };
+      if (!res.ok) {
+        const message = await this.readBackendError(res);
+        this.logFailure('graph.updateLink', res.status);
+        return { error: message };
+      }
+      const data = await res.json();
+      const link = ownValue(data, 'link');
+      const sourceId = ownValue(link, 'sourceId');
+      const targetId = ownValue(link, 'targetId');
+      const out: GraphLink = {
+        id,
+        sourceId: typeof sourceId === 'string' ? sourceId : '',
+        targetId: typeof targetId === 'string' ? targetId : '',
+      };
+      const lbl = ownValue(link, 'label');
+      const clr = ownValue(link, 'color');
+      if (typeof lbl === 'string') out.label = lbl;
+      else if (typeof body.label === 'string') out.label = body.label;
+      if (typeof clr === 'string') out.color = clr;
+      else if (typeof body.color === 'string') out.color = body.color;
+      return out;
+    } catch (err) {
+      this.logFailure('graph.updateLink', undefined, shortError(err));
+      return { error: 'network error' };
+    }
+  }
+
+  // ── Discovery / knowledge-universe ops (parity with web /aibase/graph) ───
+
+  /**
+   * GET /api/aibase/search?q=&limit= → SearchHit[] (own-property `results`).
+   * Authenticated user search over their own nodes. Empty on no-auth / error.
+   */
+  async searchNodes(query: string, limit = 10): Promise<GraphSearchHit[]> {
+    const q = typeof query === 'string' ? query.trim() : '';
+    if (q.length === 0) return [];
+
+    const token = await this.auth.getAccessToken();
+    if (token == null) return [];
+
+    const lim = Number.isFinite(limit) ? Math.trunc(limit) : 10;
+    try {
+      const res = await fetch(
+        `${IZZI_API_BASE}/api/aibase/search?q=${encodeURIComponent(q)}&limit=${encodeURIComponent(String(lim))}`,
+        { headers: this.authHeaders(token) },
+      );
+      if (res.status === 401) return [];
+      if (!res.ok) {
+        this.logFailure('graph.search', res.status);
+        return [];
+      }
+      const data = await res.json();
+      return ownArray(data, 'results').filter(
+        (hit): hit is GraphSearchHit => hit !== null && typeof hit === 'object',
+      );
+    } catch (err) {
+      this.logFailure('graph.search', undefined, shortError(err));
+      return [];
+    }
+  }
+
+  /** GET /api/aibase/communities → GraphCommunity[] (own-property `communities`). */
+  async fetchCommunities(): Promise<GraphCommunity[]> {
+    const token = await this.auth.getAccessToken();
+    if (token == null) return [];
+
+    try {
+      const res = await fetch(`${IZZI_API_BASE}/api/aibase/communities`, {
+        headers: this.authHeaders(token),
+      });
+      if (res.status === 401) return [];
+      if (!res.ok) {
+        this.logFailure('graph.communities', res.status);
+        return [];
+      }
+      const data = await res.json();
+      return ownArray(data, 'communities').filter(
+        (c): c is GraphCommunity => c !== null && typeof c === 'object',
+      );
+    } catch (err) {
+      this.logFailure('graph.communities', undefined, shortError(err));
+      return [];
+    }
+  }
+
+  /**
+   * POST /api/aibase/import-url → metadata for a single URL (own-property map).
+   * Returns `{ error }` fail-closed on no-auth / 401, pass-through on rejection.
+   */
+  async importUrl(url: string): Promise<ImportUrlResult | { error: string }> {
+    const target = typeof url === 'string' ? url.trim() : '';
+    if (target.length === 0) return { error: 'URL is required' };
+
+    const token = await this.auth.getAccessToken();
+    if (token == null) return { error: 'unauthorized' };
+
+    try {
+      const res = await fetch(`${IZZI_API_BASE}/api/aibase/import-url`, {
+        method: 'POST',
+        headers: this.authHeaders(token),
+        body: JSON.stringify({ url: target }),
+      });
+      if (res.status === 401) return { error: 'unauthorized' };
+      if (!res.ok) {
+        const message = await this.readBackendError(res);
+        this.logFailure('graph.importUrl', res.status);
+        return { error: message };
+      }
+      const data = await res.json();
+      return {
+        title: String(ownValue(data, 'title') ?? ''),
+        description: String(ownValue(data, 'description') ?? ''),
+        nodeType: String(ownValue(data, 'nodeType') ?? 'link'),
+        url: String(ownValue(data, 'url') ?? target),
+        metadata: (ownValue(data, 'metadata') as Record<string, unknown>) ?? {},
+      };
+    } catch (err) {
+      this.logFailure('graph.importUrl', undefined, shortError(err));
+      return { error: 'network error' };
+    }
+  }
+
+  /**
+   * POST /api/aibase/extract-document → preview of nodes/links to confirm.
+   * Returns `{ error }` fail-closed on no-auth / 401, pass-through on rejection.
+   */
+  async extractDocument(
+    input: { url?: string; text?: string },
+  ): Promise<ExtractDocumentResult | { error: string }> {
+    const token = await this.auth.getAccessToken();
+    if (token == null) return { error: 'unauthorized' };
+
+    const body: { url?: string; text?: string } = {};
+    if (typeof input?.url === 'string' && input.url.trim()) body.url = input.url.trim();
+    if (typeof input?.text === 'string' && input.text.trim()) body.text = input.text.trim();
+    if (!body.url && !body.text) return { error: 'url or text is required' };
+
+    try {
+      const res = await fetch(`${IZZI_API_BASE}/api/aibase/extract-document`, {
+        method: 'POST',
+        headers: this.authHeaders(token),
+        body: JSON.stringify(body),
+      });
+      if (res.status === 401) return { error: 'unauthorized' };
+      if (!res.ok) {
+        const message = await this.readBackendError(res);
+        this.logFailure('graph.extractDocument', res.status);
+        return { error: message };
+      }
+      const data = await res.json();
+      return {
+        nodes: ownArray(data, 'nodes'),
+        links: ownArray(data, 'links'),
+        title: String(ownValue(data, 'title') ?? ''),
+        isDuplicate: ownValue(data, 'isDuplicate') === true,
+        warning: typeof ownValue(data, 'warning') === 'string' ? (ownValue(data, 'warning') as string) : undefined,
+        crossLinks: ownArray(data, 'crossLinks'),
+      };
+    } catch (err) {
+      this.logFailure('graph.extractDocument', undefined, shortError(err));
+      return { error: 'network error' };
+    }
+  }
+
+  /**
+   * POST /api/aibase/graph/synthesize → build a milestone learning-map into the
+   * user's graph (can take ~10-30s). Returns `{ error }` fail-closed on no-auth /
+   * 401, pass-through on rejection.
+   */
+  async synthesizeTopic(
+    input: { topic: string; rootTitle?: string; queries?: string[] },
+  ): Promise<SynthesizeTopicResult | { error: string }> {
+    const topic = typeof input?.topic === 'string' ? input.topic.trim() : '';
+    if (topic.length === 0) return { error: 'topic is required' };
+
+    const token = await this.auth.getAccessToken();
+    if (token == null) return { error: 'unauthorized' };
+
+    const payload: { topic: string; rootTitle?: string; queries?: string[] } = { topic };
+    if (typeof input.rootTitle === 'string' && input.rootTitle.trim()) payload.rootTitle = input.rootTitle.trim();
+    if (Array.isArray(input.queries)) payload.queries = input.queries.filter((q) => typeof q === 'string');
+
+    try {
+      const res = await fetch(`${IZZI_API_BASE}/api/aibase/graph/synthesize`, {
+        method: 'POST',
+        headers: this.authHeaders(token),
+        body: JSON.stringify(payload),
+      });
+      if (res.status === 401) return { error: 'unauthorized' };
+      if (!res.ok) {
+        const message = await this.readBackendError(res);
+        this.logFailure('graph.synthesize', res.status);
+        return { error: message };
+      }
+      const data = await res.json();
+      return {
+        ok: ownValue(data, 'ok') === true,
+        topic: String(ownValue(data, 'topic') ?? topic),
+        rootTitle: String(ownValue(data, 'rootTitle') ?? ''),
+        milestones: Number(ownValue(data, 'milestones') ?? 0),
+        nodesAdded: Number(ownValue(data, 'nodesAdded') ?? 0),
+        free: ownValue(data, 'free') === true,
+        charged: typeof ownValue(data, 'charged') === 'number' ? (ownValue(data, 'charged') as number) : undefined,
+        balance: typeof ownValue(data, 'balance') === 'number' ? (ownValue(data, 'balance') as number) : undefined,
+      };
+    } catch (err) {
+      this.logFailure('graph.synthesize', undefined, shortError(err));
+      return { error: 'network error' };
     }
   }
 
