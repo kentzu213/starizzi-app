@@ -295,8 +295,8 @@ function drawGraphViewCanvasField(ctx: CanvasRenderingContext2D, width: number, 
 
   const fieldBg = ctx.createLinearGradient(0, 0, width, height);
   fieldBg.addColorStop(0, "#05080d");
-  fieldBg.addColorStop(0.38, "#020509");
-  fieldBg.addColorStop(1, "#010307");
+  fieldBg.addColorStop(0.48, "#05070b");
+  fieldBg.addColorStop(1, "#010306");
   ctx.fillStyle = fieldBg;
   ctx.fillRect(0, 0, width, height);
 
