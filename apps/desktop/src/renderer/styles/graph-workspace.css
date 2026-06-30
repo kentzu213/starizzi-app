@@ -167,7 +167,12 @@
   }
 }
 .gw-canvas .react-flow {
-  background: var(--color-bg-primary);
+  /* Tông nền chuẩn izziapi.com (đồng bộ với tab "Source truth"):
+     gradient dọc #05080d -> #05070b -> #010306, có 2 vầng sáng nhẹ. */
+  background:
+    radial-gradient(circle at 18% 0%, rgba(34, 220, 194, 0.06), transparent 34rem),
+    radial-gradient(circle at 80% 8%, rgba(255, 154, 84, 0.045), transparent 34rem),
+    linear-gradient(180deg, #05080d 0%, #05070b 48%, #010306 100%);
 }
 
 /* ── Nodes ── */
