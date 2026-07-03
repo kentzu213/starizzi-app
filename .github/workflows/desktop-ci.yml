@@ -10,6 +10,9 @@ on:
 jobs:
   desktop-ci:
     runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
+      packages: read
     strategy:
       fail-fast: false
       matrix:
@@ -34,6 +37,15 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+        env:
+          # Cross-repo private package read (@kentzu213/graph-view lives in izzi-web).
+          # Two supported auth paths (either one works, PAT wins if set):
+          #  1) Grant this repo read access to the package (package settings ->
+          #     Manage Actions access) — then the automatic GITHUB_TOKEN below works
+          #     with `permissions: packages: read`. No secret to store/rotate.
+          #  2) Add a classic PAT (read:packages) as secret GH_PACKAGES_TOKEN.
+          # Consumed by root .npmrc (${NODE_AUTH_TOKEN}).
+          NODE_AUTH_TOKEN: ${{ secrets.GH_PACKAGES_TOKEN || secrets.GITHUB_TOKEN }}
 
       - name: Build workspace
         run: pnpm build:all

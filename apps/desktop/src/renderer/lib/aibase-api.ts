@@ -351,3 +351,23 @@ export async function synthesizeTopic(input: { topic: string; rootTitle?: string
     return fail(err instanceof Error ? err.message : 'Lỗi tạo lộ trình', 0);
   }
 }
+
+/**
+ * PDF extraction. The desktop has no multipart PDF pipeline (no `graph:extractPdf`
+ * IPC on the main bridge), so we satisfy the shared `GraphApi.extractPdf` contract
+ * by throwing a friendly, localized error. MyGraphView catches this and surfaces
+ * it inline, so PDF import is simply unavailable on desktop rather than broken.
+ *
+ * Note: this returns the RAW result (not the ApiResponse envelope) to match the
+ * shared contract, which is the one method the web posts as multipart/form-data.
+ */
+export async function extractPdf(_file: File): Promise<{
+  nodes: Array<{ title: string; content: string; nodeType: string; color: string; level: number; selected?: boolean }>;
+  links: Array<{ sourceIndex: number; targetIndex: number; label: string }>;
+  isDuplicate?: boolean;
+  warning?: string;
+  pageCount?: number;
+  crossLinks?: unknown[];
+}> {
+  throw new Error('Import PDF chưa hỗ trợ trên bản desktop. Hãy dùng import từ URL hoặc dán văn bản.');
+}

@@ -27,6 +27,7 @@
     "test:smoke": "vitest run src/**/*.smoke.test.ts"
   },
   "dependencies": {
+    "@kentzu213/graph-view": "^0.1.1",
     "@supabase/supabase-js": "^2.49.0",
     "@xyflow/react": "^12.11.1",
     "axios": "^1.7.9",

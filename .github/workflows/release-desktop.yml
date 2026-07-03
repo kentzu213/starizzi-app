@@ -7,6 +7,7 @@ on:
 
 permissions:
   contents: write
+  packages: read
 
 jobs:
   build-windows:
@@ -31,6 +32,11 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
         working-directory: .
+        env:
+          # Cross-repo private package read (@kentzu213/graph-view in izzi-web).
+          # PAT wins if set; else automatic token + `permissions: packages: read`
+          # works when this repo is granted read access to the package.
+          NODE_AUTH_TOKEN: ${{ secrets.GH_PACKAGES_TOKEN || secrets.GITHUB_TOKEN }}
 
       - name: Build desktop app
         run: pnpm build
@@ -62,6 +68,11 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
         working-directory: .
+        env:
+          # Cross-repo private package read (@kentzu213/graph-view in izzi-web).
+          # PAT wins if set; else automatic token + `permissions: packages: read`
+          # works when this repo is granted read access to the package.
+          NODE_AUTH_TOKEN: ${{ secrets.GH_PACKAGES_TOKEN || secrets.GITHUB_TOKEN }}
 
       - name: Build desktop app
         run: pnpm build

@@ -34,3 +34,5 @@ backend/src/
 .claude/
 .gemini/
 .vscode/
+.codex_tmp/
+.local-pkgs/
