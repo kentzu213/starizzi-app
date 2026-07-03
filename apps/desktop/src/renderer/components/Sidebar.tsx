@@ -1,10 +1,10 @@
 import React from 'react';
 import {
+  AffiliateIcon,
   AgentHubIcon,
   ChatIcon,
   CostIcon,
   ExtensionIcon,
-  GraphIcon,
   KnowledgeIcon,
   MarketplaceIcon,
   MemoryIcon,
@@ -27,8 +27,8 @@ interface SidebarProps {
 
 const WORKSPACE_ITEMS = [
   { id: 'setup', icon: SetupIcon, label: 'Capture setup', badge: '01' },
-  { id: 'chat', icon: ChatIcon, label: 'Agent relay', badge: 'Live' },
-  { id: 'graph', icon: GraphIcon, label: 'Memory graph', badge: '02' },
+  { id: 'chat', icon: ChatIcon, label: 'Chat agent', badge: 'Live' },
+  { id: 'knowledge', icon: KnowledgeIcon, label: 'MyGraph' },
   { id: 'tasks', icon: TasksIcon, label: 'Replay tasks' },
   { id: 'memory', icon: MemoryIcon, label: 'Recall library' },
   { id: 'status', icon: StatusIcon, label: 'Guardrails' },
@@ -38,9 +38,9 @@ const WORKSPACE_ITEMS = [
 
 const EXPLORE_ITEMS = [
   { id: 'agents', icon: AgentHubIcon, label: 'Agent hub', badge: 'v2' },
-  { id: 'marketplace', icon: MarketplaceIcon, label: 'Knowledge library' },
+  { id: 'marketplace', icon: MarketplaceIcon, label: 'Knowleadmarket', badge: 'Hot', prominent: true },
+  { id: 'affiliate', icon: AffiliateIcon, label: 'Affiliate', badge: '20%', prominent: true },
   { id: 'extensions', icon: ExtensionIcon, label: 'Workflow imports' },
-  { id: 'knowledge', icon: KnowledgeIcon, label: 'Source truth' },
 ];
 
 const SYSTEM_ITEMS = [{ id: 'settings', icon: SettingsIcon, label: 'Settings' }];
@@ -56,15 +56,18 @@ export function Sidebar({ currentPage, onNavigate, user, updateCount = 0, appUpd
       .slice(0, 2);
   };
 
-  const renderItem = (item: { id: string; icon: React.ComponentType<{ className?: string }>; label: string; badge?: string }) => {
+  const renderItem = (item: { id: string; icon: React.ComponentType<{ className?: string }>; label: string; badge?: string; prominent?: boolean }) => {
     const Icon = item.icon;
     const badge = item.id === 'extensions' && updateCount > 0 ? `${updateCount} up` : item.badge;
+    const isUpdateBadge = item.id === 'extensions' && updateCount > 0;
 
     return (
       <button
         type="button"
         key={item.id}
-        className={`sidebar__item ${currentPage === item.id ? 'sidebar__item--active' : ''}`}
+        className={`sidebar__item ${currentPage === item.id ? 'sidebar__item--active' : ''} ${
+          item.prominent ? 'sidebar__item--featured' : ''
+        }`}
         onClick={() => onNavigate(item.id)}
       >
         <span className="sidebar__item-icon">
@@ -73,8 +76,8 @@ export function Sidebar({ currentPage, onNavigate, user, updateCount = 0, appUpd
         <span>{item.label}</span>
         {badge && (
           <span
-            className={`sidebar__item-badge ${
-              item.id === 'extensions' && updateCount > 0 ? 'sidebar__item-badge--update' : ''
+            className={`sidebar__item-badge ${isUpdateBadge ? 'sidebar__item-badge--update' : ''} ${
+              item.prominent ? 'sidebar__item-badge--featured' : ''
             }`}
           >
             {badge}

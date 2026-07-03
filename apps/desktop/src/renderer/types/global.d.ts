@@ -56,6 +56,52 @@ declare global {
     }) => Promise<{ reply: string; error?: string }>;
   }
 
+  /** Affiliate DTOs — mirror the main-process AffiliateClient (money flow). */
+  interface AffiliateStats {
+    code: string;
+    referralLink: string;
+    totalReferrals: number;
+    pendingVnd: number;
+    availableVnd: number;
+    paidVnd: number;
+    totalEarningsVnd: number;
+  }
+  interface AffiliateCommission {
+    id: string;
+    referred_email: string;
+    amount_vnd: number;
+    commission_vnd: number;
+    status: string;
+    available_at: string;
+    created_at: string;
+  }
+  interface AffiliateWithdrawal {
+    id: string;
+    amount_vnd: number;
+    method: string;
+    status: string;
+    created_at: string;
+    admin_note?: string;
+  }
+  interface AffiliateWithdrawInput {
+    amount: number;
+    method: 'bank_transfer' | 'credit_convert';
+    bankInfo?: { bank: string; accountNo: string; accountName: string };
+  }
+  type AffiliateMutationResult =
+    | { success: true; creditsAdded?: number }
+    | { success: false; error: string };
+
+  /** Renderer-facing affiliate IPC surface — mirrors the preload `affiliate` namespace. */
+  interface ElectronAffiliateApi {
+    stats: () => Promise<AffiliateStats | null>;
+    commissions: () => Promise<AffiliateCommission[]>;
+    withdrawals: () => Promise<AffiliateWithdrawal[]>;
+    withdraw: (input: AffiliateWithdrawInput) => Promise<AffiliateMutationResult>;
+    convertCredit: (amount: number) => Promise<AffiliateMutationResult>;
+    openWeb: () => Promise<{ ok: boolean; url?: string }>;
+  }
+
   /**
    * The renderer view of the preload `electronAPI`. The new graph/memory
    * namespaces are typed precisely from the shared models (Req 7.4); all other
@@ -67,6 +113,7 @@ declare global {
     memory?: ElectronMemoryApi;
     graphAgent?: ElectronGraphAgentApi;
     izziAgent?: ElectronIzziAgentApi;
+    affiliate?: ElectronAffiliateApi;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     [key: string]: any;
   }

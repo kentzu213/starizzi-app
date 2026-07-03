@@ -15,7 +15,14 @@ import { fileURLToPath } from 'node:url';
 const appPath = fileURLToPath(new URL('./App.tsx', import.meta.url));
 const appSource = readFileSync(appPath, 'utf8');
 
-/** Baseline Page union (the 11 navigable pages in App.tsx). */
+/**
+ * Baseline Page union (the navigable pages in App.tsx).
+ *
+ * NOTE (graph-view-shared-package Task 9): 'graph' (the duplicate xyflow
+ * "Memory graph" tab) was intentionally removed from navigation so there is a
+ * single graph surface ('knowledge' → shared MyGraphView). GraphWorkspace.tsx
+ * is kept in the tree for future chat/branch work but is no longer routed.
+ */
 const BASELINE_PAGES = [
   'chat',
   'tasks',
@@ -29,7 +36,7 @@ const BASELINE_PAGES = [
   'setup',
   'costs',
   'knowledge',
-  'graph',
+  'affiliate',
 ] as const;
 
 function parsePageUnion(src: string): Set<string> {

@@ -18,8 +18,8 @@ import { AgentStorePage } from './pages/AgentStore';
 import { SettingsPage } from './pages/Settings';
 import { SetupWizardPage } from './pages/SetupWizard';
 import { CostDashboardPage } from './pages/CostDashboard';
+import { AffiliatePage } from './pages/Affiliate';
 import KnowledgeUniversePage from './pages/KnowledgeUniverse';
-import { GraphWorkspacePage } from './pages/GraphWorkspace';
 import { useAgentWorkspaceStore } from './store/agentWorkspace';
 import { vi } from './i18n/vi';
 
@@ -36,7 +36,7 @@ type Page =
   | 'setup'
   | 'costs'
   | 'knowledge'
-  | 'graph';
+  | 'affiliate';
 
 const DEV_USER = {
   name: 'Demo User',
@@ -331,8 +331,8 @@ export function App() {
         );
       case 'knowledge':
         return <KnowledgeUniversePage />;
-      case 'graph':
-        return <GraphWorkspacePage />;
+      case 'affiliate':
+        return <AffiliatePage />;
       default:
         return <ChatPage />;
     }

@@ -239,3 +239,13 @@ export function KnowledgeIcon({ className }: IconProps) {
     </BaseIcon>
   );
 }
+
+export function AffiliateIcon({ className }: IconProps) {
+  return (
+    <BaseIcon className={className}>
+      <rect x="3" y="8" width="18" height="4" rx="1" />
+      <path d="M12 8v13M5 12v7a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-7" />
+      <path d="M12 8S10.5 4 8.5 4a2 2 0 1 0 0 4H12zM12 8s1.5-4 3.5-4a2 2 0 1 1 0 4H12z" />
+    </BaseIcon>
+  );
+}

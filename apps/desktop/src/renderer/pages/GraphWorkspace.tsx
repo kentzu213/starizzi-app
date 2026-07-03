@@ -1,3 +1,12 @@
+/**
+ * GraphWorkspace — the @xyflow/react "Memory graph" surface.
+ *
+ * NOTE (graph-view-shared-package Task 9): this page is intentionally kept but
+ * NO LONGER routed from App.tsx / the sidebar. The single user-facing graph
+ * surface is now the "Source truth" tab (KnowledgeUniverse → shared MyGraphView).
+ * This xyflow workspace is preserved for the upcoming chat/branch integration
+ * (Requirements 8.x); re-add a nav entry when that lands.
+ */
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ReactFlow,

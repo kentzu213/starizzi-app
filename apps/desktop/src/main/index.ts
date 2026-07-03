@@ -10,6 +10,8 @@ import { SyncEngine } from './sync/sync-engine';
 import { GraphClient } from './graph/graph-client';
 import { registerGraphIpc, registerGraphAgentIpc } from './graph/graph-ipc';
 import { GraphAgent } from './graph/graph-agent';
+import { AffiliateClient } from './affiliate/affiliate-client';
+import { registerAffiliateIpc } from './affiliate/affiliate-ipc';
 import { ExtensionManager } from './extensions/manager';
 import { ExtensionLoader } from './extensions/extension-loader';
 import { PERMISSION_DEFINITIONS } from './extensions/permissions';
@@ -106,7 +108,12 @@ function createWindow() {
     ...(appIcon ? { icon: appIcon } : {}),
   });
 
-  if (isDev) {
+  // QA affordance: `OPENCLAW_FORCE_PROD_RENDERER=1` loads the built renderer via
+  // file:// even in an unpackaged dev checkout, so we can verify the real
+  // production path (no localhost demo-mode) without cutting a full installer.
+  // Defaults off — normal dev + packaged behavior is unchanged.
+  const forceProdRenderer = process.env.OPENCLAW_FORCE_PROD_RENDERER === '1';
+  if (isDev && !forceProdRenderer) {
     mainWindow.loadURL('http://localhost:5173');
     mainWindow.webContents.openDevTools({ mode: 'detach' });
   } else {
@@ -200,6 +207,10 @@ function setupIPC() {
   // ── Graph Agent (Izzi LLM for the Branching Graph Workspace; key stays in main) ──
   const graphAgent = new GraphAgent(authManager);
   registerGraphAgentIpc(graphAgent);
+
+  // ── Affiliate (shared backend /api/affiliate/*; token stays in main) ──
+  const affiliateClient = new AffiliateClient(authManager);
+  registerAffiliateIpc(affiliateClient);
 
   // ── Izzi-native persona agents (Socrates, Orchestrator) — Agent Hub; key in main ──
   const izziAgent = new IzziAgent(authManager);

@@ -26,6 +26,13 @@ import type {
 } from '../shared/graph-types';
 import type { ParsedClassification } from './graph/graph-agent-core';
 import type { UniverseNodeDetail } from '../shared/universe-adapter';
+import type {
+  AffiliateStats,
+  AffiliateCommission,
+  AffiliateWithdrawal,
+  WithdrawInput,
+  MutationResult,
+} from './affiliate/affiliate-client';
 
 const electronAPI = {
   window: {
@@ -337,6 +344,18 @@ const electronAPI = {
       model?: string;
     }): Promise<{ reply: string; error?: string }> =>
       ipcRenderer.invoke('izziAgent:chat', payload),
+  },
+
+  affiliate: {
+    stats: (): Promise<AffiliateStats | null> => ipcRenderer.invoke('affiliate:stats'),
+    commissions: (): Promise<AffiliateCommission[]> => ipcRenderer.invoke('affiliate:commissions'),
+    withdrawals: (): Promise<AffiliateWithdrawal[]> => ipcRenderer.invoke('affiliate:withdrawals'),
+    withdraw: (input: WithdrawInput): Promise<MutationResult> =>
+      ipcRenderer.invoke('affiliate:withdraw', input),
+    convertCredit: (amount: number): Promise<MutationResult> =>
+      ipcRenderer.invoke('affiliate:convertCredit', amount),
+    openWeb: (): Promise<{ ok: boolean; url?: string }> =>
+      ipcRenderer.invoke('affiliate:openWeb'),
   },
 
   platform: {
