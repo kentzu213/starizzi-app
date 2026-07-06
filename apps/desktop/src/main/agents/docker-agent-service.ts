@@ -14,12 +14,19 @@
  * reachable from the host, mounts a per-app data dir at /opt/data, and exposes
  * an OpenAI-compatible chat endpoint that requires an Authorization key. That key
  * is generated/persisted in the data dir and kept in main (never sent to renderer).
+ *
+ * LLM routing: Hermes' own upstream provider is pointed at the local IzziLlmProxy
+ * (main process) via a `config.yaml` written into the mounted data dir — so every
+ * agent chats through the user's Izzi smart router and the Izzi credential never
+ * enters the container. Config is (re)written on each start because the proxy
+ * port/token can change; that's why API-server agents are recreated, not reused.
  */
 import { execFile, spawn } from 'child_process';
 import * as path from 'path';
 import * as fs from 'fs';
 import * as crypto from 'crypto';
 import axios from 'axios';
+import type { IzziLlmProxy } from './izzi-llm-proxy';
 
 /** Minimal agent metadata passed from the renderer (no registry import in main). */
 export interface DockerAgentPayload {
@@ -27,10 +34,6 @@ export interface DockerAgentPayload {
   dockerImage?: string;
   defaultPort: number;
   dockerComposeUrl?: string;
-  /** Optional model provider id (e.g. 'izzi', 'openai') used to seed Hermes. */
-  provider?: string;
-  /** Optional provider API key used to seed Hermes (NOT the API server key). */
-  apiKey?: string;
 }
 
 export interface DockerResult {
@@ -65,10 +68,13 @@ export interface HealthCheckPayload {
   healthEndpoint?: string;
 }
 
-/** Provider seed for Hermes (OpenAI-compatible env-var seeding). */
-export interface HermesProviderSeed {
-  apiKey: string;
+/** Izzi smart-router config written into a Hermes agent's config.yaml. */
+export interface HermesModelConfig {
+  /** OpenAI-compatible base_url — the local proxy via host.docker.internal. */
   baseUrl: string;
+  /** Localhost proxy token the container presents (NOT the Izzi credential). */
+  apiKey: string;
+  /** Model id Hermes requests (the proxy forces it to izzi-smart regardless). */
   model: string;
 }
 
@@ -77,7 +83,6 @@ export interface HermesRunOptions {
   hostPort: number;
   dataDir: string;
   apiServerKey: string;
-  provider?: HermesProviderSeed;
 }
 
 const CONTAINER_PREFIX = 'izzi-agent-';
@@ -97,32 +102,27 @@ export function agentNeedsApiServer(agentId: string): boolean {
 }
 
 /**
- * Map a model provider id + key to OpenAI-compatible seed values for Hermes.
- * Returns null when there is no key (caller should then skip seeding).
+ * Build the `config.yaml` content that points a Hermes agent's upstream LLM at
+ * the local Izzi proxy. Pure so it can be unit-tested without touching disk.
  *
- * Verified empirically: setting OPENAI_API_KEY + OPENAI_BASE_URL makes Hermes
- * recognize the provider (no "No inference provider configured" error).
+ * Verified empirically against `nousresearch/hermes-agent`: Hermes reads
+ * `model.{provider,base_url,default,api_key}` from `$HERMES_HOME/config.yaml`
+ * (it ignores the legacy OPENAI_* and LLM_MODEL env vars). `provider: custom` selects
+ * any OpenAI-compatible endpoint. Values are emitted as double-quoted YAML scalars
+ * (a JSON string is valid YAML), so URLs/tokens can't break the document.
  */
-export function resolveHermesProviderSeed(
-  provider: string | undefined,
-  apiKey: string | undefined,
-): HermesProviderSeed | null {
-  if (!apiKey || !apiKey.trim()) return null;
-
-  // base_url + a sensible default model per provider (no trailing slash).
-  const map: Record<string, { baseUrl: string; model: string }> = {
-    izzi: { baseUrl: 'https://api.izziapi.com/v1', model: 'izzi/auto' },
-    openai: { baseUrl: 'https://api.openai.com/v1', model: 'gpt-4o' },
-    openrouter: { baseUrl: 'https://openrouter.ai/api/v1', model: 'openai/gpt-4o' },
-    gemini: {
-      baseUrl: 'https://generativelanguage.googleapis.com/v1beta/openai',
-      model: 'gemini-2.5-flash',
-    },
-    ollama: { baseUrl: 'http://localhost:11434/v1', model: 'llama3.3' },
-  };
-
-  const entry = map[provider ?? ''] ?? map.izzi;
-  return { apiKey: apiKey.trim(), baseUrl: entry.baseUrl, model: entry.model };
+export function buildHermesConfigYaml(config: HermesModelConfig): string {
+  const q = (s: string) => JSON.stringify(String(s));
+  return [
+    '# Managed by Izzi OpenClaw — routes this agent through your Izzi smart router.',
+    '# Regenerated on each start (the local proxy port/token may change).',
+    'model:',
+    '  provider: custom',
+    `  base_url: ${q(config.baseUrl)}`,
+    `  default: ${q(config.model)}`,
+    `  api_key: ${q(config.apiKey)}`,
+    '',
+  ].join('\n');
 }
 
 /**
@@ -155,8 +155,11 @@ export function buildDockerRunArgs(payload: DockerAgentPayload): string[] {
 /**
  * Build `docker run` args for the Hermes agent: mounts a per-app data dir at
  * /opt/data, maps the host port to the fixed container API port (8642), enables
- * the API server bound to 0.0.0.0 with the generated key, optionally seeds an
- * OpenAI-compatible provider via env vars, and runs `gateway run`.
+ * the API server bound to 0.0.0.0 with the generated key, and runs `gateway run`.
+ *
+ * The upstream LLM provider is NOT seeded via env here — it comes from the
+ * `config.yaml` written into the mounted data dir (see buildHermesConfigYaml),
+ * which points Hermes at the local Izzi proxy.
  *
  * Pure function — unit-testable without invoking Docker. The CMD `gateway run`
  * is appended after the image (the image's entrypoint routes it correctly).
@@ -166,7 +169,7 @@ export function buildHermesRunArgs(
   options: HermesRunOptions,
 ): string[] {
   const name = dockerContainerName(payload.id);
-  const args = [
+  return [
     'run',
     '-d',
     '--name',
@@ -181,21 +184,10 @@ export function buildHermesRunArgs(
     'API_SERVER_HOST=0.0.0.0',
     '-e',
     `API_SERVER_KEY=${options.apiServerKey}`,
+    payload.dockerImage as string,
+    'gateway',
+    'run',
   ];
-
-  if (options.provider) {
-    args.push(
-      '-e',
-      `OPENAI_API_KEY=${options.provider.apiKey}`,
-      '-e',
-      `OPENAI_BASE_URL=${options.provider.baseUrl}`,
-      '-e',
-      `LLM_MODEL=${options.provider.model}`,
-    );
-  }
-
-  args.push(payload.dockerImage as string, 'gateway', 'run');
-  return args;
 }
 
 /** Extract a short, human-readable message from raw docker stderr. */
@@ -223,6 +215,13 @@ export function redactSecret(text: string, secret?: string): string {
 export class DockerAgentService {
   /** In-memory map of agentId → API server key (Hermes). Never sent to renderer. */
   private apiKeys = new Map<string, string>();
+
+  /**
+   * @param proxy Local Izzi LLM proxy that API-server agents (Hermes) route their
+   *   upstream LLM calls through. Optional so unit tests can construct the service
+   *   without a proxy (they exercise pure helpers and non-Hermes paths).
+   */
+  constructor(private readonly proxy?: IzziLlmProxy) {}
 
   /** True when the Docker daemon is reachable (`docker info` exits 0). */
   async isDockerAvailable(): Promise<boolean> {
@@ -298,12 +297,13 @@ export class DockerAgentService {
   }
 
   /**
-   * Start the agent container. If a container with the normalized name already
-   * exists, `docker start` it; otherwise `docker run -d` a fresh one.
+   * Start the agent container.
    *
-   * For agents that need an API server (Hermes), uses the dedicated run command
-   * that mounts a per-app data dir, enables the API server with a persisted key,
-   * and optionally seeds an OpenAI-compatible provider.
+   * API-server agents (Hermes) are RECREATED (`docker rm -f` + `docker run`) so a
+   * freshly written config.yaml — pointing the agent at the local Izzi proxy on
+   * the current port with the current token — always takes effect. User data
+   * lives in the mounted /opt/data volume, so removing the container is
+   * non-destructive. Other agents reuse an existing container (`docker start`).
    */
   async start(payload: DockerAgentPayload): Promise<DockerStartResult> {
     if (!payload.dockerImage) {
@@ -311,41 +311,60 @@ export class DockerAgentService {
     }
 
     const name = dockerContainerName(payload.id);
-    const exists = await this.containerExists(name);
 
-    let args: string[];
-    if (exists) {
-      args = ['start', name];
-    } else if (agentNeedsApiServer(payload.id)) {
-      args = this.buildApiServerRunArgs(payload);
-    } else {
-      args = buildDockerRunArgs(payload);
+    if (agentNeedsApiServer(payload.id)) {
+      // Recreate so config changes apply. Data persists in the /opt/data volume.
+      await this.exec(['rm', '-f', name], DEFAULT_EXEC_TIMEOUT); // ignore result — may not exist
+      const args = await this.buildApiServerRunArgs(payload);
+      const { code, stdout, stderr } = await this.exec(args, DEFAULT_EXEC_TIMEOUT);
+      if (code !== 0) {
+        // Redact the API server key in case it appears in docker's echoed error.
+        const key = this.apiKeys.get(payload.id);
+        return { ok: false, error: redactSecret(summarizeDockerError(stderr), key) };
+      }
+      return { ok: true, containerId: stdout.trim() || name };
     }
 
+    const exists = await this.containerExists(name);
+    const args = exists ? ['start', name] : buildDockerRunArgs(payload);
     const { code, stdout, stderr } = await this.exec(args, DEFAULT_EXEC_TIMEOUT);
-
     if (code !== 0) {
-      // Redact the API server key in case it appears in docker's echoed error.
-      const key = this.apiKeys.get(payload.id);
-      return { ok: false, error: redactSecret(summarizeDockerError(stderr), key) };
+      return { ok: false, error: summarizeDockerError(stderr) };
     }
     return { ok: true, containerId: stdout.trim() || name };
   }
 
   /**
-   * Build the Hermes-style run args, ensuring the data dir exists and the API
-   * server key is generated/persisted. Keeps the key in-memory for chat().
+   * Build the Hermes-style run args: ensure the data dir exists, generate/persist
+   * the API server key, and write a config.yaml that routes the agent's upstream
+   * LLM through the local Izzi proxy (the proxy holds the Izzi credential — only
+   * its localhost token is written into the container's config).
    */
-  private buildApiServerRunArgs(payload: DockerAgentPayload): string[] {
+  private async buildApiServerRunArgs(payload: DockerAgentPayload): Promise<string[]> {
     const dataDir = this.ensureAgentDataDir(payload.id);
     const apiServerKey = this.loadOrCreateApiKey(payload.id, dataDir);
-    const provider = resolveHermesProviderSeed(payload.provider, payload.apiKey) ?? undefined;
+    if (this.proxy) {
+      const runtime = await this.proxy.ensureStarted();
+      this.writeHermesConfig(dataDir, {
+        baseUrl: runtime.baseUrl,
+        apiKey: runtime.token,
+        model: runtime.model,
+      });
+    }
     return buildHermesRunArgs(payload, {
       hostPort: payload.defaultPort,
       dataDir,
       apiServerKey,
-      provider,
     });
+  }
+
+  /**
+   * Write config.yaml (Izzi smart-router routing) into the mounted data dir.
+   * 0o600: it carries the localhost proxy token (a capability, not the Izzi key).
+   */
+  private writeHermesConfig(dataDir: string, config: HermesModelConfig): void {
+    const file = path.join(dataDir, 'config.yaml');
+    fs.writeFileSync(file, buildHermesConfigYaml(config), { encoding: 'utf8', mode: 0o600 });
   }
 
   /** Stop the agent container (no remove — keep it for fast restart). */

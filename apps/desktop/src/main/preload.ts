@@ -121,9 +121,9 @@ const electronAPI = {
 
   dockerAgent: {
     isAvailable: (): Promise<boolean> => ipcRenderer.invoke('dockerAgent:isAvailable'),
-    install: (payload: { id: string; dockerImage?: string; defaultPort: number; dockerComposeUrl?: string; provider?: string; apiKey?: string }): Promise<{ ok: boolean; error?: string }> =>
+    install: (payload: { id: string; dockerImage?: string; defaultPort: number; dockerComposeUrl?: string }): Promise<{ ok: boolean; error?: string }> =>
       ipcRenderer.invoke('dockerAgent:install', payload),
-    start: (payload: { id: string; dockerImage?: string; defaultPort: number; dockerComposeUrl?: string; provider?: string; apiKey?: string }): Promise<{ ok: boolean; containerId?: string; error?: string }> =>
+    start: (payload: { id: string; dockerImage?: string; defaultPort: number; dockerComposeUrl?: string }): Promise<{ ok: boolean; containerId?: string; error?: string }> =>
       ipcRenderer.invoke('dockerAgent:start', payload),
     stop: (payload: { id: string; dockerImage?: string; defaultPort: number; dockerComposeUrl?: string }): Promise<{ ok: boolean; error?: string }> =>
       ipcRenderer.invoke('dockerAgent:stop', payload),

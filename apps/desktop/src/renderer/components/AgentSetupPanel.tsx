@@ -1,6 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import type { ExternalAgent, AIProvider } from '../types/agent-registry';
-import { MODEL_PROVIDERS } from '../types/agent-registry';
+import type { ExternalAgent } from '../types/agent-registry';
 
 interface AgentSetupPanelProps {
   agent: ExternalAgent;
@@ -48,8 +47,6 @@ async function probeHealth(agent: ExternalAgent, timeoutMs = 5000): Promise<bool
 
 export function AgentSetupPanel({ agent, onClose, onInstallComplete }: AgentSetupPanelProps) {
   const [step, setStep] = useState(0);
-  const [selectedProvider, setSelectedProvider] = useState<AIProvider>('izzi');
-  const [apiKey, setApiKey] = useState('');
   const [isInstalling, setIsInstalling] = useState(false);
   const [installLog, setInstallLog] = useState<string[]>([]);
   const [installDone, setInstallDone] = useState(false);
@@ -65,7 +62,7 @@ export function AgentSetupPanel({ agent, onClose, onInstallComplete }: AgentSetu
   const needsCompose = isDocker && !!agent.dockerComposeUrl;
   const dockerAgentApi = (window.electronAPI as any)?.dockerAgent;
 
-  const steps = ['Thông tin', 'Model Provider', 'Cài đặt'];
+  const steps = ['Thông tin', 'Model', 'Cài đặt'];
   const logEndRef = useRef<HTMLDivElement | null>(null);
 
   function appendLog(line: string) {
@@ -158,8 +155,6 @@ export function AgentSetupPanel({ agent, onClose, onInstallComplete }: AgentSetu
         dockerImage: agent.dockerImage,
         defaultPort: agent.defaultPort,
         dockerComposeUrl: agent.dockerComposeUrl,
-        provider: selectedProvider,
-        apiKey: apiKey || undefined,
       });
       if (!pull.ok) {
         appendLog(`✗ Pull thất bại: ${pull.error}`);
@@ -179,8 +174,6 @@ export function AgentSetupPanel({ agent, onClose, onInstallComplete }: AgentSetu
         dockerImage: agent.dockerImage,
         defaultPort: agent.defaultPort,
         dockerComposeUrl: agent.dockerComposeUrl,
-        provider: selectedProvider,
-        apiKey: apiKey || undefined,
       });
       if (!start.ok) {
         appendLog(`✗ Khởi động container thất bại: ${start.error}`);
@@ -214,13 +207,8 @@ export function AgentSetupPanel({ agent, onClose, onInstallComplete }: AgentSetu
 
       appendLog(`✓ ${agent.displayName} đã chạy và phản hồi health-check!`);
       if (agent.id === 'hermes') {
-        const providerCfg = MODEL_PROVIDERS.find((p) => p.id === selectedProvider);
-        if (apiKey && providerCfg?.apiKeyRequired) {
-          appendLog(`  ✓ Đã cấu hình provider ${providerCfg?.name} — sẵn sàng chat.`);
-        } else {
-          appendLog('  ⚠️ Container chạy + health OK, nhưng chưa cấu hình model provider.');
-          appendLog('     Chạy `hermes setup` (hoặc thêm API key) trước khi chat ra nội dung.');
-        }
+        appendLog('  ✓ Đã định tuyến qua Izzi smart router của bạn — sẵn sàng chat.');
+        appendLog('     (App tự quản lý key/định tuyến; chỉ cần đăng nhập Izzi trong app.)');
       }
       setInstallDone(true);
       setIsInstalling(false);
@@ -315,78 +303,44 @@ export function AgentSetupPanel({ agent, onClose, onInstallComplete }: AgentSetu
     }
 
     if (step === 1) {
-      const supportedProviders = MODEL_PROVIDERS.filter((p) =>
-        agent.supportedProviders.includes(p.id),
-      );
-
       return (
         <div className="agent-setup__provider">
-          <h3>🧠 Chọn Model Provider</h3>
+          <h3>⚡ Model — Izzi Smart Router</h3>
           <p className="agent-setup__provider-hint">
-            Chọn nguồn AI model cho {agent.displayName}. IzziAPI được khuyến nghị — tất cả model trong 1 key.
+            {agent.displayName} sẽ dùng <strong>Izzi Smart Router</strong> của bạn: hệ thống tự
+            chọn model tốt nhất cho mỗi yêu cầu, tính phí vào tài khoản Izzi đã đăng nhập.
           </p>
 
-          <div className="agent-setup__provider-list">
-            {supportedProviders.map((provider) => (
-              <button
-                key={provider.id}
-                className={`agent-setup__provider-card ${
-                  selectedProvider === provider.id ? 'agent-setup__provider-card--active' : ''
-                }`}
-                onClick={() => setSelectedProvider(provider.id)}
-                type="button"
-              >
-                <div className="agent-setup__provider-header">
-                  <span className="agent-setup__provider-name">
-                    {provider.name}
-                    {provider.recommended && (
-                      <span className="agent-setup__provider-badge">⭐ Recommended</span>
-                    )}
-                    {provider.free && (
-                      <span className="agent-setup__provider-free-badge">Free</span>
-                    )}
-                  </span>
-                  {selectedProvider === provider.id && (
-                    <span className="agent-setup__provider-check">✓</span>
-                  )}
-                </div>
-                <span className="agent-setup__provider-desc">{provider.description}</span>
-              </button>
-            ))}
+          <div className="agent-setup__provider-card agent-setup__provider-card--active" aria-hidden>
+            <div className="agent-setup__provider-header">
+              <span className="agent-setup__provider-name">
+                ⚡ Izzi Smart Router
+                <span className="agent-setup__provider-badge">Mặc định</span>
+              </span>
+              <span className="agent-setup__provider-check">✓</span>
+            </div>
+            <span className="agent-setup__provider-desc">
+              Tất cả model trong 1 key — không cần chọn provider hay nhập API key thủ công.
+            </span>
           </div>
 
-          {MODEL_PROVIDERS.find((p) => p.id === selectedProvider)?.apiKeyRequired && (
-            <div className="agent-setup__key-field">
-              <label className="agent-setup__key-label">
-                API Key ({MODEL_PROVIDERS.find((p) => p.id === selectedProvider)?.name})
-              </label>
-              <input
-                className="agent-setup__key-input"
-                type="password"
-                placeholder={selectedProvider === 'izzi' ? 'izzi-xxxxxxxxxxxxxxxx' : 'Nhập API key...'}
-                value={apiKey}
-                onChange={(e) => setApiKey(e.target.value)}
-              />
-              {selectedProvider === 'izzi' && (
-                <p className="agent-setup__key-hint">
-                  Chưa có key?{' '}
-                  <button
-                    className="agent-setup__link"
-                    onClick={() => {
-                      if (window.electronAPI?.shell?.openExternal) {
-                        window.electronAPI.shell.openExternal('https://izziapi.com/dashboard/keys');
-                      } else {
-                        window.open('https://izziapi.com/dashboard/keys', '_blank');
-                      }
-                    }}
-                    type="button"
-                  >
-                    Tạo miễn phí tại izziapi.com →
-                  </button>
-                </p>
-              )}
-            </div>
-          )}
+          <p className="agent-setup__provider-hint" style={{ marginTop: 12 }}>
+            🔒 Key/định tuyến do app quản lý an toàn (không lưu trong container). Chỉ cần đảm bảo
+            bạn đã <strong>đăng nhập Izzi</strong> trong app. Chưa có tài khoản?{' '}
+            <button
+              className="agent-setup__link"
+              onClick={() => {
+                if (window.electronAPI?.shell?.openExternal) {
+                  window.electronAPI.shell.openExternal('https://izziapi.com');
+                } else {
+                  window.open('https://izziapi.com', '_blank');
+                }
+              }}
+              type="button"
+            >
+              Tạo miễn phí tại izziapi.com →
+            </button>
+          </p>
         </div>
       );
     }
@@ -403,8 +357,8 @@ export function AgentSetupPanel({ agent, onClose, onInstallComplete }: AgentSetu
               <span>{agent.icon} {agent.displayName}</span>
             </div>
             <div className="agent-setup__install-row">
-              <span>Provider:</span>
-              <span>{MODEL_PROVIDERS.find((p) => p.id === selectedProvider)?.name}</span>
+              <span>Model:</span>
+              <span>⚡ Izzi Smart Router</span>
             </div>
             <div className="agent-setup__install-row">
               <span>Method:</span>

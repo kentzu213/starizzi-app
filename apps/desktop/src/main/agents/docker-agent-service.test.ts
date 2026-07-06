@@ -2,10 +2,10 @@ import { describe, expect, it } from 'vitest';
 import {
   agentNeedsApiServer,
   buildDockerRunArgs,
+  buildHermesConfigYaml,
   buildHermesRunArgs,
   dockerContainerName,
   redactSecret,
-  resolveHermesProviderSeed,
   summarizeDockerError,
   type DockerAgentPayload,
 } from './docker-agent-service';
@@ -70,29 +70,27 @@ describe('agentNeedsApiServer', () => {
   });
 });
 
-describe('resolveHermesProviderSeed', () => {
-  it('returns null when no api key is provided', () => {
-    expect(resolveHermesProviderSeed('izzi', undefined)).toBeNull();
-    expect(resolveHermesProviderSeed('izzi', '   ')).toBeNull();
-  });
-
-  it('maps izzi to the izzi base url + trimmed key', () => {
-    const seed = resolveHermesProviderSeed('izzi', '  izzi-abc123  ');
-    expect(seed).toEqual({
-      apiKey: 'izzi-abc123',
-      baseUrl: 'https://api.izziapi.com/v1',
-      model: 'izzi/auto',
+describe('buildHermesConfigYaml', () => {
+  it('emits a model section pointing at the proxy with provider=custom', () => {
+    const yaml = buildHermesConfigYaml({
+      baseUrl: 'http://host.docker.internal:8765/v1',
+      apiKey: 'proxy-token-abc',
+      model: 'izzi-smart',
     });
+    expect(yaml).toContain('provider: custom');
+    expect(yaml).toContain('base_url: "http://host.docker.internal:8765/v1"');
+    expect(yaml).toContain('default: "izzi-smart"');
+    expect(yaml).toContain('api_key: "proxy-token-abc"');
   });
 
-  it('maps openai to the openai base url', () => {
-    const seed = resolveHermesProviderSeed('openai', 'sk-xyz');
-    expect(seed?.baseUrl).toBe('https://api.openai.com/v1');
-  });
-
-  it('falls back to izzi mapping for unknown providers', () => {
-    const seed = resolveHermesProviderSeed('totally-unknown', 'k-123');
-    expect(seed?.baseUrl).toBe('https://api.izziapi.com/v1');
+  it('quotes values as JSON scalars so URLs/tokens cannot break the YAML', () => {
+    const yaml = buildHermesConfigYaml({
+      baseUrl: 'http://host.docker.internal:8765/v1',
+      apiKey: 'weird"token\nwith:chars',
+      model: 'izzi-smart',
+    });
+    // The api_key line must remain a single valid double-quoted scalar.
+    expect(yaml).toContain(`api_key: ${JSON.stringify('weird"token\nwith:chars')}`);
   });
 });
 
@@ -120,27 +118,17 @@ describe('buildHermesRunArgs', () => {
     ]);
   });
 
-  it('appends provider env vars when a provider seed is supplied', () => {
-    const args = buildHermesRunArgs(payload, {
-      hostPort: 8642,
-      dataDir: '/data/hermes',
-      apiServerKey: 'secretkey123456',
-      provider: { apiKey: 'izzi-abc', baseUrl: 'https://api.izziapi.com/v1', model: 'izzi/auto' },
-    });
-    expect(args).toContain('OPENAI_API_KEY=izzi-abc');
-    expect(args).toContain('OPENAI_BASE_URL=https://api.izziapi.com/v1');
-    expect(args).toContain('LLM_MODEL=izzi/auto');
-    // gateway run must still be the trailing command after the image
-    expect(args.slice(-3)).toEqual(['nousresearch/hermes-agent:latest', 'gateway', 'run']);
-  });
-
-  it('omits provider env vars when no seed is supplied', () => {
+  it('never seeds a legacy provider env var (routing is via config.yaml)', () => {
     const args = buildHermesRunArgs(payload, {
       hostPort: 8642,
       dataDir: '/data/hermes',
       apiServerKey: 'secretkey123456',
     });
     expect(args.some((a) => a.startsWith('OPENAI_API_KEY='))).toBe(false);
+    expect(args.some((a) => a.startsWith('OPENAI_BASE_URL='))).toBe(false);
+    expect(args.some((a) => a.startsWith('LLM_MODEL='))).toBe(false);
+    // gateway run must still be the trailing command after the image
+    expect(args.slice(-3)).toEqual(['nousresearch/hermes-agent:latest', 'gateway', 'run']);
   });
 });
 

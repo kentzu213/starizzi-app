@@ -158,6 +158,7 @@ export function AgentStorePage({ onNavigateToChat }: AgentStorePageProps = {}) {
   // External agents (Top 5 from gateway store)
   const externalAgents = useAgentGatewayStore((state) => state.agents);
   const updateAgentStatus = useAgentGatewayStore((state) => state.updateAgentStatus);
+  const refreshAgentStatuses = useAgentGatewayStore((state) => state.refreshAgentStatuses);
   const [setupAgent, setSetupAgent] = useState<ExternalAgent | null>(null);
 
   // Filter agents by category + search
@@ -184,6 +185,16 @@ export function AgentStorePage({ onNavigateToChat }: AgentStorePageProps = {}) {
   useEffect(() => {
     loadInstalledAgents();
   }, []);
+
+  // Sync real Docker running-state into the Top Agents badges. The gateway store
+  // starts every launch with all agents 'not-installed', so without this a
+  // running container shows "Not Installed" until re-setup. Runs on mount (initial
+  // tab) and whenever the user returns to the Top Agents tab.
+  useEffect(() => {
+    if (activeTab === 'top-agents') {
+      void refreshAgentStatuses();
+    }
+  }, [activeTab, refreshAgentStatuses]);
 
   async function loadInstalledAgents() {
     try {

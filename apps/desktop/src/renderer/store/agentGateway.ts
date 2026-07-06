@@ -66,31 +66,36 @@ export const useAgentGatewayStore = create<AgentGatewayState>((set, get) => ({
   },
 
   refreshAgentStatuses: async () => {
-    const { agents } = get();
+    // Sync from the MAIN process (`docker ps` by container name) — reliable and
+    // CORS-free. A renderer fetch to the agent's health endpoint is unreliable:
+    // the store resets to 'not-installed' on every launch, and some agents (e.g.
+    // Hermes' aiohttp server) reject browser-origin requests with 403 — so a
+    // running agent would keep showing "Not Installed". `docker ps` sees the truth.
+    const dockerApi = (typeof window !== 'undefined'
+      ? (window as unknown as { electronAPI?: { dockerAgent?: { status?: (p: { id: string; defaultPort: number }) => Promise<{ running: boolean }> } } }).electronAPI?.dockerAgent
+      : undefined);
+    if (!dockerApi?.status) return; // no bridge (browser dev) — nothing to sync
 
-    for (const agent of agents) {
-      if (agent.status === 'not-installed') continue;
-      if (agent.runtime === 'izzi') continue; // izzi-native agents have no local port to poll
+    for (const agent of get().agents) {
+      if (agent.runtime === 'izzi') continue; // izzi-native agents have no container
+      if (agent.setupMethod !== 'docker') continue; // only docker agents have containers
+      if (agent.status === 'installing') continue; // don't clobber an in-progress install
 
       try {
-        const url = `http://127.0.0.1:${agent.defaultPort}${agent.healthEndpoint}`;
-        const res = await fetch(url, { signal: AbortSignal.timeout(3000) });
-        const nextStatus: ExternalAgentStatus = res.ok ? 'running' : 'error';
-
+        const res = await dockerApi.status({ id: agent.id, defaultPort: agent.defaultPort });
+        const running = !!res?.running;
         set((state) => ({
-          agents: state.agents.map((a) =>
-            a.id === agent.id ? { ...a, status: nextStatus } : a,
-          ),
+          agents: state.agents.map((a) => {
+            if (a.id !== agent.id) return a;
+            if (running) return { ...a, status: 'running' };
+            // Not running: reflect 'stopped' only if we previously thought it was
+            // up; otherwise leave the current badge (e.g. 'not-installed') as-is.
+            if (a.status === 'running') return { ...a, status: 'stopped' };
+            return a;
+          }),
         }));
       } catch {
-        // Agent not reachable — mark as stopped if was running
-        set((state) => ({
-          agents: state.agents.map((a) =>
-            a.id === agent.id && a.status === 'running'
-              ? { ...a, status: 'stopped' }
-              : a,
-          ),
-        }));
+        // best-effort — leave the current status untouched
       }
     }
   },

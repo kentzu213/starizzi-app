@@ -26,6 +26,7 @@ import { SetupWizardService } from './setup/setup-wizard-service';
 import { registerAgentIpcHandlers, shutdownAgents } from './agents';
 import { DockerAgentService, type DockerAgentPayload } from './agents/docker-agent-service';
 import { IzziAgent, registerIzziAgentIpc } from './agents/izzi-agent';
+import { IzziLlmProxy } from './agents/izzi-llm-proxy';
 
 let mainWindow: BrowserWindow | null = null;
 let authManager: AuthManager;
@@ -39,7 +40,26 @@ let integrationsService: IntegrationsService;
 let onboardingService: OnboardingService;
 let updaterService: UpdaterService;
 let setupWizardService: SetupWizardService;
-const dockerAgentService = new DockerAgentService();
+// Localhost OpenAI-compatible proxy that routes Docker agents (Hermes) through the
+// user's Izzi smart router. The Izzi credential stays in main (never in a container).
+let izziLlmProxy: IzziLlmProxy;
+let dockerAgentService: DockerAgentService;
+
+/**
+ * Resolve the Izzi credential for the LLM proxy, never logged / never sent to the
+ * renderer. Priority: OPENAI_API_KEY env (dev/self-host) → the signed-in user's
+ * Izzi key → the Supabase access token (JWT). All are accepted as a Bearer token
+ * by api.izziapi.com/v1 (the JWT fallback mirrors ManagedAgentProvider), so a
+ * logged-in user needs no manual key entry.
+ */
+async function resolveIzziCredential(auth: AuthManager): Promise<string | null> {
+  const envKey = process.env.OPENAI_API_KEY;
+  if (typeof envKey === 'string' && envKey.trim().length > 0) return envKey.trim();
+  const userKey = typeof auth.getApiKey === 'function' ? auth.getApiKey() : null;
+  if (typeof userKey === 'string' && userKey.trim().length > 0) return userKey.trim();
+  const jwt = await auth.getAccessToken();
+  return typeof jwt === 'string' && jwt.trim().length > 0 ? jwt.trim() : null;
+}
 
 const isDev = !app.isPackaged;
 const OPENCLAW_DOCS_URL = 'https://docs.openclaw.ai';
@@ -583,6 +603,22 @@ async function initServices() {
   dbManager.initialize();
 
   authManager = new AuthManager(dbManager);
+
+  // Localhost LLM proxy for Docker agents (Hermes) — routes their upstream LLM
+  // through the user's Izzi smart router; the credential stays in main. Started
+  // eagerly (best-effort) so a container left running from a previous session
+  // keeps reaching it on the persisted 127.0.0.1 port.
+  izziLlmProxy = new IzziLlmProxy({
+    resolveCredential: () => resolveIzziCredential(authManager),
+    statePath: path.join(app.getPath('userData'), 'izzi-llm-proxy.json'),
+  });
+  dockerAgentService = new DockerAgentService(izziLlmProxy);
+  try {
+    await izziLlmProxy.ensureStarted();
+  } catch (err: any) {
+    console.warn('[IzziLlmProxy] Failed to start:', err?.message ?? 'unknown');
+  }
+
   agentService = new AgentService({ db: dbManager, auth: authManager });
   integrationsService = new IntegrationsService(authManager, dbManager);
   onboardingService = new OnboardingService(dbManager);
@@ -714,6 +750,9 @@ app.on('before-quit', async () => {
   }
   // Shutdown all running agent runtimes
   await shutdownAgents();
+  if (izziLlmProxy) {
+    await izziLlmProxy.stop();
+  }
   if (dbManager) {
     dbManager.close();
   }
