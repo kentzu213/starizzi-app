@@ -303,7 +303,7 @@ export function App() {
       case 'marketplace':
         return <MarketplacePage />;
       case 'agents':
-        return <AgentStorePage />;
+        return <AgentStorePage onNavigateToChat={() => setCurrentPage('chat')} />;
       case 'extensions':
         return (
           <ExtensionsPage

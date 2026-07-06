@@ -140,7 +140,12 @@ const CATEGORIES = [
 
 // ── Main Component ──
 
-export function AgentStorePage() {
+interface AgentStorePageProps {
+  /** Navigate to the Chat agent page — used by "Chat Now" after opening a session. */
+  onNavigateToChat?: () => void;
+}
+
+export function AgentStorePage({ onNavigateToChat }: AgentStorePageProps = {}) {
   const [agents, setAgents] = useState<AgentBundle[]>(DEMO_AGENTS);
   const [filteredAgents, setFilteredAgents] = useState<AgentBundle[]>(DEMO_AGENTS);
   const [installedAgents, setInstalledAgents] = useState<InstalledAgentInfo[]>([]);
@@ -307,6 +312,7 @@ export function AgentStorePage() {
                       className="agent-hub__top-card-btn agent-hub__top-card-btn--chat"
                       onClick={() => {
                         useAgentGatewayStore.getState().openAgentChat(agent.id);
+                        onNavigateToChat?.();
                       }}
                     >
                       💬 Chat Now
