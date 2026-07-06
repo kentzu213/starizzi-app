@@ -452,6 +452,13 @@ function setupIPC() {
     return dockerAgentService.chat(payload, message);
   });
 
+  ipcMain.handle(
+    'dockerAgent:healthCheck',
+    async (_event, payload: { defaultPort: number; healthEndpoint?: string; timeoutMs?: number }) => {
+      return dockerAgentService.healthCheck(payload, payload?.timeoutMs);
+    },
+  );
+
   ipcMain.handle('diagnostics:getEvents', async () => {
     return dbManager.getDiagnosticEvents();
   });

@@ -15,8 +15,28 @@ function buildRunCommand(agent: ExternalAgent): string {
   return `docker run -d --name ${name} -p ${port}:${port} ${agent.dockerImage ?? '<image>'}`;
 }
 
-/** Probe an agent's health endpoint. Resolves true when it responds OK. */
+/**
+ * Probe an agent's health endpoint via the MAIN process (Node — no CORS/Origin
+ * restrictions). The renderer's own `fetch` always sends an `Origin` header and
+ * is CORS-enforced; some agent health servers (e.g. Hermes' aiohttp server)
+ * reject browser-origin requests with 403 and send no CORS headers, so a healthy
+ * agent would look unreachable. Falls back to a direct fetch if the bridge is old.
+ */
 async function probeHealth(agent: ExternalAgent, timeoutMs = 5000): Promise<boolean> {
+  const bridge = (window.electronAPI as any)?.dockerAgent;
+  if (bridge?.healthCheck) {
+    try {
+      const res = await bridge.healthCheck({
+        defaultPort: agent.defaultPort,
+        healthEndpoint: agent.healthEndpoint,
+        timeoutMs,
+      });
+      return !!res?.ok;
+    } catch {
+      return false;
+    }
+  }
+  // Fallback for an older preload bridge (subject to CORS — best effort).
   try {
     const url = `http://127.0.0.1:${agent.defaultPort}${agent.healthEndpoint}`;
     const res = await fetch(url, { signal: AbortSignal.timeout(timeoutMs) });

@@ -131,6 +131,8 @@ const electronAPI = {
       ipcRenderer.invoke('dockerAgent:status', payload),
     chat: (payload: { id: string; defaultPort: number }, message: string): Promise<{ ok: boolean; reply?: string; error?: string }> =>
       ipcRenderer.invoke('dockerAgent:chat', { id: payload.id, defaultPort: payload.defaultPort }, message),
+    healthCheck: (payload: { defaultPort: number; healthEndpoint?: string; timeoutMs?: number }): Promise<{ ok: boolean; status?: number; error?: string }> =>
+      ipcRenderer.invoke('dockerAgent:healthCheck', payload),
     onProgress: (listener: (data: { agentId: string; line: string }) => void) => {
       const handler = (_event: Electron.IpcRendererEvent, data: { agentId: string; line: string }) => listener(data);
       ipcRenderer.on('dockerAgent:progress', handler);

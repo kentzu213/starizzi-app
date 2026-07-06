@@ -53,6 +53,18 @@ export interface DockerChatResult {
   error?: string;
 }
 
+export interface DockerHealthResult {
+  ok: boolean;
+  status?: number;
+  error?: string;
+}
+
+/** Minimal payload for a health probe (port + path from the agent registry). */
+export interface HealthCheckPayload {
+  defaultPort: number;
+  healthEndpoint?: string;
+}
+
 /** Provider seed for Hermes (OpenAI-compatible env-var seeding). */
 export interface HermesProviderSeed {
   apiKey: string;
@@ -426,6 +438,34 @@ export class DockerAgentService {
         'Không gọi được Hermes API.';
       const text = typeof serverMsg === 'string' ? serverMsg : JSON.stringify(serverMsg);
       return { ok: false, error: redactSecret(text, key).slice(0, 400) };
+    }
+  }
+
+  /**
+   * Probe an agent's HTTP health endpoint from the MAIN process (Node/axios).
+   *
+   * Deliberately runs in main, not the renderer: a renderer `fetch` always sends
+   * an `Origin` header and is CORS-enforced, and some agent health servers (e.g.
+   * Hermes' aiohttp server) reject browser-origin requests with 403 and send no
+   * CORS headers — so a healthy endpoint looks "down" to the renderer. Node sends
+   * no Origin and isn't CORS-bound, so it sees the true 200.
+   */
+  async healthCheck(
+    payload: HealthCheckPayload,
+    timeoutMs = 5000,
+  ): Promise<DockerHealthResult> {
+    const path = payload.healthEndpoint || '/health';
+    const url = `http://127.0.0.1:${payload.defaultPort}${path}`;
+    try {
+      const res = await axios.get(url, {
+        timeout: timeoutMs,
+        // Decide ok ourselves; don't throw on non-2xx responses.
+        validateStatus: () => true,
+      });
+      return { ok: res.status >= 200 && res.status < 300, status: res.status };
+    } catch (err: any) {
+      const msg = (err?.code || err?.message || 'health check failed').toString();
+      return { ok: false, error: msg.slice(0, 120) };
     }
   }
 
