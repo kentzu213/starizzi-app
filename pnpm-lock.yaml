@@ -13,6 +13,9 @@ importers:
 
   apps/desktop:
     dependencies:
+      '@kentzu213/graph-view':
+        specifier: file:vendor/kentzu213-graph-view-0.1.1.tgz
+        version: file:apps/desktop/vendor/kentzu213-graph-view-0.1.1.tgz(react-dom@19.2.4(react@19.2.4))(react-force-graph-2d@1.29.1(react@19.2.4))(react@19.2.4)
       '@supabase/supabase-js':
         specifier: ^2.49.0
         version: 2.101.0
@@ -703,6 +706,14 @@ packages:
 
   '@jridgewell/trace-mapping@0.3.31':
     resolution: {integrity: sha512-zzNR+SdQSDJzc8joaeP8QQoCQr8NuYx2dIIytl1QeBEZHJ9uW6hebsrYgbz8hJwUQao3TWCMtmfV8Nu1twOLAw==}
+
+  '@kentzu213/graph-view@file:apps/desktop/vendor/kentzu213-graph-view-0.1.1.tgz':
+    resolution: {integrity: sha512-/I9vEjkTyNAm8eJoOJPLQdkucyZXAWUtCpHIbQD4Q18c11y7uoYZW/Rj2u49XJLObAtCERU/KQRqigukxis7PQ==, tarball: file:apps/desktop/vendor/kentzu213-graph-view-0.1.1.tgz}
+    version: 0.1.1
+    peerDependencies:
+      react: '>=18'
+      react-dom: '>=18'
+      react-force-graph-2d: ^1.29.1
 
   '@malept/cross-spawn-promise@2.0.0':
     resolution: {integrity: sha512-1DpKU0Z5ThltBwjNySMC14g0CkbyhCaz9FkhxqNsZI6uAPJXFS8cMXlBKo26FJ8ZuW6S9GCMcR9IO5k2X5/9Fg==}
@@ -3778,6 +3789,12 @@ snapshots:
     dependencies:
       '@jridgewell/resolve-uri': 3.1.2
       '@jridgewell/sourcemap-codec': 1.5.5
+
+  '@kentzu213/graph-view@file:apps/desktop/vendor/kentzu213-graph-view-0.1.1.tgz(react-dom@19.2.4(react@19.2.4))(react-force-graph-2d@1.29.1(react@19.2.4))(react@19.2.4)':
+    dependencies:
+      react: 19.2.4
+      react-dom: 19.2.4(react@19.2.4)
+      react-force-graph-2d: 1.29.1(react@19.2.4)
 
   '@malept/cross-spawn-promise@2.0.0':
     dependencies:
