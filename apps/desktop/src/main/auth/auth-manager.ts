@@ -61,6 +61,8 @@ export class AuthManager {
   private session: StoredSession | null = null;
   private supabase: SupabaseClient | null = null;
   private db: DatabaseManager;
+  /** Minted izzi- key for this desktop (bound to a user id), cached in memory. Never logged. */
+  private desktopKeyCache: { userId: string; key: string } | null = null;
 
   constructor(db: DatabaseManager) {
     this.db = db;
@@ -127,7 +129,9 @@ export class AuthManager {
 
   private clearSession() {
     this.session = null;
+    this.desktopKeyCache = null;
     this.db.deleteSetting('auth_session');
+    this.db.deleteSetting('izzi_desktop_key');
   }
 
   private getDemoUsers(): DemoRegisteredUser[] {
@@ -615,6 +619,85 @@ export class AuthManager {
 
   getApiKey(): string | null {
     return this.session?.user?.apiKey || null;
+  }
+
+  /**
+   * Ensure a durable izzi- API key exists for this desktop install and return it.
+   *
+   * Why: the dashboard profile (/api/auth/me) does not expose a usable key, and
+   * izzi's /v1 endpoint reliably accepts izzi- keys (server-side api_keys lookup)
+   * but not the raw Supabase JWT. So on first need we mint a dedicated key via
+   * POST /api/keys (authenticated with the user's JWT — a dashboard route that
+   * DOES accept the JWT), persist it encrypted and bound to the user id (so an
+   * account switch re-mints), and reuse it thereafter. The key is a secret: it is
+   * never logged and never crosses the IPC bridge. Returns null when not
+   * authenticated or minting fails (the caller then falls back to the JWT).
+   */
+  async ensureDesktopApiKey(): Promise<string | null> {
+    const userId = this.session?.user?.id;
+    if (!userId) return null;
+
+    // 1. In-memory cache (only valid for the signed-in user).
+    if (this.desktopKeyCache?.userId === userId) return this.desktopKeyCache.key;
+
+    // 2. Persisted key — reuse only if it belongs to the signed-in user.
+    const stored = this.loadDesktopKey();
+    if (stored && stored.userId === userId && stored.key) {
+      this.desktopKeyCache = stored;
+      return stored.key;
+    }
+
+    // 3. Mint a new key via the dashboard API (JWT-authenticated).
+    const token = await this.getAccessToken();
+    if (!token) return null;
+    try {
+      const res = await fetch(`${IZZI_API_BASE}/api/keys`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: 'Izzi OpenClaw Desktop' }),
+      });
+      if (!res.ok) return null;
+      const data = (await res.json()) as { key?: unknown };
+      const rawKey = typeof data.key === 'string' ? data.key.trim() : '';
+      if (!rawKey.startsWith('izzi-')) return null;
+      this.saveDesktopKey({ userId, key: rawKey });
+      this.desktopKeyCache = { userId, key: rawKey };
+      return rawKey;
+    } catch (err) {
+      console.error('[Auth] Failed to mint desktop API key:', err instanceof Error ? err.message : 'unknown');
+      return null;
+    }
+  }
+
+  /** Load the persisted desktop key ({ userId, key }), decrypted. */
+  private loadDesktopKey(): { userId: string; key: string } | null {
+    try {
+      const stored = this.db.getSetting('izzi_desktop_key');
+      if (!stored) return null;
+      const decrypted = safeStorage.isEncryptionAvailable()
+        ? safeStorage.decryptString(Buffer.from(stored, 'base64'))
+        : stored;
+      const parsed = JSON.parse(decrypted);
+      if (parsed && typeof parsed.userId === 'string' && typeof parsed.key === 'string') {
+        return { userId: parsed.userId, key: parsed.key };
+      }
+    } catch {
+      // treat as absent — a new key will be minted
+    }
+    return null;
+  }
+
+  /** Persist the desktop key encrypted (safeStorage), like the session. */
+  private saveDesktopKey(data: { userId: string; key: string }): void {
+    try {
+      const serialized = JSON.stringify(data);
+      const encrypted = safeStorage.isEncryptionAvailable()
+        ? safeStorage.encryptString(serialized).toString('base64')
+        : serialized;
+      this.db.setSetting('izzi_desktop_key', encrypted);
+    } catch (err) {
+      console.error('[Auth] Failed to save desktop key:', err instanceof Error ? err.message : 'unknown');
+    }
   }
 
   /**

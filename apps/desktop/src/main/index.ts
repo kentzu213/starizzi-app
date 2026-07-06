@@ -47,14 +47,17 @@ let dockerAgentService: DockerAgentService;
 
 /**
  * Resolve the Izzi credential for the LLM proxy, never logged / never sent to the
- * renderer. Priority: OPENAI_API_KEY env (dev/self-host) → the signed-in user's
- * Izzi key → the Supabase access token (JWT). All are accepted as a Bearer token
- * by api.izziapi.com/v1 (the JWT fallback mirrors ManagedAgentProvider), so a
- * logged-in user needs no manual key entry.
+ * renderer. Priority: OPENAI_API_KEY env (dev/self-host) → a durable izzi- key
+ * minted for this desktop (POST /api/keys — reliably accepted by /v1 via the
+ * server-side api_keys lookup) → the signed-in user's profile key → the Supabase
+ * JWT (last resort; /v1 does not accept it). So a logged-in user needs no manual
+ * key entry, and the credential izzi actually accepts is used first.
  */
 async function resolveIzziCredential(auth: AuthManager): Promise<string | null> {
   const envKey = process.env.OPENAI_API_KEY;
   if (typeof envKey === 'string' && envKey.trim().length > 0) return envKey.trim();
+  const mintedKey = await auth.ensureDesktopApiKey();
+  if (mintedKey) return mintedKey;
   const userKey = typeof auth.getApiKey === 'function' ? auth.getApiKey() : null;
   if (typeof userKey === 'string' && userKey.trim().length > 0) return userKey.trim();
   const jwt = await auth.getAccessToken();
