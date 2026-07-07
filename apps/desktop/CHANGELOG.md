@@ -1,5 +1,22 @@
 # Changelog — Izzi OpenClaw Desktop
 
+## 1.5.2
+
+Bug-fix release on top of 1.5.1.
+
+- **Extension permissions are granted correctly on load.** A first-party
+  extension loaded straight from disk on startup (never through the install flow)
+  was given an EMPTY permission set, so every `ctx.storage` / `ctx.net` / `ctx.ui`
+  call was denied — meaning Social Auto Poster could reach "running" but its
+  commands couldn't read their config or call the aitoearn backend, and the
+  dashboard panel was blocked. Now the loader falls back to the manifest's
+  declared permissions (the same default the install flow uses) and persists them.
+  (The dashboard panel still needs a ready window to render; that UI-timing piece
+  is tracked separately — it does not affect the commands/tools.)
+- **Stabilized a flaky test** (`managed-agent-provider`): its cold dynamic
+  `import()` could exceed vitest's 5s default under parallel/CI load — given
+  explicit headroom so it can't spuriously redden CI.
+
 ## 1.5.1
 
 Bug-fix release on top of 1.5.0.

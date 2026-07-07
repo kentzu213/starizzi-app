@@ -27,5 +27,8 @@ describe('ManagedAgentProvider mock mode', () => {
     expect(events.some((event) => event.type === 'task_upsert')).toBe(true);
     expect(events.some((event) => event.type === 'memory_upsert')).toBe(true);
     expect(events.at(-1)).toMatchObject({ type: 'assistant_done' });
-  });
+    // The cold dynamic import() after vi.resetModules() can exceed vitest's 5s
+    // default under parallel-test / CI load (module transform cost), causing a
+    // spurious timeout. The mock path itself is fast — just give it headroom.
+  }, 20000);
 });

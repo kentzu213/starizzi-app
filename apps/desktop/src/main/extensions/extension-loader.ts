@@ -17,6 +17,7 @@ import * as fs from 'fs';
 import { ExtensionHost, type ExtensionHostOptions } from './extension-host';
 import { OcxInstaller } from './ocx-installer';
 import type { OcxManifest } from './ocx-manifest';
+import { resolveGrantedPermissions } from './permissions';
 import { DatabaseManager } from '../db/database';
 
 export interface LoadedExtension {
@@ -63,7 +64,15 @@ export class ExtensionLoader {
       // Check DB for granted permissions and enabled state
       const dbExt = this.db.getInstalledExtensions().find((e: any) => e.name === name);
       const isEnabled = dbExt ? dbExt.is_enabled === 1 : true;
-      const grantedPermissions = this.getStoredPermissions(extensionId);
+      // Resolve granted permissions: use the stored grant if present, else fall
+      // back to the manifest's declared permissions (the install-flow default) so
+      // a disk-loaded extension isn't left with `[]` — which denied every
+      // ctx.storage / ctx.net / ctx.ui call (broke commands + registerPanel).
+      const storedPermissions = this.getStoredPermissions(extensionId);
+      const grantedPermissions = resolveGrantedPermissions(storedPermissions, manifest.permissions);
+      if (storedPermissions.length === 0 && grantedPermissions.length > 0) {
+        this.storePermissions(extensionId, grantedPermissions); // persist the fallback
+      }
 
       this.extensions.set(extensionId, {
         id: extensionId,

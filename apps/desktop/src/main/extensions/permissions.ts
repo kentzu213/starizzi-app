@@ -51,6 +51,21 @@ export const PERMISSION_MAP = new Map(
 );
 
 /**
+ * Decide the effective granted permissions for an extension at load time.
+ *
+ * If a prior install/grant stored permissions, use exactly those (respecting any
+ * user revocation). If NONE are stored — e.g. a first-party extension loaded
+ * straight from disk on startup that never went through the install flow — fall
+ * back to the manifest's declared permissions (the same default the install flow
+ * uses). Without this, such an extension is granted `[]` and every ctx.storage /
+ * ctx.net / ctx.ui call is denied. Pure — unit-testable.
+ */
+export function resolveGrantedPermissions(stored: string[], manifestPermissions?: string[]): string[] {
+  if (Array.isArray(stored) && stored.length > 0) return stored;
+  return Array.isArray(manifestPermissions) ? manifestPermissions : [];
+}
+
+/**
  * Check if a set of granted permissions includes the requested permission.
  */
 export function hasPermission(granted: string[], requested: string): boolean {
