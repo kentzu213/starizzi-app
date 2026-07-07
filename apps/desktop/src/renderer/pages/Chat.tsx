@@ -1,4 +1,4 @@
-import React, { useDeferredValue, useState } from 'react';
+import React, { useDeferredValue, useEffect, useState } from 'react';
 import { AgentStatusBadge } from '../components/AgentStatusBadge';
 import { AgentTabBar } from '../components/AgentTabBar';
 import { ChatComposer } from '../components/ChatComposer';
@@ -53,6 +53,21 @@ export function ChatPage({ user, onBuyApi, onNavigateToDashboard, onNavigateToAg
   const gwSendMessage = useAgentGatewayStore((state) => state.sendGatewayMessage);
   const gwSetModel = useAgentGatewayStore((state) => state.setSessionModel);
   const gwActiveSession = useAgentGatewayStore((state) => state.activeSession);
+  const gwRefreshStatuses = useAgentGatewayStore((state) => state.refreshAgentStatuses);
+
+  // Reflect real Docker running-state in the agent rail + picker on the Chat
+  // surface. The gateway store resets every launch with all agents
+  // 'not-installed', so without this a running container (e.g. Hermes) shows
+  // "Chưa cài" here even though `docker ps` sees it. Mirrors AgentStore's sync.
+  useEffect(() => {
+    void gwRefreshStatuses();
+  }, [gwRefreshStatuses]);
+
+  // Re-sync when the agent picker opens, in case a container started/stopped
+  // after the page mounted.
+  useEffect(() => {
+    if (showAgentPicker) void gwRefreshStatuses();
+  }, [showAgentPicker, gwRefreshStatuses]);
 
   const activeGwSession = gwActiveSession();
   const isGatewayMode = gwSessions.length > 0;
