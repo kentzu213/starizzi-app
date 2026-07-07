@@ -341,6 +341,29 @@ function setupIPC() {
     }
   });
 
+  // Config surface for the extension settings form (contributes.settings + current values).
+  ipcMain.handle('extensions:runtime:getConfig', async (_event, extensionId: string) => {
+    const ext = extensionLoader.getExtension(extensionId);
+    if (!ext) return { success: false, error: 'Extension not found' };
+    const settings = ext.manifest.contributes?.settings ?? [];
+    const commands = ext.manifest.contributes?.commands ?? [];
+    const values: Record<string, unknown> = {};
+    for (const s of settings) {
+      const stored = extensionLoader.getStoredExtensionValue(extensionId, `setting.${s.id}`);
+      values[s.id] = stored ?? s.default ?? '';
+    }
+    return { success: true, settings, commands, values, pricing: ext.manifest.pricing };
+  });
+
+  ipcMain.handle('extensions:runtime:setSetting', async (_event, extensionId: string, settingId: string, value: unknown) => {
+    try {
+      extensionLoader.setStoredExtensionValue(extensionId, `setting.${settingId}`, value);
+      return { success: true };
+    } catch (err: any) {
+      return { success: false, error: err.message };
+    }
+  });
+
   ipcMain.handle('extensions:runtime:installOcx', async () => {
     // Open file dialog to select .ocx file
     const result = await dialog.showOpenDialog(mainWindow!, {

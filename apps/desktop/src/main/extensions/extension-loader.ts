@@ -310,6 +310,28 @@ export class ExtensionLoader {
   }
 
   /**
+   * Read a stored value for an extension using the SAME keyspace the extension's
+   * `ctx.storage.get(key)` reads (`extdata_<id>_<key>`). Lets the settings UI
+   * pre-fill values the extension will actually see.
+   */
+  getStoredExtensionValue(extensionId: string, key: string): unknown {
+    const raw = this.db.getSetting(`extdata_${extensionId}_${key}`);
+    try {
+      return raw ? JSON.parse(raw) : null;
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Write a stored value for an extension, readable by the extension via
+   * `ctx.storage.get(key)`. Used by the settings UI to persist config.
+   */
+  setStoredExtensionValue(extensionId: string, key: string, value: unknown): void {
+    this.db.setSetting(`extdata_${extensionId}_${key}`, JSON.stringify(value));
+  }
+
+  /**
    * Shutdown all running extensions.
    */
   async shutdownAll(): Promise<void> {

@@ -157,6 +157,23 @@
 .gw-effort__select:disabled { opacity: 0.5; cursor: progress; }
 .gw-effort__applying { font-size: 11px; color: var(--color-text-secondary); opacity: 0.8; }
 
+/* ── Extension config modal ── */
+.ext-cfg { max-width: 560px; text-align: left; }
+.ext-cfg__box { border: 1px solid var(--color-border, #2a2f3a); border-radius: 10px; padding: 12px; margin: 8px 0 16px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.ext-cfg__box-title { font-weight: 600; }
+.ext-cfg__muted { font-size: 12px; color: var(--color-text-secondary, #8a94a6); }
+.ext-cfg__h3 { margin: 16px 0 8px; font-size: 14px; }
+.ext-cfg__h3--first { margin-top: 4px; }
+.ext-cfg__fields { display: flex; flex-direction: column; gap: 10px; }
+.ext-cfg__field { display: flex; flex-direction: column; gap: 4px; font-size: 13px; }
+.ext-cfg__field-title { font-weight: 600; }
+.ext-cfg__field-desc { font-size: 11px; color: var(--color-text-secondary, #8a94a6); }
+.ext-cfg__input { padding: 6px 8px; border-radius: 8px; border: 1px solid var(--color-border, #2a2f3a); background: var(--color-surface, #1a1f28); color: var(--color-text-primary, #fff); }
+.ext-cfg__save { align-self: flex-start; }
+.ext-cfg__cmds { display: flex; flex-wrap: wrap; gap: 8px; }
+.ext-cfg__result { margin-top: 10px; padding: 10px; background: var(--color-surface, #12161d); border-radius: 8px; font-size: 12px; max-height: 200px; overflow: auto; white-space: pre-wrap; }
+.ext-cfg__close { margin-top: 16px; }
+
 /* ── Empty State ── */
 .gw-empty { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; padding: 40px; text-align: center; }
 .gw-empty__icon { font-size: 48px; opacity: 0.6; }

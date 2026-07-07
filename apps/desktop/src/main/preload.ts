@@ -83,6 +83,9 @@ const electronAPI = {
       ipcRenderer.invoke('extensions:runtime:grantPermissions', extensionId, permissions),
     executeCommand: (extensionId: string, commandId: string, ...args: any[]) =>
       ipcRenderer.invoke('extensions:runtime:executeCommand', extensionId, commandId, ...args),
+    getConfig: (extensionId: string) => ipcRenderer.invoke('extensions:runtime:getConfig', extensionId),
+    setSetting: (extensionId: string, settingId: string, value: any) =>
+      ipcRenderer.invoke('extensions:runtime:setSetting', extensionId, settingId, value),
     installOcx: () => ipcRenderer.invoke('extensions:runtime:installOcx'),
     installFromMarketplace: (extensionId: string) =>
       ipcRenderer.invoke('extensions:runtime:installFromMarketplace', extensionId),

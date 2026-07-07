@@ -47,6 +47,7 @@ export function ExtensionsPage({
   const [permDialogExt, setPermDialogExt] = useState<RuntimeExtension | null>(null);
   const [permDefinitions, setPermDefinitions] = useState<any[]>([]);
   const [notification, setNotification] = useState<{ message: string; type: string } | null>(null);
+  const [configExt, setConfigExt] = useState<{ id: string; displayName: string } | null>(null);
 
   const showNotif = useCallback((message: string, type: string = 'info') => {
     setNotification({ message, type });
@@ -379,6 +380,14 @@ export function ExtensionsPage({
                             🔐
                           </button>
                         )}
+
+                        <button
+                          className="btn btn--secondary btn--sm"
+                          onClick={() => setConfigExt({ id: ext.id, displayName: ext.displayName || ext.name })}
+                          title="Cấu hình & chạy lệnh"
+                        >
+                          ⚙️ Cấu hình
+                        </button>
                       </>
                     )}
 
@@ -408,6 +417,201 @@ export function ExtensionsPage({
           onCancel={() => setPermDialogExt(null)}
         />
       )}
+
+      {/* Config + Commands + Buy modal */}
+      {configExt && (
+        <ExtensionConfigModal
+          ext={configExt}
+          onClose={() => setConfigExt(null)}
+          onNotify={showNotif}
+        />
+      )}
+    </div>
+  );
+}
+
+// ── Extension config / command / pricing modal ──
+
+interface OcxSettingDef {
+  id: string;
+  title: string;
+  description?: string;
+  type: 'string' | 'number' | 'boolean' | 'select';
+  default?: any;
+  options?: { label: string; value: string }[];
+}
+interface OcxCommandDef { id: string; title: string; icon?: string }
+interface OcxPricing { model: 'free' | 'paid' | 'freemium'; price?: { monthly?: number; yearly?: number; currency?: string } }
+
+function ExtensionConfigModal({
+  ext,
+  onClose,
+  onNotify,
+}: {
+  ext: { id: string; displayName: string };
+  onClose: () => void;
+  onNotify: (message: string, type?: string) => void;
+}) {
+  const [settings, setSettings] = useState<OcxSettingDef[]>([]);
+  const [commands, setCommands] = useState<OcxCommandDef[]>([]);
+  const [values, setValues] = useState<Record<string, any>>({});
+  const [pricing, setPricing] = useState<OcxPricing | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [running, setRunning] = useState<string | null>(null);
+  const [result, setResult] = useState<{ cmd: string; text: string } | null>(null);
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const rt = (window as any).electronAPI?.extensionRuntime;
+
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const cfg = await rt?.getConfig?.(ext.id);
+        if (!alive) return;
+        if (cfg?.success) {
+          setSettings(cfg.settings || []);
+          setCommands(cfg.commands || []);
+          setValues(cfg.values || {});
+          setPricing(cfg.pricing || null);
+        }
+      } catch { /* ignore */ }
+      if (alive) setLoading(false);
+    })();
+    return () => { alive = false; };
+  }, [ext.id, rt]);
+
+  async function saveAll() {
+    setSaving(true);
+    try {
+      for (const s of settings) {
+        await rt?.setSetting?.(ext.id, s.id, values[s.id]);
+      }
+      onNotify('Đã lưu cấu hình', 'success');
+    } catch (err: any) {
+      onNotify(err?.message || 'Lưu thất bại', 'error');
+    }
+    setSaving(false);
+  }
+
+  async function runCommand(cmdId: string) {
+    setRunning(cmdId);
+    setResult(null);
+    try {
+      const r = await rt?.executeCommand?.(ext.id, cmdId, {});
+      const text = r?.success
+        ? JSON.stringify(r.result, null, 2)
+        : `Lỗi: ${r?.error ?? 'không rõ'}`;
+      setResult({ cmd: cmdId, text: (text || '').slice(0, 4000) });
+    } catch (err: any) {
+      setResult({ cmd: cmdId, text: `Lỗi: ${err?.message}` });
+    }
+    setRunning(null);
+  }
+
+  const isPaid = pricing && pricing.model !== 'free';
+  const priceLabel = pricing?.price?.monthly
+    ? `${pricing.price.monthly} ${pricing.price.currency || 'USD'}/tháng`
+    : '';
+
+  return (
+    <div className="agent-picker-overlay" onClick={onClose}>
+      <div className="agent-picker ext-cfg" onClick={(e) => e.stopPropagation()}>
+        <h2 className="agent-picker__title">⚙️ {ext.displayName}</h2>
+
+        {loading ? (
+          <p className="agent-picker__subtitle">Đang tải cấu hình…</p>
+        ) : (
+          <>
+            {/* Pricing / Buy */}
+            {isPaid && (
+              <div className="ext-cfg__box">
+                <div>
+                  <div className="ext-cfg__box-title">{pricing?.model === 'freemium' ? 'Freemium' : 'Trả phí'} · {priceLabel}</div>
+                  <div className="ext-cfg__muted">Kích hoạt bản trả phí để mở đầy đủ tính năng.</div>
+                </div>
+                <button
+                  className="btn btn--primary btn--sm"
+                  onClick={() => onNotify('Mua/kích hoạt cần Marketplace API (đang offline) — bản dev đang mở full tính năng.', 'info')}
+                >
+                  💳 Mua / Kích hoạt
+                </button>
+              </div>
+            )}
+
+            {/* Settings form */}
+            <h3 className="ext-cfg__h3 ext-cfg__h3--first">Cấu hình</h3>
+            {settings.length === 0 ? (
+              <p className="agent-picker__subtitle">Tiện ích này không có tuỳ chọn cấu hình.</p>
+            ) : (
+              <div className="ext-cfg__fields">
+                {settings.map((s) => (
+                  <label key={s.id} className="ext-cfg__field">
+                    <span className="ext-cfg__field-title">{s.title}</span>
+                    {s.description && <span className="ext-cfg__field-desc">{s.description}</span>}
+                    {s.type === 'boolean' ? (
+                      <input
+                        type="checkbox"
+                        checked={Boolean(values[s.id])}
+                        onChange={(e) => setValues((v) => ({ ...v, [s.id]: e.target.checked }))}
+                      />
+                    ) : s.type === 'select' ? (
+                      <select
+                        className="gw-effort__select"
+                        value={String(values[s.id] ?? '')}
+                        onChange={(e) => setValues((v) => ({ ...v, [s.id]: e.target.value }))}
+                      >
+                        {(s.options || []).map((o) => (
+                          <option key={o.value} value={o.value}>{o.label}</option>
+                        ))}
+                      </select>
+                    ) : (
+                      <input
+                        className="ext-cfg__input"
+                        type={s.type === 'number' ? 'number' : (/key|token|secret|password/i.test(s.id) ? 'password' : 'text')}
+                        value={String(values[s.id] ?? '')}
+                        onChange={(e) => setValues((v) => ({ ...v, [s.id]: s.type === 'number' ? Number(e.target.value) : e.target.value }))}
+                      />
+                    )}
+                  </label>
+                ))}
+                <button className="btn btn--primary btn--sm ext-cfg__save" onClick={saveAll} disabled={saving}>
+                  {saving ? '⏳ Đang lưu…' : '💾 Lưu cấu hình'}
+                </button>
+              </div>
+            )}
+
+            {/* Commands */}
+            {commands.length > 0 && (
+              <>
+                <h3 className="ext-cfg__h3">Lệnh</h3>
+                <div className="ext-cfg__cmds">
+                  {commands.map((c) => (
+                    <button
+                      key={c.id}
+                      className="btn btn--secondary btn--sm"
+                      onClick={() => runCommand(c.id)}
+                      disabled={running === c.id}
+                    >
+                      {running === c.id ? '⏳' : (c.icon || '▶️')} {c.title}
+                    </button>
+                  ))}
+                </div>
+                {result && (
+                  <pre className="ext-cfg__result">
+                    <b>{result.cmd}</b>{'\n'}{result.text}
+                  </pre>
+                )}
+              </>
+            )}
+          </>
+        )}
+
+        <button className="agent-picker__close ext-cfg__close" onClick={onClose} type="button">
+          Đóng
+        </button>
+      </div>
     </div>
   );
 }
