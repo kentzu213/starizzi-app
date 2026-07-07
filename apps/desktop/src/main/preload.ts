@@ -131,6 +131,8 @@ const electronAPI = {
       ipcRenderer.invoke('dockerAgent:status', payload),
     chat: (payload: { id: string; defaultPort: number }, message: string): Promise<{ ok: boolean; reply?: string; error?: string }> =>
       ipcRenderer.invoke('dockerAgent:chat', { id: payload.id, defaultPort: payload.defaultPort }, message),
+    setReasoningEffort: (payload: { id: string; defaultPort: number }, effort: string): Promise<{ ok: boolean; error?: string }> =>
+      ipcRenderer.invoke('dockerAgent:setReasoningEffort', { id: payload.id, defaultPort: payload.defaultPort }, effort),
     healthCheck: (payload: { defaultPort: number; healthEndpoint?: string; timeoutMs?: number }): Promise<{ ok: boolean; status?: number; error?: string }> =>
       ipcRenderer.invoke('dockerAgent:healthCheck', payload),
     onProgress: (listener: (data: { agentId: string; line: string }) => void) => {
@@ -344,6 +346,7 @@ const electronAPI = {
       message: string;
       history?: { role: 'system' | 'user' | 'assistant'; content: string }[];
       model?: string;
+      enableTools?: boolean;
     }): Promise<{ reply: string; error?: string }> =>
       ipcRenderer.invoke('izziAgent:chat', payload),
   },

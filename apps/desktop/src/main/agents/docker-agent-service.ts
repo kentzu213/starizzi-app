@@ -93,8 +93,13 @@ const PULL_TIMEOUT = 600_000; // 10 min — large images can take a while
 const HERMES_CONTAINER_PORT = 8642;
 /** File (inside the agent data dir) that persists the generated API server key. */
 const API_KEY_FILE = '.izzi-api-key';
-/** Chat timeout — agent runs can take a while on first response. */
-const CHAT_TIMEOUT = 120_000;
+/**
+ * Chat timeout — agentic turns are slow: Hermes loads a large system/skills prompt
+ * (~100k tokens) every turn, so even a simple reply can take 60-90s, and multi-step
+ * tool runs take several minutes. 120s cut off almost everything; 10 min covers a
+ * normal turn. (Truly long tasks want streaming — tracked separately.)
+ */
+const CHAT_TIMEOUT = 600_000;
 
 /** Agents that need the Hermes-style API server (env + key + mounted data dir). */
 export function agentNeedsApiServer(agentId: string): boolean {
@@ -123,6 +128,30 @@ export function buildHermesConfigYaml(config: HermesModelConfig): string {
     `  api_key: ${q(config.apiKey)}`,
     '',
   ].join('\n');
+}
+
+/** Reasoning-effort levels Hermes accepts (mirrors hermes_constants.VALID_REASONING_EFFORTS). */
+export const VALID_REASONING_EFFORTS = ['minimal', 'low', 'medium', 'high', 'xhigh', 'max'] as const;
+export type ReasoningEffort = (typeof VALID_REASONING_EFFORTS)[number];
+
+/**
+ * Return `yaml` with `agent.reasoning_effort` set to `level`. Surgical string edit:
+ *   - replaces an existing `reasoning_effort:` line (any indent), else
+ *   - inserts under an existing top-level `agent:` block, else
+ *   - appends a new `agent:` block.
+ * Everything else (provider/base_url/api_key, display, plugins, comments) is
+ * preserved byte-for-byte, so this is safe to run on either the codex-lb config
+ * or the model-only config the proxy path writes. Pure — unit-testable.
+ */
+export function upsertReasoningEffort(yaml: string, level: string): string {
+  if (/^[ \t]*reasoning_effort:.*$/m.test(yaml)) {
+    return yaml.replace(/^([ \t]*)reasoning_effort:.*$/m, `$1reasoning_effort: ${level}`);
+  }
+  if (/^agent:[ \t]*$/m.test(yaml)) {
+    return yaml.replace(/^(agent:[ \t]*\r?\n)/m, `$1  reasoning_effort: ${level}\n`);
+  }
+  const sep = yaml.length === 0 || yaml.endsWith('\n') ? '' : '\n';
+  return `${yaml}${sep}agent:\n  reasoning_effort: ${level}\n`;
 }
 
 /**
@@ -408,6 +437,46 @@ export class DockerAgentService {
       .split(/\r?\n/)
       .map((l) => l.trim())
       .includes(name);
+  }
+
+  /**
+   * Change the agent's reasoning effort: surgically update `agent.reasoning_effort`
+   * in the mounted config.yaml, then `docker restart` so the agent re-reads it.
+   *
+   * Restart (not recreate) is deliberate: it re-reads the on-disk config.yaml while
+   * preserving the provider/base_url/api_key already there. This does NOT go through
+   * start() → writeHermesConfig, so it won't overwrite the upstream config. The
+   * caller should wait for /health after this returns (the container needs a beat).
+   */
+  async setReasoningEffort(payload: DockerAgentPayload, effort: string): Promise<DockerResult> {
+    const level = String(effort || '').toLowerCase();
+    if (!(VALID_REASONING_EFFORTS as readonly string[]).includes(level)) {
+      return { ok: false, error: `Mức reasoning không hợp lệ: ${effort}` };
+    }
+
+    const name = dockerContainerName(payload.id);
+    if (!(await this.containerExists(name))) {
+      return { ok: false, error: 'Agent chưa chạy — hãy khởi động agent trước khi đổi mức reasoning.' };
+    }
+
+    const cfgPath = path.join(this.agentDataDir(payload.id), 'config.yaml');
+    let content: string;
+    try {
+      content = fs.readFileSync(cfgPath, 'utf8');
+    } catch {
+      return { ok: false, error: 'Không đọc được config.yaml của agent.' };
+    }
+    try {
+      fs.writeFileSync(cfgPath, upsertReasoningEffort(content, level), { encoding: 'utf8', mode: 0o600 });
+    } catch {
+      return { ok: false, error: 'Không ghi được config.yaml của agent.' };
+    }
+
+    const { code, stderr } = await this.exec(['restart', name], DEFAULT_EXEC_TIMEOUT);
+    if (code !== 0) {
+      return { ok: false, error: summarizeDockerError(stderr) };
+    }
+    return { ok: true };
   }
 
   /**

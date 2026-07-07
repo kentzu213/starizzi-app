@@ -16,8 +16,14 @@
  */
 import { ipcMain } from 'electron';
 import type { AuthManager } from '../auth/auth-manager';
+import {
+  buildExtensionTools,
+  executeExtensionTool,
+  type ExtensionToolHost,
+} from './extension-tools';
 
 const IZZI_LLM_BASE = process.env.OPENAI_BASE_URL || 'https://api.izziapi.com/v1';
+const MAX_TOOL_ITERATIONS = 5;
 
 export interface IzziAgentMessage {
   role: 'system' | 'user' | 'assistant';
@@ -29,6 +35,8 @@ export interface IzziAgentChatPayload {
   message: string;
   history?: IzziAgentMessage[];
   model?: string;
+  /** Opt-in: expose installed+running extension commands as tools the agent may call. */
+  enableTools?: boolean;
 }
 
 export interface IzziAgentChatResult {
@@ -39,7 +47,11 @@ export interface IzziAgentChatResult {
 const ROLES = new Set(['system', 'user', 'assistant']);
 
 export class IzziAgent {
-  constructor(private readonly auth: AuthManager) {}
+  constructor(
+    private readonly auth: AuthManager,
+    /** Optional bridge to installed extensions; enables agent tool-calling when present. */
+    private readonly toolHost?: ExtensionToolHost,
+  ) {}
 
   /** Resolve the Izzi key: env first, else the signed-in user's API key. Never logged. */
   private resolveKey(): string | null {
@@ -75,24 +87,62 @@ export class IzziAgent {
           .slice(-10)
       : [];
 
-    const messages: IzziAgentMessage[] = [
-      ...(system ? [{ role: 'system' as const, content: system }] : []),
+    // Loose message type so tool/assistant-with-tool_calls turns are allowed.
+    const reqMessages: Array<Record<string, unknown>> = [
+      ...(system ? [{ role: 'system', content: system }] : []),
       ...history,
-      { role: 'user' as const, content: message },
+      { role: 'user', content: message },
     ];
 
+    // Opt-in tool exposure: only when requested AND a bridge is present.
+    const toolIndex = payload.enableTools && this.toolHost ? buildExtensionTools(this.toolHost) : null;
+    const tools = toolIndex && toolIndex.tools.length > 0 ? toolIndex.tools : null;
+
     try {
-      const res = await fetch(`${IZZI_LLM_BASE}/chat/completions`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` },
-        body: JSON.stringify({ model, messages, stream: false, max_tokens: 1200 }),
-      });
-      if (!res.ok) return { reply: '', error: `http ${res.status}` };
-      const data = (await res.json()) as { choices?: Array<{ message?: { content?: unknown } }> };
-      const content = data?.choices?.[0]?.message?.content;
-      return typeof content === 'string' && content.length > 0
-        ? { reply: content }
-        : { reply: '', error: 'empty-response' };
+      for (let iter = 0; iter < MAX_TOOL_ITERATIONS; iter++) {
+        const body: Record<string, unknown> = { model, messages: reqMessages, stream: false, max_tokens: 1200 };
+        if (tools) {
+          body.tools = tools;
+          body.tool_choice = 'auto';
+        }
+        const res = await fetch(`${IZZI_LLM_BASE}/chat/completions`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` },
+          body: JSON.stringify(body),
+        });
+        if (!res.ok) return { reply: '', error: `http ${res.status}` };
+        const data = (await res.json()) as {
+          choices?: Array<{ message?: { content?: unknown; tool_calls?: Array<{ id: string; function?: { name?: string; arguments?: string } }> } }>;
+        };
+        const msg = data?.choices?.[0]?.message;
+        const toolCalls = msg?.tool_calls;
+
+        // No tools available or model returned a final answer → done.
+        if (!tools || !toolIndex || !Array.isArray(toolCalls) || toolCalls.length === 0) {
+          const content = msg?.content;
+          return typeof content === 'string' && content.length > 0
+            ? { reply: content }
+            : { reply: '', error: 'empty-response' };
+        }
+
+        // Execute each requested tool and feed results back.
+        reqMessages.push({ role: 'assistant', content: (msg?.content as string) || '', tool_calls: toolCalls });
+        for (const tc of toolCalls) {
+          const toolName = tc.function?.name || '';
+          let args: unknown = {};
+          try { args = JSON.parse(tc.function?.arguments || '{}'); } catch { args = {}; }
+          let resultStr: string;
+          try {
+            const result = await executeExtensionTool(this.toolHost!, toolIndex, toolName, args);
+            resultStr = JSON.stringify(result ?? null);
+          } catch (err) {
+            resultStr = JSON.stringify({ error: (err as Error).message });
+          }
+          reqMessages.push({ role: 'tool', tool_call_id: tc.id, content: resultStr.slice(0, 6000) });
+        }
+        // loop for the model's next turn
+      }
+      return { reply: '', error: 'tool-loop-exhausted' };
     } catch {
       return { reply: '', error: 'network' };
     }

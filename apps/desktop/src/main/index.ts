@@ -236,7 +236,13 @@ function setupIPC() {
   registerAffiliateIpc(affiliateClient);
 
   // ── Izzi-native persona agents (Socrates, Orchestrator) — Agent Hub; key in main ──
-  const izziAgent = new IzziAgent(authManager);
+  // Lazy tool-host adapter: resolves extensionLoader at call-time (it's initialized later
+  // during app bootstrap). Lets these agents invoke installed extension commands (opt-in).
+  const izziAgent = new IzziAgent(authManager, {
+    getAllExtensions: () => (extensionLoader ? extensionLoader.getAllExtensions() : []),
+    executeCommand: (extensionId, commandId, ...args) =>
+      extensionLoader.executeCommand(extensionId, commandId, ...args),
+  });
   registerIzziAgentIpc(izziAgent);
 
   // ── Extensions (basic) ──
@@ -473,6 +479,10 @@ function setupIPC() {
 
   ipcMain.handle('dockerAgent:chat', async (_event, payload: DockerAgentPayload, message: string) => {
     return dockerAgentService.chat(payload, message);
+  });
+
+  ipcMain.handle('dockerAgent:setReasoningEffort', async (_event, payload: DockerAgentPayload, effort: string) => {
+    return dockerAgentService.setReasoningEffort(payload, effort);
   });
 
   ipcMain.handle(

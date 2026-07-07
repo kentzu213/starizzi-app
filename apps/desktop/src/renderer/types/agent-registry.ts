@@ -94,6 +94,8 @@ export interface AgentChatSession {
   messages: GatewayChatMessage[];
   model: string;
   provider: AIProvider;
+  /** Reasoning effort for Docker agents that support it (Hermes). Undefined = provider default. */
+  reasoningEffort?: string;
   createdAt: string;
   isActive: boolean;
 }

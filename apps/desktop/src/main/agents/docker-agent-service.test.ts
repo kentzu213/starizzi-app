@@ -7,6 +7,7 @@ import {
   dockerContainerName,
   redactSecret,
   summarizeDockerError,
+  upsertReasoningEffort,
   type DockerAgentPayload,
 } from './docker-agent-service';
 
@@ -140,5 +141,46 @@ describe('redactSecret', () => {
   it('returns the text unchanged when secret is too short or missing', () => {
     expect(redactSecret('hello world', undefined)).toBe('hello world');
     expect(redactSecret('hello world', 'ab')).toBe('hello world');
+  });
+});
+
+describe('upsertReasoningEffort', () => {
+  it('replaces an existing reasoning_effort value, preserving indent and the rest', () => {
+    const yaml = [
+      'model:',
+      '  provider: custom',
+      '  default: gpt-5.5',
+      'agent:',
+      '  verify_on_stop: false',
+      '  reasoning_effort: medium',
+      'plugins:',
+      '  enabled: []',
+      '',
+    ].join('\n');
+    const out = upsertReasoningEffort(yaml, 'xhigh');
+    expect(out).toContain('  reasoning_effort: xhigh');
+    expect(out).not.toContain('reasoning_effort: medium');
+    // Untouched lines survive.
+    expect(out).toContain('  default: gpt-5.5');
+    expect(out).toContain('  verify_on_stop: false');
+    expect(out).toContain('  enabled: []');
+  });
+
+  it('inserts under an existing agent block when no reasoning_effort is present', () => {
+    const yaml = ['model:', '  default: gpt-5.5', 'agent:', '  verify_on_stop: false', ''].join('\n');
+    const out = upsertReasoningEffort(yaml, 'high');
+    expect(out).toMatch(/agent:\r?\n {2}reasoning_effort: high\r?\n {2}verify_on_stop: false/);
+  });
+
+  it('appends a new agent block when the config has none (proxy/model-only config)', () => {
+    const yaml = ['model:', '  provider: custom', '  default: gpt-5.5', ''].join('\n');
+    const out = upsertReasoningEffort(yaml, 'low');
+    expect(out).toContain('  default: gpt-5.5');
+    expect(out).toMatch(/agent:\n {2}reasoning_effort: low\n$/);
+  });
+
+  it('does not add a blank line before the appended block when input lacks a trailing newline', () => {
+    const out = upsertReasoningEffort('model:\n  default: gpt-5.5', 'medium');
+    expect(out).toBe('model:\n  default: gpt-5.5\nagent:\n  reasoning_effort: medium\n');
   });
 });

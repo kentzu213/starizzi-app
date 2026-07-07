@@ -32,6 +32,8 @@ interface AgentGatewayState {
   // UI state
   isSending: boolean;
   errorMessage: string | null;
+  /** Session id currently being reconfigured (e.g. reasoning effort → container restart). */
+  reconfiguringSessionId: string | null;
 
   // Actions — Agent management
   updateAgentStatus: (agentId: string, status: ExternalAgentStatus, version?: string) => void;
@@ -44,6 +46,8 @@ interface AgentGatewayState {
   sendGatewayMessage: (text: string) => Promise<boolean>;
   newGatewaySession: (agentId: string) => void;
   setSessionModel: (sessionId: string, model: string, provider: AIProvider) => void;
+  /** Change a Docker agent's reasoning effort (rewrites config + restarts container). */
+  setReasoningEffort: (effort: string) => Promise<boolean>;
 
   // Getters
   activeSession: () => AgentChatSession | null;
@@ -56,6 +60,7 @@ export const useAgentGatewayStore = create<AgentGatewayState>((set, get) => ({
   activeSessionId: null,
   isSending: false,
   errorMessage: null,
+  reconfiguringSessionId: null,
 
   updateAgentStatus: (agentId, status, version) => {
     set((state) => ({
@@ -119,8 +124,9 @@ export const useAgentGatewayStore = create<AgentGatewayState>((set, get) => ({
       agentName: agent.displayName,
       agentIcon: agent.icon,
       messages: [],
-      model: 'izzi/auto',
-      provider: 'izzi',
+      model: agent.id === 'hermes' ? 'gpt-5.5' : 'izzi/auto',
+      provider: agent.id === 'hermes' ? 'custom' : 'izzi',
+      reasoningEffort: agent.id === 'hermes' ? 'xhigh' : undefined,
       createdAt: new Date().toISOString(),
       isActive: true,
     };
@@ -214,6 +220,8 @@ export const useAgentGatewayStore = create<AgentGatewayState>((set, get) => ({
             message: content,
             history,
             model: session.model,
+            // Let izzi persona agents invoke installed utility commands (e.g. Social Auto Poster).
+            enableTools: true,
           });
           const reply = r?.reply
             ? r.reply
@@ -394,8 +402,9 @@ export const useAgentGatewayStore = create<AgentGatewayState>((set, get) => ({
       agentName: agent.displayName,
       agentIcon: agent.icon,
       messages: [],
-      model: 'izzi/auto',
-      provider: 'izzi',
+      model: agent.id === 'hermes' ? 'gpt-5.5' : 'izzi/auto',
+      provider: agent.id === 'hermes' ? 'custom' : 'izzi',
+      reasoningEffort: agent.id === 'hermes' ? 'xhigh' : undefined,
       createdAt: new Date().toISOString(),
       isActive: true,
     };
@@ -412,6 +421,61 @@ export const useAgentGatewayStore = create<AgentGatewayState>((set, get) => ({
         s.id === sessionId ? { ...s, model, provider } : s,
       ),
     }));
+  },
+
+  setReasoningEffort: async (effort) => {
+    const session = get().activeSession();
+    if (!session) return false;
+    const agent = get().agents.find((a) => a.id === session.agentId);
+    if (!agent || agent.setupMethod !== 'docker') return false;
+    if (session.reasoningEffort === effort) return true; // no-op
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const dockerApi = (window as any).electronAPI?.dockerAgent;
+    if (!dockerApi?.setReasoningEffort) {
+      set({ errorMessage: 'Không đổi được mức reasoning (thiếu cầu nối app).' });
+      return false;
+    }
+
+    set({ reconfiguringSessionId: session.id, errorMessage: null });
+    try {
+      const r = await dockerApi.setReasoningEffort(
+        { id: agent.id, defaultPort: agent.defaultPort },
+        effort,
+      );
+      if (!r?.ok) {
+        set({ reconfiguringSessionId: null, errorMessage: r?.error ?? 'Không đổi được mức reasoning.' });
+        return false;
+      }
+
+      // The container was restarted — wait for /health before re-enabling chat.
+      if (dockerApi.healthCheck) {
+        for (let i = 0; i < 20; i++) {
+          try {
+            const h = await dockerApi.healthCheck({
+              defaultPort: agent.defaultPort,
+              healthEndpoint: agent.healthEndpoint,
+              timeoutMs: 4000,
+            });
+            if (h?.ok) break;
+          } catch {
+            /* keep polling */
+          }
+          await new Promise((res) => setTimeout(res, 3000));
+        }
+      }
+
+      set((state) => ({
+        reconfiguringSessionId: null,
+        sessions: state.sessions.map((s) =>
+          s.id === session.id ? { ...s, reasoningEffort: effort } : s,
+        ),
+      }));
+      return true;
+    } catch {
+      set({ reconfiguringSessionId: null, errorMessage: 'Không đổi được mức reasoning.' });
+      return false;
+    }
   },
 
   activeSession: () => {

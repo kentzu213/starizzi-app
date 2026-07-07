@@ -54,6 +54,8 @@ export function ChatPage({ user, onBuyApi, onNavigateToDashboard, onNavigateToAg
   const gwSetModel = useAgentGatewayStore((state) => state.setSessionModel);
   const gwActiveSession = useAgentGatewayStore((state) => state.activeSession);
   const gwRefreshStatuses = useAgentGatewayStore((state) => state.refreshAgentStatuses);
+  const gwReconfiguringId = useAgentGatewayStore((state) => state.reconfiguringSessionId);
+  const gwSetReasoningEffort = useAgentGatewayStore((state) => state.setReasoningEffort);
 
   // Reflect real Docker running-state in the agent rail + picker on the Chat
   // surface. The gateway store resets every launch with all agents
@@ -74,6 +76,7 @@ export function ChatPage({ user, onBuyApi, onNavigateToDashboard, onNavigateToAg
   const gwMessages = activeGwSession?.messages ?? [];
   const deferredMessages = useDeferredValue(isGatewayMode ? gwMessages : messages);
   const isSending = isGatewayMode ? gwIsSending : isSendingLegacy;
+  const isReconfiguring = Boolean(activeGwSession && gwReconfiguringId === activeGwSession.id);
 
   async function handleSubmit() {
     const text = draft.trim();
@@ -280,17 +283,37 @@ export function ChatPage({ user, onBuyApi, onNavigateToDashboard, onNavigateToAg
                 className="gw-tab__dot"
               />
             </div>
-            <ModelSelector
-              currentModel={activeGwSession.model}
-              currentProvider={activeGwSession.provider}
-              onSelect={handleModelChange}
-            />
+            {activeGwSession.agentId === 'hermes' ? (
+              <div className="gw-effort" title="GPT-5.5 qua codex router — chọn độ sâu suy luận (như codex)">
+                <span className="gw-effort__label">⚡ GPT-5.5 · Reasoning</span>
+                <select
+                  className="gw-effort__select"
+                  value={activeGwSession.reasoningEffort ?? 'xhigh'}
+                  disabled={isReconfiguring}
+                  onChange={(e) => void gwSetReasoningEffort(e.target.value)}
+                >
+                  <option value="low">Low · nhanh</option>
+                  <option value="medium">Medium</option>
+                  <option value="high">High</option>
+                  <option value="xhigh">xHigh · sâu nhất</option>
+                </select>
+                {isReconfiguring && (
+                  <span className="gw-effort__applying">Đang áp dụng… (~30s)</span>
+                )}
+              </div>
+            ) : (
+              <ModelSelector
+                currentModel={activeGwSession.model}
+                currentProvider={activeGwSession.provider}
+                onSelect={handleModelChange}
+              />
+            )}
           </div>
         )}
 
         <ChatComposer
           value={draft}
-          disabled={isBootstrapping || isSending}
+          disabled={isBootstrapping || isSending || isReconfiguring}
           isSubmitting={isSending}
           onChange={setDraft}
           onSubmit={() => void handleSubmit()}

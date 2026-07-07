@@ -1,0 +1,61 @@
+{
+  "name": "social-auto-poster",
+  "version": "0.1.0",
+  "displayName": "Social Auto Poster",
+  "description": "Lên lịch và tự động đăng bài lên Facebook Page (và các kênh khác) qua backend đã cài trên máy. Agent có thể gọi trực tiếp để đăng/lên lịch.",
+  "main": "dist/index.js",
+  "engine": ">=0.1.0",
+  "author": {
+    "name": "Starizzi Team",
+    "url": "https://izziapi.com"
+  },
+  "permissions": [
+    "storage.local",
+    "ui.notification",
+    "ui.panel",
+    "net.http"
+  ],
+  "activationEvents": [
+    "onStartup",
+    "onCommand:social-auto-poster.status",
+    "onCommand:social-auto-poster.listAccounts",
+    "onCommand:social-auto-poster.postNow",
+    "onCommand:social-auto-poster.schedule",
+    "onCommand:social-auto-poster.listScheduled",
+    "onCommand:social-auto-poster.cancelScheduled"
+  ],
+  "contributes": {
+    "commands": [
+      { "id": "social-auto-poster.status", "title": "Kiểm tra kết nối", "category": "Social", "icon": "🔌" },
+      { "id": "social-auto-poster.listAccounts", "title": "Danh sách tài khoản đã kết nối", "category": "Social", "icon": "👤" },
+      { "id": "social-auto-poster.postNow", "title": "Đăng bài ngay", "category": "Social", "icon": "🚀" },
+      { "id": "social-auto-poster.schedule", "title": "Lên lịch đăng bài", "category": "Social", "icon": "🗓️" },
+      { "id": "social-auto-poster.listScheduled", "title": "Xem lịch đã đặt", "category": "Social", "icon": "📋" },
+      { "id": "social-auto-poster.cancelScheduled", "title": "Huỷ lịch", "category": "Social", "icon": "🗑️" }
+    ],
+    "panels": [
+      { "id": "social-auto-poster.dashboard", "title": "Social Auto Poster", "entry": "panel" }
+    ],
+    "settings": [
+      { "id": "backendUrl", "title": "Backend URL", "description": "API aitoearn đã cài, kèm prefix /api (vd: http://127.0.0.1:8080/api).", "type": "string", "default": "http://127.0.0.1:8080/api" },
+      { "id": "apiKey", "title": "API key / Token", "description": "API key tạo trong aitoearn. KHÔNG chia sẻ. Lưu cục bộ trên máy bạn.", "type": "string", "default": "" },
+      { "id": "channel", "title": "Kênh", "description": "Nền tảng đăng.", "type": "select", "default": "facebook_page", "options": [
+        { "label": "Facebook Page", "value": "facebook_page" },
+        { "label": "Facebook Group (cần browser automation)", "value": "facebook_group" },
+        { "label": "Instagram", "value": "instagram" },
+        { "label": "X / Twitter", "value": "twitter" }
+      ] },
+      { "id": "targetId", "title": "ID trang/kênh", "description": "ID Facebook Page (hoặc kênh) sẽ đăng.", "type": "string", "default": "" },
+      { "id": "scheduleTimes", "title": "Khung giờ đăng", "description": "Các mốc giờ trong ngày, cách nhau bằng dấu phẩy (vd: 10:00,17:00,20:00).", "type": "string", "default": "10:00,17:00,20:00" },
+      { "id": "timezone", "title": "Múi giờ", "type": "string", "default": "Asia/Ho_Chi_Minh" }
+    ]
+  },
+  "categories": ["Marketing", "Social"],
+  "tags": ["facebook", "auto-post", "scheduler", "social", "marketing", "agent"],
+  "homepage": "https://izziapi.com",
+  "pricing": {
+    "model": "freemium",
+    "price": { "monthly": 9.99, "currency": "USD" }
+  },
+  "license": "SEE LICENSE"
+}
