@@ -78,15 +78,21 @@ export class ExtensionHost extends EventEmitter {
     console.log(`[ExtHost:${this.extensionId}] Starting...`);
 
     try {
-      // Fork the extension runner script
-      const runnerPath = path.join(__dirname, 'extension-runner.js');
+      // Fork the extension runner script. A forked child runs as plain Node
+      // (ELECTRON_RUN_AS_NODE) and CANNOT execute a script from inside app.asar,
+      // so the runner is asarUnpack'd — point the fork at the real unpacked copy
+      // when packaged (no-op in dev, where there is no asar in the path).
+      const runnerPath = path
+        .join(__dirname, 'extension-runner.js')
+        .replace(/app\.asar([\\/])/, 'app.asar.unpacked$1');
       this.process = fork(runnerPath, [], {
         cwd: this.extensionPath,
         stdio: ['pipe', 'pipe', 'pipe', 'ipc'],
         env: {
           NODE_ENV: process.env.NODE_ENV || 'production',
-          OpenClaw_EXT_ID: this.extensionId,
-          OpenClaw_EXT_PATH: this.extensionPath,
+          // Names MUST match what extension-runner reads (OPENCLAW_EXT_ID/PATH).
+          OPENCLAW_EXT_ID: this.extensionId,
+          OPENCLAW_EXT_PATH: this.extensionPath,
           // Explicitly do NOT pass sensitive env vars
         },
         execArgv: [
