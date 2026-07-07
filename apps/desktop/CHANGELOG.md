@@ -1,5 +1,20 @@
 # Changelog — Izzi OpenClaw Desktop
 
+## 1.5.1
+
+Bug-fix release on top of 1.5.0.
+
+- **Extension host no longer crashes on startup.** The forked extension runner
+  (`extension-runner.js`) could not be executed from inside `app.asar`, so
+  extensions (e.g. Social Auto Poster) crash-looped and never reached "running" —
+  meaning their commands were never exposed as agent tools. The runner is now
+  `asarUnpack`'d and the fork path resolves to the unpacked copy. Also fixed an
+  `OPENCLAW_EXT_ID/PATH` env var name mismatch between host and runner.
+- **Desktop CI is green again.** `packages/agent-bundle`'s ESM tsconfig set
+  `module: ES2020` while inheriting `resolveJsonModule` with no `moduleResolution`
+  (TS defaulted to `classic` → TS5070), which broke `pnpm -r build` on every push.
+  Added `moduleResolution: node`.
+
 ## 1.5.0
 
 A large agent + second-brain update: multi-agent chat now streams its live
