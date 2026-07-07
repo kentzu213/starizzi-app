@@ -26,6 +26,7 @@ import type {
 } from '../shared/graph-types';
 import type { ParsedClassification } from './graph/graph-agent-core';
 import type { UniverseNodeDetail } from '../shared/universe-adapter';
+import type { AgentTurnEvent } from '../shared/agent-turn-events';
 import type {
   AffiliateStats,
   AffiliateCommission,
@@ -132,8 +133,21 @@ const electronAPI = {
       ipcRenderer.invoke('dockerAgent:stop', payload),
     status: (payload: { id: string; dockerImage?: string; defaultPort: number; dockerComposeUrl?: string }): Promise<{ running: boolean; error?: string }> =>
       ipcRenderer.invoke('dockerAgent:status', payload),
-    chat: (payload: { id: string; defaultPort: number }, message: string): Promise<{ ok: boolean; reply?: string; error?: string }> =>
-      ipcRenderer.invoke('dockerAgent:chat', { id: payload.id, defaultPort: payload.defaultPort }, message),
+    chat: (
+      payload: { id: string; defaultPort: number; agentName?: string; reasoningEffort?: string; turnId?: string },
+      message: string,
+    ): Promise<{ ok: boolean; reply?: string; error?: string }> =>
+      ipcRenderer.invoke(
+        'dockerAgent:chat',
+        {
+          id: payload.id,
+          defaultPort: payload.defaultPort,
+          agentName: payload.agentName,
+          reasoningEffort: payload.reasoningEffort,
+          turnId: payload.turnId,
+        },
+        message,
+      ),
     setReasoningEffort: (payload: { id: string; defaultPort: number }, effort: string): Promise<{ ok: boolean; error?: string }> =>
       ipcRenderer.invoke('dockerAgent:setReasoningEffort', { id: payload.id, defaultPort: payload.defaultPort }, effort),
     healthCheck: (payload: { defaultPort: number; healthEndpoint?: string; timeoutMs?: number }): Promise<{ ok: boolean; status?: number; error?: string }> =>
@@ -350,8 +364,23 @@ const electronAPI = {
       history?: { role: 'system' | 'user' | 'assistant'; content: string }[];
       model?: string;
       enableTools?: boolean;
+      turnId?: string;
+      agentId?: string;
+      agentName?: string;
     }): Promise<{ reply: string; error?: string }> =>
       ipcRenderer.invoke('izziAgent:chat', payload),
+  },
+
+  // Live agent "process" stream (main → renderer): content/reasoning/step events
+  // emitted during a chat turn, correlated to the assistant message by `turnId`.
+  agentStream: {
+    onEvent: (listener: (event: AgentTurnEvent) => void) => {
+      const handler = (_event: Electron.IpcRendererEvent, data: AgentTurnEvent) => listener(data);
+      ipcRenderer.on('agentStream:event', handler);
+      return () => {
+        ipcRenderer.removeListener('agentStream:event', handler);
+      };
+    },
   },
 
   affiliate: {

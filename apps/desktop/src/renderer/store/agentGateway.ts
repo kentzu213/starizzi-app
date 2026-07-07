@@ -13,6 +13,7 @@ import type {
   GatewayChatMessage,
 } from '../types/agent-registry';
 import { TOP_AGENTS } from '../types/agent-registry';
+import type { AgentTurnEvent } from '../../shared/agent-turn-events';
 
 function createLocalId(prefix: string): string {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
@@ -38,6 +39,9 @@ interface AgentGatewayState {
   // Actions — Agent management
   updateAgentStatus: (agentId: string, status: ExternalAgentStatus, version?: string) => void;
   refreshAgentStatuses: () => Promise<void>;
+
+  /** Apply a live turn event (content/reasoning/step) to its assistant message. */
+  applyStreamEvent: (event: AgentTurnEvent) => void;
 
   // Actions — Chat gateway
   openAgentChat: (agentId: string) => void;
@@ -103,6 +107,34 @@ export const useAgentGatewayStore = create<AgentGatewayState>((set, get) => ({
         // best-effort — leave the current status untouched
       }
     }
+  },
+
+  applyStreamEvent: (event) => {
+    set((state) => ({
+      sessions: state.sessions.map((s) => {
+        if (!s.messages.some((m) => m.id === event.turnId)) return s;
+        return {
+          ...s,
+          messages: s.messages.map((m) => {
+            if (m.id !== event.turnId) return m;
+            if (event.kind === 'delta') {
+              return { ...m, content: m.content + event.text, state: 'streaming' as const };
+            }
+            if (event.kind === 'reasoning') {
+              return { ...m, reasoning: (m.reasoning ?? '') + event.text, state: 'streaming' as const };
+            }
+            if (event.kind === 'step') {
+              const steps = Array.isArray(m.steps) ? [...m.steps] : [];
+              const idx = steps.findIndex((x) => x.id === event.step.id);
+              if (idx >= 0) steps[idx] = event.step;
+              else steps.push(event.step);
+              return { ...m, steps, state: 'streaming' as const };
+            }
+            return m;
+          }),
+        };
+      }),
+    }));
   },
 
   openAgentChat: (agentId) => {
@@ -222,6 +254,10 @@ export const useAgentGatewayStore = create<AgentGatewayState>((set, get) => ({
             model: session.model,
             // Let izzi persona agents invoke installed utility commands (e.g. Social Auto Poster).
             enableTools: true,
+            // Stream the process (tool steps) + capture the session into my-graph.
+            turnId: assistantMsgId,
+            agentId: session.agentId,
+            agentName: agent.displayName,
           });
           const reply = r?.reply
             ? r.reply
@@ -275,7 +311,14 @@ export const useAgentGatewayStore = create<AgentGatewayState>((set, get) => ({
 
       if (isOpenAiCompatible && dockerAgentApi?.chat) {
         const r = await dockerAgentApi.chat(
-          { id: agent.id, defaultPort: agent.defaultPort },
+          {
+            id: agent.id,
+            defaultPort: agent.defaultPort,
+            agentName: agent.displayName,
+            reasoningEffort: session.reasoningEffort,
+            // Stream the live process (Hermes emits tool progress as content) + capture to my-graph.
+            turnId: assistantMsgId,
+          },
           content,
         );
 
@@ -288,7 +331,12 @@ export const useAgentGatewayStore = create<AgentGatewayState>((set, get) => ({
                     ...s,
                     messages: s.messages.map((m) =>
                       m.id === assistantMsgId
-                        ? { ...m, content: r.reply as string, state: 'done' as const }
+                        ? {
+                            ...m,
+                            // Keep the text already streamed in; fall back to the full reply.
+                            content: m.content && m.content.length > 0 ? m.content : (r.reply as string),
+                            state: 'done' as const,
+                          }
                         : m,
                     ),
                   }
@@ -487,3 +535,17 @@ export const useAgentGatewayStore = create<AgentGatewayState>((set, get) => ({
     return get().agents.find((a) => a.id === agentId);
   },
 }));
+
+// Subscribe once to the live agent "process" stream (main → renderer) and route
+// each event to the matching assistant message. Guarded for the browser-dev case
+// where the Electron bridge is absent.
+if (typeof window !== 'undefined') {
+  const streamApi = (
+    window as unknown as {
+      electronAPI?: { agentStream?: { onEvent?: (cb: (evt: AgentTurnEvent) => void) => void } };
+    }
+  ).electronAPI?.agentStream;
+  streamApi?.onEvent?.((evt) => {
+    useAgentGatewayStore.getState().applyStreamEvent(evt);
+  });
+}

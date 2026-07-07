@@ -190,3 +190,56 @@
 .gw-empty__agent-icon { font-size: 28px; }
 .gw-empty__agent-name { font-size: 12px; font-weight: 500; }
 .gw-empty__agent-stars { font-size: 9px; color: var(--color-text-tertiary); }
+
+/* ── Live agent process: steps + reasoning (streamed during a turn) ── */
+.chat-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--color-border);
+}
+.chat-step {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--color-text-secondary);
+}
+.chat-step__glyph {
+  font-size: 11px;
+  color: var(--color-text-tertiary);
+}
+.chat-step--running .chat-step__glyph { color: var(--color-accent-cyan); }
+.chat-step--done .chat-step__glyph { color: var(--color-success); }
+.chat-step--error .chat-step__glyph { color: var(--color-error); }
+.chat-step__label { font-weight: 500; color: var(--color-text-primary); }
+.chat-step--running .chat-step__label { color: var(--color-text-secondary); }
+.chat-step__detail { color: var(--color-text-tertiary); }
+
+.chat-reasoning {
+  margin-bottom: 8px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-bg-elevated);
+}
+.chat-reasoning__summary {
+  cursor: pointer;
+  padding: 6px 10px;
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  user-select: none;
+}
+.chat-reasoning__body {
+  margin: 0;
+  padding: 8px 10px;
+  border-top: 1px solid var(--color-border);
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--color-text-tertiary);
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 220px;
+  overflow: auto;
+}

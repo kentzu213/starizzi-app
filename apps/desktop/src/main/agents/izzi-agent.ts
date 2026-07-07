@@ -21,6 +21,8 @@ import {
   executeExtensionTool,
   type ExtensionToolHost,
 } from './extension-tools';
+import { createStreamCollector, type AgentTurnEvent } from '../../shared/agent-turn-events';
+import type { AgentSessionCapturer } from './agent-session-graph';
 
 const IZZI_LLM_BASE = process.env.OPENAI_BASE_URL || 'https://api.izziapi.com/v1';
 const MAX_TOOL_ITERATIONS = 5;
@@ -37,6 +39,11 @@ export interface IzziAgentChatPayload {
   model?: string;
   /** Opt-in: expose installed+running extension commands as tools the agent may call. */
   enableTools?: boolean;
+  /** Correlates streamed process events to the renderer's assistant message. */
+  turnId?: string;
+  /** Identifies the agent for my-graph work-session capture. */
+  agentId?: string;
+  agentName?: string;
 }
 
 export interface IzziAgentChatResult {
@@ -61,9 +68,14 @@ export class IzziAgent {
     return typeof userKey === 'string' && userKey.trim().length > 0 ? userKey.trim() : null;
   }
 
-  async chat(payload: IzziAgentChatPayload): Promise<IzziAgentChatResult> {
+  async chat(
+    payload: IzziAgentChatPayload,
+    onEvent?: (evt: AgentTurnEvent) => void,
+  ): Promise<IzziAgentChatResult> {
     const message = typeof payload?.message === 'string' ? payload.message.trim() : '';
     if (message.length === 0) return { reply: '', error: 'empty' };
+    const turnId = typeof payload.turnId === 'string' ? payload.turnId : '';
+    const emit = onEvent && turnId ? onEvent : undefined;
 
     const key = this.resolveKey();
     if (!key) return { reply: '', error: 'no-key' };
@@ -129,15 +141,26 @@ export class IzziAgent {
         reqMessages.push({ role: 'assistant', content: (msg?.content as string) || '', tool_calls: toolCalls });
         for (const tc of toolCalls) {
           const toolName = tc.function?.name || '';
+          const label = toolName.replace(/__/g, '.'); // human-readable command id
+          const stepId = tc.id || `${toolName}-${Math.random().toString(36).slice(2, 8)}`;
+          // Emit a live "tool running" step (Stage 1/3: show the agent's process).
+          emit?.({ turnId, kind: 'step', step: { id: stepId, kind: 'tool', label, status: 'running' } });
           let args: unknown = {};
           try { args = JSON.parse(tc.function?.arguments || '{}'); } catch { args = {}; }
           let resultStr: string;
+          let ok = true;
           try {
             const result = await executeExtensionTool(this.toolHost!, toolIndex, toolName, args);
             resultStr = JSON.stringify(result ?? null);
           } catch (err) {
+            ok = false;
             resultStr = JSON.stringify({ error: (err as Error).message });
           }
+          emit?.({
+            turnId,
+            kind: 'step',
+            step: { id: stepId, kind: 'tool', label, status: ok ? 'done' : 'error', detail: ok ? undefined : 'lỗi' },
+          });
           reqMessages.push({ role: 'tool', tool_call_id: tc.id, content: resultStr.slice(0, 6000) });
         }
         // loop for the model's next turn
@@ -154,6 +177,27 @@ export class IzziAgent {
  * (main process) and NEVER crosses the bridge — the renderer only receives
  * `{ reply, error }`.
  */
-export function registerIzziAgentIpc(agent: IzziAgent): void {
-  ipcMain.handle('izziAgent:chat', (_e, payload: IzziAgentChatPayload) => agent.chat(payload));
+export function registerIzziAgentIpc(agent: IzziAgent, capturer?: AgentSessionCapturer): void {
+  ipcMain.handle('izziAgent:chat', async (event, payload: IzziAgentChatPayload) => {
+    const turnId = typeof payload?.turnId === 'string' ? payload.turnId : '';
+    const startedAt = new Date().toISOString();
+    // Forward live process events to the renderer; collect steps for graph capture.
+    const collector = createStreamCollector((evt) => event.sender.send('agentStream:event', evt));
+    const result = await agent.chat(payload, turnId ? collector.onEvent : undefined);
+
+    // Best-effort my-graph work-session capture (fail-closed inside the capturer).
+    if (capturer && payload?.agentId && typeof result.reply === 'string' && result.reply.length > 0) {
+      void capturer.capture({
+        agentId: payload.agentId,
+        agentName: payload.agentName || payload.agentId,
+        model: payload.model,
+        request: payload.message,
+        reply: result.reply,
+        steps: collector.steps(),
+        startedAt,
+        finishedAt: new Date().toISOString(),
+      });
+    }
+    return result;
+  });
 }

@@ -3,6 +3,9 @@
  *
  * Type definitions for the external agent system, chat gateway, and model provider layer.
  */
+import type { AgentStep } from '../../shared/agent-turn-events';
+
+export type { AgentStep };
 
 // ── Model Provider Types ──
 
@@ -84,6 +87,10 @@ export interface GatewayChatMessage {
   state: 'pending' | 'streaming' | 'done' | 'error';
   model?: string;
   createdAt: string;
+  /** Live "thinking" text streamed during the turn (collapsible in the UI). */
+  reasoning?: string;
+  /** Discrete work steps (tool/extension calls, progress) streamed during the turn. */
+  steps?: AgentStep[];
 }
 
 export interface AgentChatSession {

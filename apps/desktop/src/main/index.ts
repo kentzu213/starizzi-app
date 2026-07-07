@@ -37,6 +37,8 @@ import { registerAgentIpcHandlers, shutdownAgents } from './agents';
 import { DockerAgentService, type DockerAgentPayload } from './agents/docker-agent-service';
 import { IzziAgent, registerIzziAgentIpc } from './agents/izzi-agent';
 import { IzziLlmProxy } from './agents/izzi-llm-proxy';
+import { AgentSessionCapturer } from './agents/agent-session-graph';
+import { createStreamCollector } from '../shared/agent-turn-events';
 
 let mainWindow: BrowserWindow | null = null;
 let authManager: AuthManager;
@@ -230,6 +232,9 @@ function setupIPC() {
   const graphClient = new GraphClient(authManager, dbManager);
   registerGraphIpc(graphClient);
 
+  // Agent-side write loop: persist each agent work-session into the personal graph.
+  const sessionCapturer = new AgentSessionCapturer(graphClient);
+
   // Open the user's personal graph on the web (same second-brain data) in the browser.
   ipcMain.handle('graph:openMyGraphWeb', async () => {
     const url = `${IZZI_WEB_BASE}/aibase/my-graph`;
@@ -253,7 +258,7 @@ function setupIPC() {
     executeCommand: (extensionId, commandId, ...args) =>
       extensionLoader.executeCommand(extensionId, commandId, ...args),
   });
-  registerIzziAgentIpc(izziAgent);
+  registerIzziAgentIpc(izziAgent, sessionCapturer);
 
   // ── Extensions (basic) ──
   ipcMain.handle('extensions:list', async () => {
@@ -519,9 +524,39 @@ function setupIPC() {
     return dockerAgentService.status(payload);
   });
 
-  ipcMain.handle('dockerAgent:chat', async (_event, payload: DockerAgentPayload, message: string) => {
-    return dockerAgentService.chat(payload, message);
-  });
+  ipcMain.handle(
+    'dockerAgent:chat',
+    async (
+      event,
+      payload: DockerAgentPayload & { agentName?: string; reasoningEffort?: string; turnId?: string },
+      message: string,
+    ) => {
+      const turnId = typeof payload?.turnId === 'string' ? payload.turnId : '';
+      const startedAt = new Date().toISOString();
+      // Stream the live process to the renderer; collect it for graph capture.
+      const collector = createStreamCollector((evt) => event.sender.send('agentStream:event', evt));
+      const result = await dockerAgentService.chat(
+        payload,
+        message,
+        turnId ? { onEvent: collector.onEvent, turnId } : undefined,
+      );
+
+      if (payload?.id && result.ok && typeof result.reply === 'string' && result.reply.length > 0) {
+        void sessionCapturer.capture({
+          agentId: payload.id,
+          agentName: payload.agentName || payload.id,
+          model: 'hermes',
+          reasoningEffort: payload.reasoningEffort,
+          request: message,
+          reply: result.reply,
+          steps: collector.steps(),
+          startedAt,
+          finishedAt: new Date().toISOString(),
+        });
+      }
+      return result;
+    },
+  );
 
   ipcMain.handle('dockerAgent:setReasoningEffort', async (_event, payload: DockerAgentPayload, effort: string) => {
     return dockerAgentService.setReasoningEffort(payload, effort);

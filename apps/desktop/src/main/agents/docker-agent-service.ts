@@ -27,6 +27,19 @@ import * as fs from 'fs';
 import * as crypto from 'crypto';
 import axios from 'axios';
 import type { IzziLlmProxy } from './izzi-llm-proxy';
+import {
+  extractSseEvents,
+  parseOpenAiSseEvent,
+  type AgentTurnEvent,
+} from '../../shared/agent-turn-events';
+
+/** Optional live-streaming hooks for a chat turn (Stage 1: show the process). */
+export interface ChatStreamOptions {
+  /** Called for each streamed content/reasoning delta while the reply is produced. */
+  onEvent?: (evt: AgentTurnEvent) => void;
+  /** Correlates emitted events to the renderer's assistant message. */
+  turnId?: string;
+}
 
 /** Minimal agent metadata passed from the renderer (no registry import in main). */
 export interface DockerAgentPayload {
@@ -483,8 +496,18 @@ export class DockerAgentService {
    * Send a chat message to a Hermes-style agent via its OpenAI-compatible API.
    * Uses the in-memory/persisted API server key (kept in main, never exposed).
    * Returns the assistant reply, or a concise (key-redacted) error.
+   *
+   * When `stream.onEvent` + `stream.turnId` are provided, the reply is streamed
+   * (SSE) and each content/reasoning delta is emitted live (Stage 1). Hermes runs
+   * with `display.tool_progress: all`, so its tool progress rides in as content —
+   * i.e. the stream itself surfaces the agent's process. The full reply is still
+   * returned (back-compat).
    */
-  async chat(payload: DockerAgentPayload, message: string): Promise<DockerChatResult> {
+  async chat(
+    payload: DockerAgentPayload,
+    message: string,
+    stream?: ChatStreamOptions,
+  ): Promise<DockerChatResult> {
     const key = this.getApiKey(payload.id);
     if (!key) {
       return {
@@ -494,6 +517,11 @@ export class DockerAgentService {
     }
 
     const url = `http://127.0.0.1:${payload.defaultPort}/v1/chat/completions`;
+
+    if (stream?.onEvent && stream.turnId) {
+      return this.chatStreaming(url, key, message, stream.onEvent, stream.turnId);
+    }
+
     try {
       const res = await axios.post(
         url,
@@ -517,16 +545,123 @@ export class DockerAgentService {
       }
       return { ok: false, error: 'Agent trả về phản hồi rỗng (có thể chưa cấu hình model provider).' };
     } catch (err: any) {
-      // Prefer the provider/server error body when present; redact the key.
-      const body = err?.response?.data;
-      const serverMsg =
-        (typeof body === 'object' && (body?.error?.message || body?.error)) ||
-        (typeof body === 'string' ? body : '') ||
-        err?.message ||
-        'Không gọi được Hermes API.';
-      const text = typeof serverMsg === 'string' ? serverMsg : JSON.stringify(serverMsg);
-      return { ok: false, error: redactSecret(text, key).slice(0, 400) };
+      return { ok: false, error: await this.chatErrorMessage(err, key) };
     }
+  }
+
+  /**
+   * Streaming variant: POST with `stream: true`, parse the SSE body, and emit
+   * each content/reasoning delta via `onEvent`. Accumulates the full reply to
+   * return. Never throws — maps failures to a concise, key-redacted error.
+   */
+  private async chatStreaming(
+    url: string,
+    key: string,
+    message: string,
+    onEvent: (evt: AgentTurnEvent) => void,
+    turnId: string,
+  ): Promise<DockerChatResult> {
+    try {
+      const res = await axios.post(
+        url,
+        {
+          model: 'hermes-agent',
+          messages: [{ role: 'user', content: message }],
+          stream: true,
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${key}`,
+            'Content-Type': 'application/json',
+            Accept: 'text/event-stream',
+          },
+          timeout: CHAT_TIMEOUT,
+          responseType: 'stream',
+        },
+      );
+
+      const body = res.data as NodeJS.ReadableStream;
+      let buffer = '';
+      let content = '';
+      const consume = (block: string) => {
+        const delta = parseOpenAiSseEvent(block);
+        if (!delta || delta.done) return;
+        if (delta.content) {
+          content += delta.content;
+          onEvent({ turnId, kind: 'delta', text: delta.content });
+        }
+        if (delta.reasoning) {
+          onEvent({ turnId, kind: 'reasoning', text: delta.reasoning });
+        }
+      };
+
+      await new Promise<void>((resolve, reject) => {
+        body.on('data', (chunk: Buffer) => {
+          buffer += chunk.toString('utf8');
+          const { events, rest } = extractSseEvents(buffer);
+          buffer = rest;
+          for (const ev of events) consume(ev);
+        });
+        body.on('end', () => resolve());
+        body.on('error', (e) => reject(e));
+      });
+      if (buffer.trim().length > 0) consume(buffer);
+
+      if (content.length > 0) return { ok: true, reply: content };
+      return { ok: false, error: 'Agent trả về phản hồi rỗng (có thể chưa cấu hình model provider).' };
+    } catch (err: any) {
+      return { ok: false, error: await this.chatErrorMessage(err, key, true) };
+    }
+  }
+
+  /**
+   * Build a concise, key-redacted error message from an axios failure. When the
+   * request used a stream response, the error body is itself a stream, so drain
+   * it (bounded) to recover the provider's message; otherwise read it directly.
+   */
+  private async chatErrorMessage(err: any, key: string, streamed = false): Promise<string> {
+    let body = err?.response?.data;
+    if (streamed && body && typeof body.on === 'function') {
+      body = await this.drainStream(body as NodeJS.ReadableStream);
+      try {
+        body = JSON.parse(body as string);
+      } catch {
+        // leave as raw string
+      }
+    }
+    const serverMsg =
+      (body && typeof body === 'object' && ((body as any)?.error?.message || (body as any)?.error)) ||
+      (typeof body === 'string' ? body : '') ||
+      err?.message ||
+      'Không gọi được Hermes API.';
+    const text = typeof serverMsg === 'string' ? serverMsg : JSON.stringify(serverMsg);
+    return redactSecret(text, key).slice(0, 400);
+  }
+
+  /** Drain a readable stream to a bounded string (best-effort; never throws). */
+  private drainStream(stream: NodeJS.ReadableStream, maxBytes = 8192): Promise<string> {
+    return new Promise((resolve) => {
+      let out = '';
+      let done = false;
+      const finish = () => {
+        if (!done) {
+          done = true;
+          resolve(out);
+        }
+      };
+      const timer = setTimeout(finish, 3000);
+      stream.on('data', (c: Buffer) => {
+        if (out.length < maxBytes) out += c.toString('utf8');
+      });
+      stream.on('end', () => {
+        clearTimeout(timer);
+        finish();
+      });
+      stream.on('error', () => {
+        clearTimeout(timer);
+        finish();
+      });
+    });
   }
 
   /**
