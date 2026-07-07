@@ -3,7 +3,17 @@
 import { IZZI_WEB_BASE } from './config/public-config';
 import { app, BrowserWindow, ipcMain, shell, dialog, nativeImage } from 'electron';
 import * as path from 'path';
+import * as fs from 'fs';
 import { execFile } from 'child_process';
+
+/**
+ * First-party utilities shipped WITH the app — installable offline from
+ * `resources/bundled-extensions/`, no Marketplace download server needed.
+ * Keyed by the marketplace/extension id.
+ */
+const BUNDLED_OCX: Record<string, string> = {
+  'ext-social-auto-poster': 'social-auto-poster-0.1.0.ocx',
+};
 import { AuthManager } from './auth/auth-manager';
 import { DatabaseManager } from './db/database';
 import { SyncEngine } from './sync/sync-engine';
@@ -385,6 +395,15 @@ function setupIPC() {
   // Install from marketplace (download + install .ocx)
   ipcMain.handle('extensions:runtime:installFromMarketplace', async (_event, extensionId: string) => {
     try {
+      // First-party bundled utilities install offline from a shipped .ocx — no download server.
+      const bundledFile = BUNDLED_OCX[extensionId];
+      if (bundledFile) {
+        const bundledPath = path.join(process.resourcesPath, 'bundled-extensions', bundledFile);
+        if (fs.existsSync(bundledPath)) {
+          const ext = await extensionLoader.installFromOcx(bundledPath);
+          return { success: true, extension: { id: ext.id, name: ext.name, displayName: ext.manifest.displayName }, bundled: true };
+        }
+      }
       const token = await authManager.getAccessToken?.();
       const authToken = token || undefined;
       const { success, extensionPath, error } = await installFromMarketplace(extensionId, authToken);

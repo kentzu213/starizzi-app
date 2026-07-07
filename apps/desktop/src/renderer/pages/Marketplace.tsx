@@ -24,7 +24,7 @@ const CATEGORIES = ['Tất cả', 'SEO', 'Marketing', 'Content', 'Analytics', 'E
 // Demo fallback data
 const DEMO_EXTENSIONS: MarketplaceExtension[] = [
   { id: 'ext-seo-scanner', name: 'smart-seo-scanner', displayName: 'Smart SEO Scanner', description: 'Quét và phân tích SEO tự động cho website. Tìm lỗi meta tags, broken links, và tối ưu on-page.', author: 'SEO Tools Inc.', version: '1.2.0', category: 'SEO', rating: 4.8, installs: 12500, price: null, icon: '🔍' },
-  { id: 'ext-social-auto', name: 'social-auto-poster', displayName: 'Social Auto Poster', description: 'Tự động đăng bài lên Facebook, Instagram, Twitter. Lên lịch và quản lý nội dung đa nền tảng.', author: 'MarketBot Team', version: '2.0.1', category: 'Marketing', rating: 4.5, installs: 8900, price: { monthly: 9.99, yearly: 99.99 }, icon: '📱' },
+  { id: 'ext-social-auto-poster', name: 'social-auto-poster', displayName: 'Social Auto Poster', description: 'Lên lịch & tự động đăng bài Facebook Page qua backend đã cài (aitoearn). Agent gọi trực tiếp được.', author: 'Starizzi', version: '0.1.0', category: 'Marketing', rating: 4.5, installs: 8900, price: { monthly: 9.99, yearly: 99.99 }, icon: '📱' },
   { id: 'ext-ai-content', name: 'ai-content-writer', displayName: 'AI Content Writer', description: 'Viết nội dung marketing, blog, email bằng AI. Hỗ trợ tiếng Việt và 30+ ngôn ngữ.', author: 'ContentAI Co.', version: '3.1.0', category: 'Content', rating: 4.9, installs: 25000, price: { monthly: 19.99, yearly: 199.99 }, icon: '✨' },
   { id: 'ext-analytics', name: 'deep-analytics', displayName: 'Deep Analytics Dashboard', description: 'Dashboard phân tích traffic, conversion, user behavior. Tích hợp Google Analytics và Facebook Pixel.', author: 'DataViz Studio', version: '1.5.0', category: 'Analytics', rating: 4.7, installs: 15200, price: null, icon: '📊' },
   { id: 'ext-email-campaign', name: 'email-campaign-pro', displayName: 'Email Campaign Pro', description: 'Tạo và gửi email marketing chuyên nghiệp. A/B testing, automation workflows, và analytics.', author: 'MailFlow Solutions', version: '2.3.0', category: 'Email', rating: 4.6, installs: 6700, price: { monthly: 14.99, yearly: 149.99 }, icon: '📧' },
@@ -135,8 +135,14 @@ export function MarketplacePage() {
   async function loadInstalled() {
     try {
       if (window.electronAPI) {
+        const ids = new Set<string>();
         const installed = await window.electronAPI.extensions.list();
-        setInstalledIds(new Set(installed.map((e: any) => e.id)));
+        installed.forEach((e: any) => ids.add(e.id));
+        // Also treat runtime-loaded extensions (installed on disk / first-party bundled) as installed.
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const runtime = await (window as any).electronAPI.extensionRuntime?.list?.();
+        (runtime || []).forEach((e: any) => ids.add(e.id));
+        setInstalledIds(ids);
       }
     } catch {}
   }
