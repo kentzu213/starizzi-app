@@ -383,6 +383,16 @@ const electronAPI = {
     },
   },
 
+  // Gateway chat-history persistence (main SQLite `user_data`). Survives restart.
+  // Sessions carry no secrets (the Izzi key never leaves main).
+  gatewaySessions: {
+    list: (): Promise<unknown[]> => ipcRenderer.invoke('gatewaySessions:list'),
+    save: (session: unknown): Promise<{ ok: boolean }> =>
+      ipcRenderer.invoke('gatewaySessions:save', session),
+    delete: (id: string): Promise<{ ok: boolean }> =>
+      ipcRenderer.invoke('gatewaySessions:delete', id),
+  },
+
   affiliate: {
     stats: (): Promise<AffiliateStats | null> => ipcRenderer.invoke('affiliate:stats'),
     commissions: (): Promise<AffiliateCommission[]> => ipcRenderer.invoke('affiliate:commissions'),

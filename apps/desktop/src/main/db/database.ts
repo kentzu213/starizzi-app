@@ -180,6 +180,10 @@ export class DatabaseManager {
       .filter((value) => value !== undefined);
   }
 
+  deleteUserData(id: string): void {
+    this.db.prepare('DELETE FROM user_data WHERE id = ?').run(id);
+  }
+
   getDirtyData(): any[] {
     return this.db
       .prepare<[], UserDataRow>(

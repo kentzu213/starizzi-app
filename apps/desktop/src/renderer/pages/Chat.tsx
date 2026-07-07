@@ -56,14 +56,16 @@ export function ChatPage({ user, onBuyApi, onNavigateToDashboard, onNavigateToAg
   const gwRefreshStatuses = useAgentGatewayStore((state) => state.refreshAgentStatuses);
   const gwReconfiguringId = useAgentGatewayStore((state) => state.reconfiguringSessionId);
   const gwSetReasoningEffort = useAgentGatewayStore((state) => state.setReasoningEffort);
+  const gwHydrate = useAgentGatewayStore((state) => state.hydrateFromDisk);
 
   // Reflect real Docker running-state in the agent rail + picker on the Chat
   // surface. The gateway store resets every launch with all agents
   // 'not-installed', so without this a running container (e.g. Hermes) shows
   // "Chưa cài" here even though `docker ps` sees it. Mirrors AgentStore's sync.
   useEffect(() => {
+    void gwHydrate(); // restore persisted chat history (survives app restart)
     void gwRefreshStatuses();
-  }, [gwRefreshStatuses]);
+  }, [gwHydrate, gwRefreshStatuses]);
 
   // Re-sync when the agent picker opens, in case a container started/stopped
   // after the page mounted.

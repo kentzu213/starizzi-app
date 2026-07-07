@@ -22,7 +22,7 @@ import {
   type ExtensionToolHost,
 } from './extension-tools';
 import { createStreamCollector, type AgentTurnEvent } from '../../shared/agent-turn-events';
-import type { AgentSessionCapturer } from './agent-session-graph';
+import type { SessionRecorder } from './agent-session-recorder';
 
 const IZZI_LLM_BASE = process.env.OPENAI_BASE_URL || 'https://api.izziapi.com/v1';
 const MAX_TOOL_ITERATIONS = 5;
@@ -177,17 +177,17 @@ export class IzziAgent {
  * (main process) and NEVER crosses the bridge — the renderer only receives
  * `{ reply, error }`.
  */
-export function registerIzziAgentIpc(agent: IzziAgent, capturer?: AgentSessionCapturer): void {
+export function registerIzziAgentIpc(agent: IzziAgent, recorder?: SessionRecorder): void {
   ipcMain.handle('izziAgent:chat', async (event, payload: IzziAgentChatPayload) => {
     const turnId = typeof payload?.turnId === 'string' ? payload.turnId : '';
     const startedAt = new Date().toISOString();
-    // Forward live process events to the renderer; collect steps for graph capture.
+    // Forward live process events to the renderer; collect steps for the record.
     const collector = createStreamCollector((evt) => event.sender.send('agentStream:event', evt));
     const result = await agent.chat(payload, turnId ? collector.onEvent : undefined);
 
-    // Best-effort my-graph work-session capture (fail-closed inside the capturer).
-    if (capturer && payload?.agentId && typeof result.reply === 'string' && result.reply.length > 0) {
-      void capturer.capture({
+    // Record the finished turn into the unified surfaces (my-graph + Replay tasks).
+    if (recorder && payload?.agentId && typeof result.reply === 'string' && result.reply.length > 0) {
+      recorder.record({
         agentId: payload.agentId,
         agentName: payload.agentName || payload.agentId,
         model: payload.model,
@@ -196,6 +196,7 @@ export function registerIzziAgentIpc(agent: IzziAgent, capturer?: AgentSessionCa
         steps: collector.steps(),
         startedAt,
         finishedAt: new Date().toISOString(),
+        turnId,
       });
     }
     return result;

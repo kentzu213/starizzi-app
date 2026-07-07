@@ -42,6 +42,8 @@ export interface AgentSessionInput {
   steps?: AgentStep[];
   startedAt: string;
   finishedAt: string;
+  /** The assistant message id for this turn — used as a stable task/source id. */
+  turnId?: string;
 }
 
 const MAX_TITLE = 80;

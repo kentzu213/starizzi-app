@@ -14,6 +14,20 @@ import type {
 } from '../types/agent-registry';
 import { TOP_AGENTS } from '../types/agent-registry';
 import type { AgentTurnEvent } from '../../shared/agent-turn-events';
+import { sanitizeStoredSessions, capForPersist, pickActiveId } from './gatewayPersist';
+
+interface GatewayPersistApi {
+  list?: () => Promise<unknown[]>;
+  save?: (session: unknown) => Promise<unknown>;
+  delete?: (id: string) => Promise<unknown>;
+}
+
+/** Access the main-process gateway persistence bridge (absent in browser dev). */
+function gatewayPersistApi(): GatewayPersistApi | undefined {
+  if (typeof window === 'undefined') return undefined;
+  return (window as unknown as { electronAPI?: { gatewaySessions?: GatewayPersistApi } }).electronAPI
+    ?.gatewaySessions;
+}
 
 function createLocalId(prefix: string): string {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
@@ -36,9 +50,15 @@ interface AgentGatewayState {
   /** Session id currently being reconfigured (e.g. reasoning effort → container restart). */
   reconfiguringSessionId: string | null;
 
+  /** True once chat history has been restored from disk (guards a double-load). */
+  hydrated: boolean;
+
   // Actions — Agent management
   updateAgentStatus: (agentId: string, status: ExternalAgentStatus, version?: string) => void;
   refreshAgentStatuses: () => Promise<void>;
+
+  /** Restore persisted chat sessions from the main-process store (once). */
+  hydrateFromDisk: () => Promise<void>;
 
   /** Apply a live turn event (content/reasoning/step) to its assistant message. */
   applyStreamEvent: (event: AgentTurnEvent) => void;
@@ -65,6 +85,28 @@ export const useAgentGatewayStore = create<AgentGatewayState>((set, get) => ({
   isSending: false,
   errorMessage: null,
   reconfiguringSessionId: null,
+  hydrated: false,
+
+  hydrateFromDisk: async () => {
+    if (get().hydrated) return;
+    const api = gatewayPersistApi();
+    if (!api?.list) {
+      set({ hydrated: true });
+      return;
+    }
+    try {
+      const raw = await api.list();
+      const restored = sanitizeStoredSessions(raw);
+      // Don't clobber sessions the user already opened this launch.
+      if (restored.length > 0 && get().sessions.length === 0) {
+        set({ sessions: restored, activeSessionId: pickActiveId(restored), hydrated: true });
+      } else {
+        set({ hydrated: true });
+      }
+    } catch {
+      set({ hydrated: true });
+    }
+  },
 
   updateAgentStatus: (agentId, status, version) => {
     set((state) => ({
@@ -170,6 +212,8 @@ export const useAgentGatewayStore = create<AgentGatewayState>((set, get) => ({
   },
 
   closeAgentChat: (sessionId) => {
+    // Drop the persisted copy too, so a closed tab doesn't come back on restart.
+    void gatewayPersistApi()?.delete?.(sessionId);
     set((state) => {
       const nextSessions = state.sessions.filter((s) => s.id !== sessionId);
       const nextActiveId =
@@ -547,5 +591,20 @@ if (typeof window !== 'undefined') {
   ).electronAPI?.agentStream;
   streamApi?.onEvent?.((evt) => {
     useAgentGatewayStore.getState().applyStreamEvent(evt);
+  });
+
+  // Restore chat history once on load (survives app restart)...
+  void useAgentGatewayStore.getState().hydrateFromDisk();
+
+  // ...and persist sessions (debounced) whenever they change, so history is durable.
+  let persistTimer: ReturnType<typeof setTimeout> | undefined;
+  useAgentGatewayStore.subscribe((state, prev) => {
+    if (state.sessions === prev.sessions) return;
+    if (persistTimer) clearTimeout(persistTimer);
+    persistTimer = setTimeout(() => {
+      const api = gatewayPersistApi();
+      if (!api?.save) return;
+      for (const s of capForPersist(useAgentGatewayStore.getState().sessions)) void api.save(s);
+    }, 700);
   });
 }

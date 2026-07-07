@@ -38,6 +38,7 @@ import { DockerAgentService, type DockerAgentPayload } from './agents/docker-age
 import { IzziAgent, registerIzziAgentIpc } from './agents/izzi-agent';
 import { IzziLlmProxy } from './agents/izzi-llm-proxy';
 import { AgentSessionCapturer } from './agents/agent-session-graph';
+import { SessionRecorder } from './agents/agent-session-recorder';
 import { createStreamCollector } from '../shared/agent-turn-events';
 
 let mainWindow: BrowserWindow | null = null;
@@ -232,8 +233,24 @@ function setupIPC() {
   const graphClient = new GraphClient(authManager, dbManager);
   registerGraphIpc(graphClient);
 
-  // Agent-side write loop: persist each agent work-session into the personal graph.
-  const sessionCapturer = new AgentSessionCapturer(graphClient);
+  // Agent-side write loop: record each finished agent turn into the unified
+  // surfaces — my-graph (knowledge) + Replay tasks (daily work board).
+  const sessionRecorder = new SessionRecorder(new AgentSessionCapturer(graphClient), dbManager);
+
+  // Gateway chat history persistence (survives restart). Stored as `user_data`
+  // rows (type 'gateway_session'); no secrets are ever included (the Izzi key
+  // lives only in main and never reaches the renderer/session objects).
+  ipcMain.handle('gatewaySessions:list', async () => dbManager.getUserData('gateway_session'));
+  ipcMain.handle('gatewaySessions:save', async (_e, session: { id?: unknown }) => {
+    if (session && typeof session.id === 'string' && session.id.length > 0) {
+      dbManager.cacheUserData(session.id, 'gateway_session', session as object);
+    }
+    return { ok: true };
+  });
+  ipcMain.handle('gatewaySessions:delete', async (_e, id: string) => {
+    if (typeof id === 'string' && id.length > 0) dbManager.deleteUserData(id);
+    return { ok: true };
+  });
 
   // Open the user's personal graph on the web (same second-brain data) in the browser.
   ipcMain.handle('graph:openMyGraphWeb', async () => {
@@ -258,7 +275,7 @@ function setupIPC() {
     executeCommand: (extensionId, commandId, ...args) =>
       extensionLoader.executeCommand(extensionId, commandId, ...args),
   });
-  registerIzziAgentIpc(izziAgent, sessionCapturer);
+  registerIzziAgentIpc(izziAgent, sessionRecorder);
 
   // ── Extensions (basic) ──
   ipcMain.handle('extensions:list', async () => {
@@ -542,7 +559,7 @@ function setupIPC() {
       );
 
       if (payload?.id && result.ok && typeof result.reply === 'string' && result.reply.length > 0) {
-        void sessionCapturer.capture({
+        sessionRecorder.record({
           agentId: payload.id,
           agentName: payload.agentName || payload.id,
           model: 'hermes',
@@ -552,6 +569,7 @@ function setupIPC() {
           steps: collector.steps(),
           startedAt,
           finishedAt: new Date().toISOString(),
+          turnId,
         });
       }
       return result;
