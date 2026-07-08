@@ -531,13 +531,19 @@ export const useAgentGatewayStore = create<AgentGatewayState>((set, get) => ({
         // Honest error from the agent/provider (no fallback simulation).
         const rawErr = String(r.error ?? 'không rõ');
         const isConnErr = /econnrefused|econnreset|\bconnect\b|fetch failed|socket hang up|network|timed? ?out/i.test(rawErr);
+        // Empty reply = the container ran but has no model behind it (upstream not
+        // configured). The real fix is wiring a model in the "Kết nối Model" tab.
+        const isEmptyReply = /rỗng|empty|chưa cấu hình model|provider/i.test(rawErr);
         const errReply = isConnErr
           ? `⚠️ ${agent.displayName} chưa kết nối được (agent chưa chạy hoặc đang khởi động).\n\n**Lỗi:** ${rawErr}\n\n` +
             'Thử gửi lại sau vài giây (agent có thể đang khởi động), hoặc mở Agent Hub → chạy lại agent. ' +
             'Đảm bảo Docker đang chạy.'
-          : `⚠️ ${agent.displayName} chưa trả lời được.\n\n**Lỗi:** ${rawErr}\n\n` +
-            'Nếu lỗi liên quan tới provider/model, hãy cấu hình model provider (API key) ' +
-            'hoặc chạy `hermes setup` cho agent, rồi thử lại.';
+          : isEmptyReply
+            ? `⚠️ ${agent.displayName} trả về phản hồi rỗng (chưa có model phía sau).\n\n**Lỗi:** ${rawErr}\n\n` +
+              'Cách khắc phục nhanh: mở tab **"Kết nối Model"** ở thanh bên → nối **codex-lb** (hoặc 9router) → **Lưu & Bật**, ' +
+              'rồi chat lại. Khi đã bật, mọi agent sẽ chat qua model đó.'
+            : `⚠️ ${agent.displayName} chưa trả lời được.\n\n**Lỗi:** ${rawErr}\n\n` +
+              'Thử mở tab "Kết nối Model" để nối codex-lb / 9router, hoặc cấu hình model provider rồi thử lại.';
 
         set((state) => ({
           isSending: false,

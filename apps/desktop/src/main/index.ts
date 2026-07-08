@@ -757,9 +757,50 @@ function setupIPC() {
   });
 }
 
+/**
+ * Zero-config local model connection. If the machine exposes a codex-lb key in
+ * the environment (CODEX_LB_API_KEY — the same var the Codex CLI uses), wire the
+ * app's custom provider to the local codex-lb router (127.0.0.1:2455, gpt-5.5) so
+ * the gateway's non-izzi agents chat through it out of the box — no manual setup.
+ *
+ * Best-effort + non-destructive: it never overwrites a connection the user has
+ * already configured, and the key value is only referenced by name (never logged).
+ */
+function autoConnectCodexLb(db: DatabaseManager): void {
+  try {
+    const envKey = (process.env.CODEX_LB_API_KEY || process.env.CODEX_LB_KEY || '').trim();
+    if (!envKey) return;
+
+    const settings = new ProviderSettingsStore(db);
+    const secrets = new SecretStore(db);
+    // Respect an existing user connection — don't clobber their config or key.
+    if (settings.getConfig() || secrets.hasKey()) return;
+
+    settings.saveConfig({
+      baseUrl: 'http://127.0.0.1:2455/v1',
+      authType: 'bearer',
+      selectedModel: 'gpt-5.5',
+    });
+    secrets.setKey(envKey);
+    settings.setEnabled(true);
+    db.appendDiagnosticEvent({
+      type: 'model_connection.autoconnect',
+      status: 'info',
+      detail: 'Auto-connected local codex-lb from CODEX_LB_API_KEY env.',
+    });
+    console.log('[OpenClaw] Auto-connected local codex-lb (CODEX_LB_API_KEY present)');
+  } catch {
+    // Best-effort: a failure here must never block startup.
+  }
+}
+
 async function initServices() {
   dbManager = new DatabaseManager();
   dbManager.initialize();
+
+  // Zero-config: wire the app to a local codex-lb router when its key is in the
+  // environment, so chat works without opening the "Kết nối Model" tab first.
+  autoConnectCodexLb(dbManager);
 
   authManager = new AuthManager(dbManager);
 
