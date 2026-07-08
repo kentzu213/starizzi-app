@@ -27,16 +27,22 @@ export const DEFAULT_AUTOPOST_BACKEND = (process.env.AUTOPOST_BACKEND_URL || 'ht
 /** Refresh a little before actual expiry so an in-flight request never uses a dead token. */
 const REFRESH_MARGIN_MS = 60_000;
 
+/** Decode a JWT payload object, or null when absent/unparseable. Pure. */
+export function decodeJwtPayload(jwt: string): Record<string, unknown> | null {
+  const parts = jwt.split('.');
+  if (parts.length < 2) return null;
+  try {
+    const obj = JSON.parse(Buffer.from(parts[1], 'base64').toString('utf8')) as unknown;
+    return obj && typeof obj === 'object' ? (obj as Record<string, unknown>) : null;
+  } catch {
+    return null;
+  }
+}
+
 /** Decode a JWT's `exp` (seconds) → milliseconds, or 0 when absent/unparseable. Pure. */
 export function jwtExpiryMs(jwt: string): number {
-  const parts = jwt.split('.');
-  if (parts.length < 2) return 0;
-  try {
-    const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString('utf8')) as { exp?: unknown };
-    return typeof payload.exp === 'number' ? payload.exp * 1000 : 0;
-  } catch {
-    return 0;
-  }
+  const payload = decodeJwtPayload(jwt);
+  return payload && typeof payload.exp === 'number' ? payload.exp * 1000 : 0;
 }
 
 interface AutopostSyncResponse {
@@ -52,6 +58,7 @@ interface AutopostSyncResponse {
 export class AutopostAuth {
   private token: string | null = null;
   private tokenExpMs = 0;
+  private workspaceId: string | null = null;
 
   constructor(
     private readonly auth: AuthManager,
@@ -61,6 +68,11 @@ export class AutopostAuth {
   /** Normalized backend base (no trailing slash). */
   get baseUrl(): string {
     return this.backendUrl.replace(/\/+$/, '');
+  }
+
+  /** The Active_Workspace id for the minted token (from sync response / JWT claim). */
+  getWorkspaceId(): string | null {
+    return this.workspaceId;
   }
 
   /**
@@ -87,6 +99,9 @@ export class AutopostAuth {
       if (!token) return null;
       this.token = token;
       this.tokenExpMs = jwtExpiryMs(token) || Date.now() + 30 * 60 * 1000;
+      const claimWs = decodeJwtPayload(token)?.workspaceId;
+      this.workspaceId =
+        data.defaultWorkspace?.id ?? (typeof claimWs === 'string' ? claimWs : this.workspaceId);
       return token;
     } catch {
       return null;
@@ -97,5 +112,6 @@ export class AutopostAuth {
   clear(): void {
     this.token = null;
     this.tokenExpMs = 0;
+    this.workspaceId = null;
   }
 }

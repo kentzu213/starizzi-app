@@ -226,6 +226,18 @@ const electronAPI = {
     clearWorkingDir: (): Promise<{ dir: string }> => ipcRenderer.invoke('agentPermission:clearWorkingDir'),
   },
 
+  autopost: {
+    getStatus: (): Promise<{
+      enabled: boolean;
+      connected: boolean;
+      backendUrl: string;
+      workspaceId: string | null;
+      accounts: number | null;
+    }> => ipcRenderer.invoke('autopost:getStatus'),
+    setEnabled: (enabled: boolean): Promise<{ ok: boolean; enabled: boolean }> =>
+      ipcRenderer.invoke('autopost:setEnabled', enabled),
+  },
+
   integrations: {
     list: (): Promise<IntegrationConnection[]> => ipcRenderer.invoke('integrations:list'),
     beginConnect: (provider: IntegrationProvider): Promise<{ provider: IntegrationProvider; url: string }> =>

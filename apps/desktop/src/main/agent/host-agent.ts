@@ -13,7 +13,7 @@
  */
 import { buildAuthHeaders, resolveChatCompletionsUrl } from './custom-openai-provider';
 import type { CustomProviderConfig } from './provider-settings-store';
-import { HOST_TOOLS, classifyToolRisk, executeHostTool, summarizeToolCall, type ToolRisk } from './agent-tools';
+import { HOST_TOOLS, classifyToolRisk, executeHostTool, summarizeToolCall, type OpenAiTool, type ToolRisk } from './agent-tools';
 import { needsApproval, type PermissionMode } from './agent-permissions';
 import { extractSseEvents, type AgentTurnEvent } from '../../shared/agent-turn-events';
 
@@ -55,6 +55,12 @@ export interface HostAgentTurnOptions {
   requestApproval: RequestApproval;
   emit?: (evt: AgentTurnEvent) => void;
   redact?: (t: string) => string;
+  /** Extra tool schemas advertised alongside the host tools (e.g. Auto-Post). */
+  extraTools?: OpenAiTool[];
+  /** Execute an extra tool; return undefined to fall back to the host-tool executor. */
+  executeExtra?: (name: string, args: Record<string, unknown>) => Promise<string | undefined>;
+  /** Risk for an extra tool; return undefined to fall back to the host-tool classifier. */
+  classifyExtraRisk?: (name: string) => ToolRisk | undefined;
 }
 
 function buildUserContent(message: string, images: string[]): unknown {
@@ -150,6 +156,7 @@ export async function runHostAgentTurn(opts: HostAgentTurnOptions): Promise<{ re
     ...buildAuthHeaders(config.authType, apiKey),
   };
   const model = config.selectedModel;
+  const tools = opts.extraTools && opts.extraTools.length ? [...HOST_TOOLS, ...opts.extraTools] : HOST_TOOLS;
 
   const systemContent = workingDir
     ? `${SYSTEM_PROMPT}\n\nYour working directory is: ${workingDir}. Use it as the default location for commands and as the base for relative file paths.`
@@ -169,7 +176,7 @@ export async function runHostAgentTurn(opts: HostAgentTurnOptions): Promise<{ re
       const { content, toolCalls } = await streamChatTurn(
         url,
         headers,
-        { model, messages, tools: HOST_TOOLS, tool_choice: 'auto', stream: true },
+        { model, messages, tools, tool_choice: 'auto', stream: true },
         (text) => emit?.({ turnId, kind: 'delta', text }),
       );
 
@@ -202,7 +209,7 @@ export async function runHostAgentTurn(opts: HostAgentTurnOptions): Promise<{ re
         } catch {
           args = {};
         }
-        const risk = classifyToolRisk(name);
+        const risk = opts.classifyExtraRisk?.(name) ?? classifyToolRisk(name);
         const label = summarizeToolCall(name, args);
         emit?.({ turnId, kind: 'step', step: { id: stepId, kind: 'tool', label, status: 'running' } });
 
@@ -219,7 +226,8 @@ export async function runHostAgentTurn(opts: HostAgentTurnOptions): Promise<{ re
           // 'once' → proceed with just this action.
         }
 
-        const result = await executeHostTool(name, args, { workingDir });
+        let result = opts.executeExtra ? await opts.executeExtra(name, args) : undefined;
+        if (result === undefined) result = await executeHostTool(name, args, { workingDir });
         const isErr = result.startsWith('error:');
         emit?.({
           turnId,

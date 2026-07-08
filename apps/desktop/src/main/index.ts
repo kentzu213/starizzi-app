@@ -33,6 +33,9 @@ import { SecretStore } from './agent/secret-store';
 import { CustomOpenAIProvider } from './agent/custom-openai-provider';
 import { runHostAgentTurn } from './agent/host-agent';
 import { AgentPermissionStore, isPermissionMode, type PermissionMode } from './agent/agent-permissions';
+import { AutopostAuth } from './autopost/autopost-auth';
+import { AutopostClient } from './autopost/autopost-client';
+import { AUTOPOST_TOOLS, classifyAutopostRisk, executeAutopostTool, isAutopostTool } from './autopost/autopost-tools';
 import { IntegrationsService } from './integrations/integrations-service';
 import { OnboardingService } from './onboarding/onboarding-service';
 import type { AgentTaskStatus, IntegrationProvider } from './agent/types';
@@ -54,6 +57,7 @@ let extensionManager: ExtensionManager;
 let extensionLoader: ExtensionLoader;
 let updateChecker: ExtensionUpdateChecker;
 let agentService: AgentService;
+let autopostAuth: AutopostAuth;
 let integrationsService: IntegrationsService;
 let onboardingService: OnboardingService;
 let updaterService: UpdaterService;
@@ -729,6 +733,41 @@ function setupIPC() {
     return { dir: '' };
   });
 
+  // Auto-Post connection (autopost-unification): enable flag + status. When enabled,
+  // the agent gains Auto-Post tools; the JWT is minted from the izzi/Supabase session.
+  ipcMain.handle(
+    'autopost:getStatus',
+    async (): Promise<{ enabled: boolean; connected: boolean; backendUrl: string; workspaceId: string | null; accounts: number | null }> => {
+      const enabled = dbManager.getSetting('autopost_enabled') === '1';
+      let connected = false;
+      let accounts: number | null = null;
+      if (enabled) {
+        const jwt = await autopostAuth.getJwt();
+        connected = !!jwt;
+        if (connected) {
+          try {
+            const r = await new AutopostClient(autopostAuth).listAccounts();
+            if (r.ok && Array.isArray(r.data)) accounts = (r.data as unknown[]).length;
+          } catch {
+            /* status is best-effort */
+          }
+        }
+      }
+      return {
+        enabled,
+        connected,
+        backendUrl: autopostAuth.baseUrl,
+        workspaceId: autopostAuth.getWorkspaceId(),
+        accounts,
+      };
+    },
+  );
+  ipcMain.handle('autopost:setEnabled', async (_event, enabled: boolean): Promise<{ ok: boolean; enabled: boolean }> => {
+    dbManager.setSetting('autopost_enabled', enabled ? '1' : '0');
+    if (!enabled) autopostAuth.clear();
+    return { ok: true, enabled: !!enabled };
+  });
+
   // Chat directly against the user-configured OpenAI-compatible endpoint
   // (codex-lb / 9router / any OpenAI-compatible). Streams content deltas to the
   // renderer via 'agentStream:event' (correlated by turnId) and returns the full
@@ -776,6 +815,10 @@ function setupIPC() {
       const permMode = permStore.getMode();
       if (permMode === 'agent' || permMode === 'agent-full') {
         const win = BrowserWindow.fromWebContents(event.sender) ?? mainWindow;
+        // Auto-Post tools: when the user enabled the Auto-Post connection, give the
+        // agent list/draft/schedule capabilities via REST (JWT from the izzi session).
+        // Drafting is safe; scheduling is risk-gated by the same approval flow.
+        const autopostClient = dbManager.getSetting('autopost_enabled') === '1' ? new AutopostClient(autopostAuth) : null;
         const result = await runHostAgentTurn({
           config: cfg,
           apiKey: key,
@@ -786,6 +829,13 @@ function setupIPC() {
           workingDir: permStore.getWorkingDir(),
           turnId,
           redact: (t) => secrets.redact(t),
+          extraTools: autopostClient ? AUTOPOST_TOOLS : undefined,
+          executeExtra: autopostClient
+            ? async (name, args) => (isAutopostTool(name) ? executeAutopostTool(autopostClient, name, args) : undefined)
+            : undefined,
+          classifyExtraRisk: autopostClient
+            ? (name) => (isAutopostTool(name) ? classifyAutopostRisk(name) : undefined)
+            : undefined,
           emit: (evt) => event.sender.send('agentStream:event', evt),
           requestApproval: async (req) => {
             if (!win || win.isDestroyed()) return 'deny';
@@ -937,6 +987,7 @@ async function initServices() {
   }
 
   agentService = new AgentService({ db: dbManager, auth: authManager });
+  autopostAuth = new AutopostAuth(authManager);
   integrationsService = new IntegrationsService(authManager, dbManager);
   onboardingService = new OnboardingService(dbManager);
   updaterService = new UpdaterService();
