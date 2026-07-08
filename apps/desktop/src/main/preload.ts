@@ -215,6 +215,14 @@ const electronAPI = {
       ipcRenderer.invoke('customProvider:chat', payload),
   },
 
+  agentPermission: {
+    getMode: (): Promise<'chat' | 'agent' | 'agent-full'> => ipcRenderer.invoke('agentPermission:getMode'),
+    setMode: (
+      mode: 'chat' | 'agent' | 'agent-full',
+    ): Promise<{ ok: boolean; mode: 'chat' | 'agent' | 'agent-full' }> =>
+      ipcRenderer.invoke('agentPermission:setMode', mode),
+  },
+
   integrations: {
     list: (): Promise<IntegrationConnection[]> => ipcRenderer.invoke('integrations:list'),
     beginConnect: (provider: IntegrationProvider): Promise<{ provider: IntegrationProvider; url: string }> =>

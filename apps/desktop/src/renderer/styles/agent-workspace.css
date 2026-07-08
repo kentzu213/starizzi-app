@@ -951,3 +951,45 @@
   gap: 8px;
   line-height: 1.55;
 }
+
+/* Agent permission mode selector (Chat / Agent / Full access) — Codex-style, composer footer */
+.chat-composer__footer {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 8px;
+  padding-left: 2px;
+  flex-wrap: wrap;
+}
+.chat-composer__perm {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--color-text-tertiary);
+}
+.chat-composer__perm-icon {
+  font-size: 13px;
+  line-height: 1;
+}
+.chat-composer__perm-select {
+  background: var(--color-bg-elevated);
+  color: var(--color-text-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: 4px 8px;
+  font-size: 12px;
+  cursor: pointer;
+}
+.chat-composer__perm-select:focus {
+  outline: none;
+  border-color: var(--color-border-accent);
+}
+.chat-composer__perm-select:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+.chat-composer__perm-warn {
+  font-size: 11px;
+  color: #f0b429;
+}

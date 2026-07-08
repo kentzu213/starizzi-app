@@ -31,6 +31,8 @@ import { AgentService } from './agent/agent-service';
 import { ProviderSettingsStore } from './agent/provider-settings-store';
 import { SecretStore } from './agent/secret-store';
 import { CustomOpenAIProvider } from './agent/custom-openai-provider';
+import { runHostAgentTurn } from './agent/host-agent';
+import { AgentPermissionStore, isPermissionMode, type PermissionMode } from './agent/agent-permissions';
 import { IntegrationsService } from './integrations/integrations-service';
 import { OnboardingService } from './onboarding/onboarding-service';
 import type { AgentTaskStatus, IntegrationProvider } from './agent/types';
@@ -692,6 +694,20 @@ function setupIPC() {
     },
   );
 
+  // Agent permission mode (Codex-style): 'chat' (no tools) | 'agent' (tools, ask
+  // before risky) | 'agent-full' (tools, no ask). Controls the customProvider path.
+  ipcMain.handle('agentPermission:getMode', async (): Promise<PermissionMode> => {
+    return new AgentPermissionStore(dbManager).getMode();
+  });
+  ipcMain.handle(
+    'agentPermission:setMode',
+    async (_event, mode: string): Promise<{ ok: boolean; mode: PermissionMode }> => {
+      const store = new AgentPermissionStore(dbManager);
+      if (isPermissionMode(mode)) store.setMode(mode);
+      return { ok: isPermissionMode(mode), mode: store.getMode() };
+    },
+  );
+
   // Chat directly against the user-configured OpenAI-compatible endpoint
   // (codex-lb / 9router / any OpenAI-compatible). Streams content deltas to the
   // renderer via 'agentStream:event' (correlated by turnId) and returns the full
@@ -731,6 +747,40 @@ function setupIPC() {
             )
             .slice(-8)
         : [];
+
+      // Agent modes give the model host tools (run/read/write/list) with approval
+      // gating — a real agent that acts on the machine. 'chat' keeps the plain
+      // streaming text path below (reads images, answers, no host access).
+      const permMode = new AgentPermissionStore(dbManager).getMode();
+      if (permMode === 'agent' || permMode === 'agent-full') {
+        const win = BrowserWindow.fromWebContents(event.sender) ?? mainWindow;
+        const result = await runHostAgentTurn({
+          config: cfg,
+          apiKey: key,
+          message,
+          history,
+          images,
+          mode: permMode,
+          turnId,
+          redact: (t) => secrets.redact(t),
+          emit: (evt) => event.sender.send('agentStream:event', evt),
+          requestApproval: async (req) => {
+            if (!win || win.isDestroyed()) return false;
+            const r = await dialog.showMessageBox(win, {
+              type: 'warning',
+              buttons: ['Từ chối', 'Cho phép'],
+              defaultId: 0,
+              cancelId: 0,
+              noLink: true,
+              title: 'Agent yêu cầu quyền',
+              message: 'Agent muốn thực hiện hành động trên máy của bạn:',
+              detail: req.summary,
+            });
+            return r.response === 1;
+          },
+        });
+        return result.error ? { error: result.error } : { reply: result.reply };
+      }
 
       const provider = new CustomOpenAIProvider(cfg, key, (t) => secrets.redact(t));
       let reply = '';

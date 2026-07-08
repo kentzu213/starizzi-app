@@ -26,6 +26,25 @@ interface ChatComposerProps {
 const MAX_IMAGES = 4;
 const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
 
+type PermMode = 'chat' | 'agent' | 'agent-full';
+
+/** Access the main-process agent-permission bridge (absent in browser dev). */
+function permApi():
+  | { getMode: () => Promise<PermMode>; setMode: (m: PermMode) => Promise<{ ok: boolean; mode: PermMode }> }
+  | undefined {
+  if (typeof window === 'undefined') return undefined;
+  return (
+    window as unknown as {
+      electronAPI?: {
+        agentPermission?: {
+          getMode: () => Promise<PermMode>;
+          setMode: (m: PermMode) => Promise<{ ok: boolean; mode: PermMode }>;
+        };
+      };
+    }
+  ).electronAPI?.agentPermission;
+}
+
 export function ChatComposer({
   value,
   images,
@@ -41,6 +60,28 @@ export function ChatComposer({
   const menuWrapRef = useRef<HTMLDivElement>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [dragOver, setDragOver] = useState(false);
+  const [permMode, setPermMode] = useState<PermMode>('chat');
+
+  // Load the persisted agent permission mode once (Chat / Agent / Full access).
+  useEffect(() => {
+    const api = permApi();
+    if (!api?.getMode) return;
+    void api
+      .getMode()
+      .then((m) => {
+        if (m === 'chat' || m === 'agent' || m === 'agent-full') setPermMode(m);
+      })
+      .catch(() => {
+        /* browser dev / no bridge */
+      });
+  }, []);
+
+  function changePermMode(m: PermMode) {
+    setPermMode(m);
+    void permApi()?.setMode?.(m).catch(() => {
+      /* best-effort */
+    });
+  }
 
   useEffect(() => {
     const textarea = textareaRef.current;
@@ -260,6 +301,32 @@ export function ChatComposer({
         >
           {isSubmitting ? 'Đang gửi...' : 'Gửi'}
         </button>
+      </div>
+      <div className="chat-composer__footer">
+        <label
+          className="chat-composer__perm"
+          title="Quyền của agent — Chat: chỉ trả lời (không đụng máy). Agent: chạy lệnh & sửa file nhưng hỏi bạn trước mỗi hành động rủi ro. Toàn quyền: tự chạy, không hỏi."
+        >
+          <span className="chat-composer__perm-icon" aria-hidden="true">
+            {permMode === 'chat' ? '💬' : permMode === 'agent' ? '🛡️' : '⚡'}
+          </span>
+          <select
+            className="chat-composer__perm-select"
+            value={permMode}
+            disabled={disabled}
+            onChange={(e) => changePermMode(e.target.value as PermMode)}
+            aria-label="Chế độ quyền của agent"
+          >
+            <option value="chat">Chat · chỉ trả lời</option>
+            <option value="agent">Agent · hỏi trước khi chạy</option>
+            <option value="agent-full">Agent · toàn quyền</option>
+          </select>
+        </label>
+        {permMode === 'agent-full' && (
+          <span className="chat-composer__perm-warn" title="Agent sẽ tự chạy lệnh và sửa file mà không hỏi.">
+            ⚠️ tự chạy, không hỏi
+          </span>
+        )}
       </div>
     </div>
   );

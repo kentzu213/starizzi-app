@@ -29,6 +29,19 @@ function buildUserContent(message: string, images: string[]): unknown {
   ];
 }
 
+/** Resolve the chat completions URL from a base URL, avoiding the double `/v1` bug. */
+export function resolveChatCompletionsUrl(baseUrl: string): string {
+  const base = baseUrl.replace(/\/$/, '');
+  if (/\/chat\/completions$/.test(base)) return base;
+  if (/\/v1$/.test(base)) return `${base}/chat/completions`;
+  return `${base}/v1/chat/completions`;
+}
+
+/** Build the auth header(s) for the given auth type (Bearer or x-api-key). */
+export function buildAuthHeaders(authType: 'bearer' | 'x-api-key', apiKey: string): Record<string, string> {
+  return authType === 'bearer' ? { Authorization: `Bearer ${apiKey}` } : { 'x-api-key': apiKey };
+}
+
 /**
  * Map an HTTP/error condition into a concise, key-free message (R6).
  * `redact` is supplied by the caller (SecretStore.redact) so any key in the
@@ -81,27 +94,15 @@ export class CustomOpenAIProvider implements ChatProvider {
    * - otherwise → append `/v1/chat/completions`
    */
   private getChatUrl(): string {
-    const base = this.config.baseUrl.replace(/\/$/, '');
-    if (/\/chat\/completions$/.test(base)) {
-      return base;
-    }
-    if (/\/v1$/.test(base)) {
-      return `${base}/chat/completions`;
-    }
-    return `${base}/v1/chat/completions`;
+    return resolveChatCompletionsUrl(this.config.baseUrl);
   }
 
   private buildHeaders(): Record<string, string> {
-    const headers: Record<string, string> = {
+    return {
       'Content-Type': 'application/json',
       Accept: 'text/event-stream',
+      ...buildAuthHeaders(this.config.authType, this.apiKey),
     };
-    if (this.config.authType === 'bearer') {
-      headers['Authorization'] = `Bearer ${this.apiKey}`;
-    } else {
-      headers['x-api-key'] = this.apiKey;
-    }
-    return headers;
   }
 
   async *streamChat(
