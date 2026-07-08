@@ -243,3 +243,94 @@
   max-height: 220px;
   overflow: auto;
 }
+
+/* ── Live "working" indicator (shown while streaming before any content) ── */
+.chat-working {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--color-text-secondary);
+  font-size: 13px;
+}
+.chat-working__dots {
+  display: inline-flex;
+  gap: 4px;
+}
+.chat-working__dots i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--color-accent-cyan);
+  animation: chat-working-bounce 1.2s ease-in-out infinite;
+}
+.chat-working__dots i:nth-child(2) { animation-delay: 0.15s; }
+.chat-working__dots i:nth-child(3) { animation-delay: 0.3s; }
+@keyframes chat-working-bounce {
+  0%, 80%, 100% { opacity: 0.3; transform: translateY(0); }
+  40% { opacity: 1; transform: translateY(-3px); }
+}
+
+/* Streaming state chip reads as "alive" (cyan + soft pulse). */
+.chat-message__state--streaming {
+  color: var(--color-accent-cyan);
+  animation: chat-state-pulse 1.4s ease-in-out infinite;
+}
+@keyframes chat-state-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.55; }
+}
+
+/* ── Copy-message affordance ── */
+.chat-message__copy {
+  padding: 2px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
+  background: transparent;
+  color: var(--color-text-tertiary);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  opacity: 0.55;
+  transition: opacity 0.15s, color 0.15s, border-color 0.15s;
+}
+.chat-message:hover .chat-message__copy,
+.chat-message__copy:focus-visible {
+  opacity: 1;
+}
+.chat-message__copy:hover {
+  color: var(--color-accent-cyan);
+  border-color: var(--color-border-accent);
+}
+
+/* ── Selectable chat text (base layer sets `user-select: none` on the whole app;
+   re-enable it inside chat content so the user can highlight + copy). ── */
+.chat-message__content,
+.chat-reasoning__body,
+.chat-step__label,
+.chat-step__detail {
+  -webkit-user-select: text;
+  user-select: text;
+  cursor: text;
+}
+
+/* ── Pasted image thumbnails inside a message bubble ── */
+.chat-message__images {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.chat-message__image {
+  max-width: 220px;
+  max-height: 220px;
+  border-radius: 12px;
+  border: 1px solid var(--color-border);
+  object-fit: cover;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chat-working__dots i,
+  .chat-message__state--streaming {
+    animation: none;
+  }
+}

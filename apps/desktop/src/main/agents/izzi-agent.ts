@@ -44,6 +44,8 @@ export interface IzziAgentChatPayload {
   /** Identifies the agent for my-graph work-session capture. */
   agentId?: string;
   agentName?: string;
+  /** Pasted image attachments as data URLs; sent as multimodal `image_url` parts. */
+  images?: string[];
 }
 
 export interface IzziAgentChatResult {
@@ -52,6 +54,24 @@ export interface IzziAgentChatResult {
 }
 
 const ROLES = new Set(['system', 'user', 'assistant']);
+
+/** True for a base64 data URL that carries an image (the only image form we accept). */
+function isDataImage(u: unknown): u is string {
+  return typeof u === 'string' && u.startsWith('data:image/');
+}
+
+/**
+ * Build the OpenAI-compatible `content` for a user turn: a plain string when
+ * there are no images, or a content-parts array (text + image_url) when images
+ * are attached. Vision-capable Izzi models read the image_url parts.
+ */
+function buildUserContent(message: string, images: string[]): unknown {
+  if (images.length === 0) return message;
+  return [
+    ...(message ? [{ type: 'text', text: message }] : []),
+    ...images.map((url) => ({ type: 'image_url', image_url: { url } })),
+  ];
+}
 
 export class IzziAgent {
   constructor(
@@ -73,7 +93,8 @@ export class IzziAgent {
     onEvent?: (evt: AgentTurnEvent) => void,
   ): Promise<IzziAgentChatResult> {
     const message = typeof payload?.message === 'string' ? payload.message.trim() : '';
-    if (message.length === 0) return { reply: '', error: 'empty' };
+    const images = Array.isArray(payload?.images) ? payload.images.filter(isDataImage) : [];
+    if (message.length === 0 && images.length === 0) return { reply: '', error: 'empty' };
     const turnId = typeof payload.turnId === 'string' ? payload.turnId : '';
     const emit = onEvent && turnId ? onEvent : undefined;
 
@@ -103,7 +124,7 @@ export class IzziAgent {
     const reqMessages: Array<Record<string, unknown>> = [
       ...(system ? [{ role: 'system', content: system }] : []),
       ...history,
-      { role: 'user', content: message },
+      { role: 'user', content: buildUserContent(message, images) },
     ];
 
     // Opt-in tool exposure: only when requested AND a bridge is present.

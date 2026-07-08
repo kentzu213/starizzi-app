@@ -282,6 +282,7 @@ export function App() {
             onBuyApi={handleBuyApi}
             onNavigateToDashboard={() => setCurrentPage('dashboard')}
             onNavigateToAgentHub={() => setCurrentPage('agents')}
+            onNavigateToExtensions={() => setCurrentPage('extensions')}
           />
         );
       case 'tasks':

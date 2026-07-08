@@ -98,11 +98,17 @@ export function sanitizeStoredSessions(raw: unknown): AgentChatSession[] {
 /** Cap what we write back to disk (keep newest sessions + bounded messages). */
 export function capForPersist(sessions: AgentChatSession[]): AgentChatSession[] {
   const capped = sessions.length > MAX_SESSIONS ? sessions.slice(-MAX_SESSIONS) : sessions;
-  return capped.map((s) =>
-    s.messages.length > MAX_MSGS_PER_SESSION
-      ? { ...s, messages: s.messages.slice(-MAX_MSGS_PER_SESSION) }
-      : s,
-  );
+  return capped.map((s) => {
+    const bounded =
+      s.messages.length > MAX_MSGS_PER_SESSION ? s.messages.slice(-MAX_MSGS_PER_SESSION) : s.messages;
+    // Drop inline image data URLs before persisting — base64 blobs would bloat the
+    // SQLite store; pasted images are a live-view affordance, not durable history.
+    const hasImages = bounded.some((m) => m.images && m.images.length > 0);
+    const cleaned = hasImages
+      ? bounded.map((m) => (m.images && m.images.length > 0 ? { ...m, images: undefined } : m))
+      : bounded;
+    return cleaned === s.messages ? s : { ...s, messages: cleaned };
+  });
 }
 
 /** Choose which restored tab should be active: last active, else the newest. */

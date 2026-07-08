@@ -1,7 +1,7 @@
 import React, { useDeferredValue, useEffect, useState } from 'react';
 import { AgentStatusBadge } from '../components/AgentStatusBadge';
 import { AgentTabBar } from '../components/AgentTabBar';
-import { ChatComposer } from '../components/ChatComposer';
+import { ChatComposer, type ComposerMenuAction } from '../components/ChatComposer';
 import { ChatEmptyState } from '../components/ChatEmptyState';
 import { ChatMessageList } from '../components/ChatMessageList';
 import { ModelSelector } from '../components/ModelSelector';
@@ -21,10 +21,12 @@ interface ChatPageProps {
   onBuyApi?: () => void;
   onNavigateToDashboard?: () => void;
   onNavigateToAgentHub?: () => void;
+  onNavigateToExtensions?: () => void;
 }
 
-export function ChatPage({ user, onBuyApi, onNavigateToDashboard, onNavigateToAgentHub }: ChatPageProps) {
+export function ChatPage({ user, onBuyApi, onNavigateToDashboard, onNavigateToAgentHub, onNavigateToExtensions }: ChatPageProps) {
   const [draft, setDraft] = useState('');
+  const [images, setImages] = useState<string[]>([]);
   const [showAgentPicker, setShowAgentPicker] = useState(false);
   const [railCollapsed, setRailCollapsed] = useState(false);
   const [activeTask, setActiveTask] = useState<LoopTask | null>(null);
@@ -82,14 +84,21 @@ export function ChatPage({ user, onBuyApi, onNavigateToDashboard, onNavigateToAg
 
   async function handleSubmit() {
     const text = draft.trim();
-    if (!text) return;
+    if (!text && images.length === 0) return;
 
     if (isGatewayMode && activeGwSession) {
-      const sent = await gwSendMessage(text);
-      if (sent) setDraft('');
+      const sent = await gwSendMessage(text, images);
+      if (sent) {
+        setDraft('');
+        setImages([]);
+      }
     } else {
+      // Legacy (OpenClaw native) path is text-only; images aren't sent there.
       const sent = await sendMessageLegacy(text);
-      if (sent) setDraft('');
+      if (sent) {
+        setDraft('');
+        setImages([]);
+      }
     }
   }
 
@@ -123,6 +132,43 @@ export function ChatPage({ user, onBuyApi, onNavigateToDashboard, onNavigateToAg
     setDraft(loopStarterDraft(loop));
     setActiveTask(loop.task);
   }
+
+  // "+" composer menu: attach images (handled inside the composer) + quick agent
+  // switch + shortcuts into the app's integrations (Agent Hub, extensions).
+  const composerMenuActions: ComposerMenuAction[] = [
+    ...gwAgents.map((agent) => ({
+      id: `open-agent-${agent.id}`,
+      group: 'Agent',
+      icon: agent.icon,
+      label: agent.displayName,
+      description:
+        agent.status === 'running' ? 'Đang chạy' : agent.status === 'stopped' ? 'Đã dừng' : undefined,
+      onSelect: () => gwOpenChat(agent.id),
+    })),
+    {
+      id: 'pick-agent',
+      group: 'Agent',
+      icon: '➕',
+      label: 'Chọn agent khác…',
+      onSelect: () => setShowAgentPicker(true),
+    },
+    {
+      id: 'nav-agent-hub',
+      group: 'Ứng dụng & tích hợp',
+      icon: '🧭',
+      label: 'Kho Agent',
+      description: 'Cài & quản lý agent',
+      onSelect: () => onNavigateToAgentHub?.(),
+    },
+    {
+      id: 'nav-extensions',
+      group: 'Ứng dụng & tích hợp',
+      icon: '🧩',
+      label: 'Tiện ích mở rộng',
+      description: 'Marketplace tiện ích',
+      onSelect: () => onNavigateToExtensions?.(),
+    },
+  ];
 
   return (
     <div className={`agent-workspace ${railCollapsed ? 'agent-workspace--collapsed' : ''}`}>
@@ -315,9 +361,12 @@ export function ChatPage({ user, onBuyApi, onNavigateToDashboard, onNavigateToAg
 
         <ChatComposer
           value={draft}
+          images={images}
+          menuActions={composerMenuActions}
           disabled={isBootstrapping || isSending || isReconfiguring}
           isSubmitting={isSending}
           onChange={setDraft}
+          onImagesChange={setImages}
           onSubmit={() => void handleSubmit()}
         />
       </footer>

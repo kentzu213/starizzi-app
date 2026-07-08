@@ -67,7 +67,7 @@ interface AgentGatewayState {
   openAgentChat: (agentId: string) => void;
   closeAgentChat: (sessionId: string) => void;
   switchSession: (sessionId: string) => void;
-  sendGatewayMessage: (text: string) => Promise<boolean>;
+  sendGatewayMessage: (text: string, images?: string[]) => Promise<boolean>;
   newGatewaySession: (agentId: string) => void;
   setSessionModel: (sessionId: string, model: string, provider: AIProvider) => void;
   /** Change a Docker agent's reasoning effort (rewrites config + restarts container). */
@@ -232,9 +232,13 @@ export const useAgentGatewayStore = create<AgentGatewayState>((set, get) => ({
     set({ activeSessionId: sessionId });
   },
 
-  sendGatewayMessage: async (text) => {
+  sendGatewayMessage: async (text, images) => {
     const content = text.trim();
-    if (!content || get().isSending) return false;
+    // Accept base64 image data URLs only; an image-only message (no text) is allowed.
+    const imgs = Array.isArray(images)
+      ? images.filter((u) => typeof u === 'string' && u.startsWith('data:image/'))
+      : [];
+    if ((!content && imgs.length === 0) || get().isSending) return false;
 
     const session = get().activeSession();
     if (!session) return false;
@@ -255,6 +259,7 @@ export const useAgentGatewayStore = create<AgentGatewayState>((set, get) => ({
       state: 'done',
       model: session.model,
       createdAt,
+      images: imgs.length > 0 ? imgs : undefined,
     };
 
     const assistantMessage: GatewayChatMessage = {
@@ -302,6 +307,7 @@ export const useAgentGatewayStore = create<AgentGatewayState>((set, get) => ({
             turnId: assistantMsgId,
             agentId: session.agentId,
             agentName: agent.displayName,
+            images: imgs,
           });
           const reply = r?.reply
             ? r.reply
@@ -362,6 +368,7 @@ export const useAgentGatewayStore = create<AgentGatewayState>((set, get) => ({
             reasoningEffort: session.reasoningEffort,
             // Stream the live process (Hermes emits tool progress as content) + capture to my-graph.
             turnId: assistantMsgId,
+            images: imgs,
           },
           content,
         );

@@ -91,6 +91,8 @@ export interface GatewayChatMessage {
   reasoning?: string;
   /** Discrete work steps (tool/extension calls, progress) streamed during the turn. */
   steps?: AgentStep[];
+  /** Pasted image attachments (data URLs) sent with a user message. */
+  images?: string[];
 }
 
 export interface AgentChatSession {

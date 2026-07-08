@@ -134,7 +134,7 @@ const electronAPI = {
     status: (payload: { id: string; dockerImage?: string; defaultPort: number; dockerComposeUrl?: string }): Promise<{ running: boolean; error?: string }> =>
       ipcRenderer.invoke('dockerAgent:status', payload),
     chat: (
-      payload: { id: string; defaultPort: number; agentName?: string; reasoningEffort?: string; turnId?: string },
+      payload: { id: string; defaultPort: number; agentName?: string; reasoningEffort?: string; turnId?: string; images?: string[] },
       message: string,
     ): Promise<{ ok: boolean; reply?: string; error?: string }> =>
       ipcRenderer.invoke(
@@ -145,6 +145,7 @@ const electronAPI = {
           agentName: payload.agentName,
           reasoningEffort: payload.reasoningEffort,
           turnId: payload.turnId,
+          images: payload.images,
         },
         message,
       ),
@@ -367,6 +368,7 @@ const electronAPI = {
       turnId?: string;
       agentId?: string;
       agentName?: string;
+      images?: string[];
     }): Promise<{ reply: string; error?: string }> =>
       ipcRenderer.invoke('izziAgent:chat', payload),
   },

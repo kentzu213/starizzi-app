@@ -47,6 +47,22 @@ export interface DockerAgentPayload {
   dockerImage?: string;
   defaultPort: number;
   dockerComposeUrl?: string;
+  /** Pasted image attachments as data URLs; sent as multimodal `image_url` parts. */
+  images?: string[];
+}
+
+/**
+ * Build the OpenAI-compatible `content` for a user turn: a plain string when
+ * there are no images, or a content-parts array (text + image_url) when images
+ * are attached. Only base64 image data URLs are accepted.
+ */
+function buildUserContent(message: string, images: string[] | undefined): unknown {
+  const imgs = Array.isArray(images) ? images.filter((u) => typeof u === 'string' && u.startsWith('data:image/')) : [];
+  if (imgs.length === 0) return message;
+  return [
+    ...(message ? [{ type: 'text', text: message }] : []),
+    ...imgs.map((url) => ({ type: 'image_url', image_url: { url } })),
+  ];
 }
 
 export interface DockerResult {
@@ -519,7 +535,7 @@ export class DockerAgentService {
     const url = `http://127.0.0.1:${payload.defaultPort}/v1/chat/completions`;
 
     if (stream?.onEvent && stream.turnId) {
-      return this.chatStreaming(url, key, message, stream.onEvent, stream.turnId);
+      return this.chatStreaming(url, key, message, stream.onEvent, stream.turnId, payload.images);
     }
 
     try {
@@ -527,7 +543,7 @@ export class DockerAgentService {
         url,
         {
           model: 'hermes-agent',
-          messages: [{ role: 'user', content: message }],
+          messages: [{ role: 'user', content: buildUserContent(message, payload.images) }],
           stream: false,
         },
         {
@@ -560,13 +576,14 @@ export class DockerAgentService {
     message: string,
     onEvent: (evt: AgentTurnEvent) => void,
     turnId: string,
+    images?: string[],
   ): Promise<DockerChatResult> {
     try {
       const res = await axios.post(
         url,
         {
           model: 'hermes-agent',
-          messages: [{ role: 'user', content: message }],
+          messages: [{ role: 'user', content: buildUserContent(message, images) }],
           stream: true,
         },
         {
