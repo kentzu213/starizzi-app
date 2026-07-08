@@ -221,6 +221,9 @@ const electronAPI = {
       mode: 'chat' | 'agent' | 'agent-full',
     ): Promise<{ ok: boolean; mode: 'chat' | 'agent' | 'agent-full' }> =>
       ipcRenderer.invoke('agentPermission:setMode', mode),
+    getWorkingDir: (): Promise<{ dir: string }> => ipcRenderer.invoke('agentPermission:getWorkingDir'),
+    pickWorkingDir: (): Promise<{ dir: string }> => ipcRenderer.invoke('agentPermission:pickWorkingDir'),
+    clearWorkingDir: (): Promise<{ dir: string }> => ipcRenderer.invoke('agentPermission:clearWorkingDir'),
   },
 
   integrations: {

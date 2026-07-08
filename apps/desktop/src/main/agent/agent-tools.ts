@@ -115,6 +115,24 @@ const MAX_OUTPUT = 12000;
 const CMD_TIMEOUT_MS = 120000;
 const MAX_BUFFER = 10 * 1024 * 1024;
 
+/** Options controlling where host tools operate (the agent's working directory). */
+export interface HostToolOptions {
+  /** Absolute working directory: default cwd for commands + base for relative file paths. */
+  workingDir?: string;
+}
+
+/**
+ * Resolve a tool-supplied path to an absolute path. Absolute paths are used as-is;
+ * relative paths resolve against the working directory (or the user home when none
+ * is set). Pure + unit-tested so relative-path handling is predictable.
+ */
+export function resolveToolPath(p: string, workingDir?: string): string {
+  if (!p) return p;
+  if (path.isAbsolute(p)) return p;
+  const base = workingDir && workingDir.trim() ? workingDir : os.homedir();
+  return path.resolve(base, p);
+}
+
 /**
  * Execute a host tool call and return a string result to feed back to the model.
  * Never throws — errors are returned as an `error: ...` string so the loop
@@ -123,13 +141,16 @@ const MAX_BUFFER = 10 * 1024 * 1024;
 export async function executeHostTool(
   name: string,
   args: Record<string, unknown> | null | undefined,
+  opts?: HostToolOptions,
 ): Promise<string> {
   const a = args && typeof args === 'object' ? (args as Record<string, unknown>) : {};
+  const workingDir = opts?.workingDir && opts.workingDir.trim() ? opts.workingDir : '';
   try {
     if (name === 'run_command') {
       const command = typeof a.command === 'string' ? a.command.trim() : '';
       if (!command) return 'error: empty command';
-      const cwd = typeof a.cwd === 'string' && a.cwd.trim() ? a.cwd.trim() : os.homedir();
+      const cwd =
+        typeof a.cwd === 'string' && a.cwd.trim() ? a.cwd.trim() : workingDir || os.homedir();
       return await new Promise<string>((resolve) => {
         exec(
           command,
@@ -148,13 +169,13 @@ export async function executeHostTool(
       });
     }
     if (name === 'read_file') {
-      const p = typeof a.path === 'string' ? a.path : '';
+      const p = resolveToolPath(typeof a.path === 'string' ? a.path : '', workingDir);
       if (!p) return 'error: missing path';
       const data = await fs.readFile(p, 'utf8');
       return data.length > MAX_OUTPUT ? data.slice(0, MAX_OUTPUT) + '\n…(truncated)' : data;
     }
     if (name === 'write_file') {
-      const p = typeof a.path === 'string' ? a.path : '';
+      const p = resolveToolPath(typeof a.path === 'string' ? a.path : '', workingDir);
       const content = typeof a.content === 'string' ? a.content : '';
       if (!p) return 'error: missing path';
       await fs.mkdir(path.dirname(p), { recursive: true });
@@ -162,7 +183,7 @@ export async function executeHostTool(
       return `ok: wrote ${content.length} chars to ${p}`;
     }
     if (name === 'list_dir') {
-      const p = typeof a.path === 'string' ? a.path : '';
+      const p = resolveToolPath(typeof a.path === 'string' ? a.path : '', workingDir);
       if (!p) return 'error: missing path';
       const entries = await fs.readdir(p, { withFileTypes: true });
       return (

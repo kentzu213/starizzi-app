@@ -30,7 +30,13 @@ type PermMode = 'chat' | 'agent' | 'agent-full';
 
 /** Access the main-process agent-permission bridge (absent in browser dev). */
 function permApi():
-  | { getMode: () => Promise<PermMode>; setMode: (m: PermMode) => Promise<{ ok: boolean; mode: PermMode }> }
+  | {
+      getMode: () => Promise<PermMode>;
+      setMode: (m: PermMode) => Promise<{ ok: boolean; mode: PermMode }>;
+      getWorkingDir: () => Promise<{ dir: string }>;
+      pickWorkingDir: () => Promise<{ dir: string }>;
+      clearWorkingDir: () => Promise<{ dir: string }>;
+    }
   | undefined {
   if (typeof window === 'undefined') return undefined;
   return (
@@ -39,10 +45,20 @@ function permApi():
         agentPermission?: {
           getMode: () => Promise<PermMode>;
           setMode: (m: PermMode) => Promise<{ ok: boolean; mode: PermMode }>;
+          getWorkingDir: () => Promise<{ dir: string }>;
+          pickWorkingDir: () => Promise<{ dir: string }>;
+          clearWorkingDir: () => Promise<{ dir: string }>;
         };
       };
     }
   ).electronAPI?.agentPermission;
+}
+
+/** Last path segment of a dir, for a compact chip label. */
+function dirBasename(dir: string): string {
+  if (!dir) return '';
+  const parts = dir.replace(/[\\/]+$/, '').split(/[\\/]/);
+  return parts[parts.length - 1] || dir;
 }
 
 export function ChatComposer({
@@ -61,8 +77,9 @@ export function ChatComposer({
   const [menuOpen, setMenuOpen] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const [permMode, setPermMode] = useState<PermMode>('chat');
+  const [workingDir, setWorkingDir] = useState('');
 
-  // Load the persisted agent permission mode once (Chat / Agent / Full access).
+  // Load the persisted agent permission mode + working directory once.
   useEffect(() => {
     const api = permApi();
     if (!api?.getMode) return;
@@ -74,6 +91,12 @@ export function ChatComposer({
       .catch(() => {
         /* browser dev / no bridge */
       });
+    void api
+      .getWorkingDir?.()
+      .then((r) => setWorkingDir(r?.dir ?? ''))
+      .catch(() => {
+        /* ignore */
+      });
   }, []);
 
   function changePermMode(m: PermMode) {
@@ -81,6 +104,24 @@ export function ChatComposer({
     void permApi()?.setMode?.(m).catch(() => {
       /* best-effort */
     });
+  }
+
+  function pickWorkingDir() {
+    void permApi()
+      ?.pickWorkingDir?.()
+      .then((r) => setWorkingDir(r?.dir ?? ''))
+      .catch(() => {
+        /* ignore */
+      });
+  }
+
+  function clearWorkingDir() {
+    void permApi()
+      ?.clearWorkingDir?.()
+      .then((r) => setWorkingDir(r?.dir ?? ''))
+      .catch(() => {
+        /* ignore */
+      });
   }
 
   useEffect(() => {
@@ -325,6 +366,31 @@ export function ChatComposer({
         {permMode === 'agent-full' && (
           <span className="chat-composer__perm-warn" title="Agent sẽ tự chạy lệnh và sửa file mà không hỏi.">
             ⚠️ tự chạy, không hỏi
+          </span>
+        )}
+        {permMode !== 'chat' && (
+          <span className="chat-composer__wd">
+            <button
+              type="button"
+              className="chat-composer__wd-btn"
+              title={workingDir ? `Thư mục làm việc: ${workingDir}` : 'Chọn thư mục dự án để agent chạy lệnh đúng chỗ'}
+              disabled={disabled}
+              onClick={pickWorkingDir}
+            >
+              📁 {workingDir ? dirBasename(workingDir) : 'Chọn thư mục làm việc'}
+            </button>
+            {workingDir && (
+              <button
+                type="button"
+                className="chat-composer__wd-clear"
+                title="Bỏ thư mục làm việc (dùng thư mục mặc định)"
+                aria-label="Bỏ thư mục làm việc"
+                disabled={disabled}
+                onClick={clearWorkingDir}
+              >
+                ×
+              </button>
+            )}
           </span>
         )}
       </div>

@@ -23,6 +23,7 @@ export type PermissionMode = 'chat' | 'agent' | 'agent-full';
 export const PERMISSION_MODES: readonly PermissionMode[] = ['chat', 'agent', 'agent-full'];
 
 const MODE_KEY = 'agent_permission_mode';
+const WORKING_DIR_KEY = 'agent_working_dir';
 
 export function isPermissionMode(v: unknown): v is PermissionMode {
   return v === 'chat' || v === 'agent' || v === 'agent-full';
@@ -56,5 +57,15 @@ export class AgentPermissionStore {
   setMode(mode: PermissionMode): void {
     if (!isPermissionMode(mode)) return;
     this.db.setSetting(MODE_KEY, mode);
+  }
+
+  /** The agent's working directory (default cwd + base for relative paths). '' = user home. */
+  getWorkingDir(): string {
+    const raw = this.db.getSetting(WORKING_DIR_KEY);
+    return typeof raw === 'string' ? raw : '';
+  }
+
+  setWorkingDir(dir: string): void {
+    this.db.setSetting(WORKING_DIR_KEY, typeof dir === 'string' ? dir : '');
   }
 }

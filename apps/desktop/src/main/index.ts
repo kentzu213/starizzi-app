@@ -708,6 +708,27 @@ function setupIPC() {
     },
   );
 
+  // Agent working directory — default cwd for run_command + base for relative paths.
+  ipcMain.handle('agentPermission:getWorkingDir', async (): Promise<{ dir: string }> => {
+    return { dir: new AgentPermissionStore(dbManager).getWorkingDir() };
+  });
+  ipcMain.handle('agentPermission:pickWorkingDir', async (event): Promise<{ dir: string }> => {
+    const win = BrowserWindow.fromWebContents(event.sender) ?? mainWindow;
+    const store = new AgentPermissionStore(dbManager);
+    if (!win || win.isDestroyed()) return { dir: store.getWorkingDir() };
+    const r = await dialog.showOpenDialog(win, {
+      properties: ['openDirectory'],
+      title: 'Chọn thư mục làm việc cho agent',
+    });
+    if (r.canceled || !r.filePaths[0]) return { dir: store.getWorkingDir() };
+    store.setWorkingDir(r.filePaths[0]);
+    return { dir: r.filePaths[0] };
+  });
+  ipcMain.handle('agentPermission:clearWorkingDir', async (): Promise<{ dir: string }> => {
+    new AgentPermissionStore(dbManager).setWorkingDir('');
+    return { dir: '' };
+  });
+
   // Chat directly against the user-configured OpenAI-compatible endpoint
   // (codex-lb / 9router / any OpenAI-compatible). Streams content deltas to the
   // renderer via 'agentStream:event' (correlated by turnId) and returns the full
@@ -751,7 +772,8 @@ function setupIPC() {
       // Agent modes give the model host tools (run/read/write/list) with approval
       // gating — a real agent that acts on the machine. 'chat' keeps the plain
       // streaming text path below (reads images, answers, no host access).
-      const permMode = new AgentPermissionStore(dbManager).getMode();
+      const permStore = new AgentPermissionStore(dbManager);
+      const permMode = permStore.getMode();
       if (permMode === 'agent' || permMode === 'agent-full') {
         const win = BrowserWindow.fromWebContents(event.sender) ?? mainWindow;
         const result = await runHostAgentTurn({
@@ -761,14 +783,15 @@ function setupIPC() {
           history,
           images,
           mode: permMode,
+          workingDir: permStore.getWorkingDir(),
           turnId,
           redact: (t) => secrets.redact(t),
           emit: (evt) => event.sender.send('agentStream:event', evt),
           requestApproval: async (req) => {
-            if (!win || win.isDestroyed()) return false;
+            if (!win || win.isDestroyed()) return 'deny';
             const r = await dialog.showMessageBox(win, {
               type: 'warning',
-              buttons: ['Từ chối', 'Cho phép'],
+              buttons: ['Từ chối', 'Cho phép', 'Cho phép hết (lượt này)'],
               defaultId: 0,
               cancelId: 0,
               noLink: true,
@@ -776,7 +799,7 @@ function setupIPC() {
               message: 'Agent muốn thực hiện hành động trên máy của bạn:',
               detail: req.summary,
             });
-            return r.response === 1;
+            return r.response === 2 ? 'all' : r.response === 1 ? 'once' : 'deny';
           },
         });
         return result.error ? { error: result.error } : { reply: result.reply };

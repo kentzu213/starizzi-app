@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { HOST_TOOLS, HOST_TOOL_NAMES, classifyToolRisk, summarizeToolCall } from './agent-tools';
+import path from 'path';
+import os from 'os';
+import { HOST_TOOLS, HOST_TOOL_NAMES, classifyToolRisk, resolveToolPath, summarizeToolCall } from './agent-tools';
 
 describe('agent-tools', () => {
   it('advertises the four host tools with valid function schemas', () => {
@@ -28,5 +30,14 @@ describe('agent-tools', () => {
     expect(summarizeToolCall('unknown_tool', {})).toBe('unknown_tool');
     expect(() => summarizeToolCall('run_command', null)).not.toThrow();
     expect(() => summarizeToolCall('write_file', undefined)).not.toThrow();
+  });
+
+  it('resolveToolPath keeps absolute paths and resolves relative against workingDir/home', () => {
+    const abs = path.resolve(os.tmpdir(), 'x.txt');
+    expect(resolveToolPath(abs, path.resolve('/work'))).toBe(abs);
+    const work = path.resolve('/work');
+    expect(resolveToolPath('a/b.txt', work)).toBe(path.resolve(work, 'a/b.txt'));
+    expect(resolveToolPath('rel.txt', '')).toBe(path.resolve(os.homedir(), 'rel.txt'));
+    expect(resolveToolPath('', work)).toBe('');
   });
 });

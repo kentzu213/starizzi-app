@@ -35,7 +35,9 @@ export interface HostApprovalRequest {
   args: Record<string, unknown>;
 }
 
-export type RequestApproval = (req: HostApprovalRequest) => Promise<boolean>;
+/** The user's decision on a risky action: deny, allow just this one, or allow all for this turn. */
+export type ApprovalDecision = 'deny' | 'once' | 'all';
+export type RequestApproval = (req: HostApprovalRequest) => Promise<ApprovalDecision>;
 
 export interface HostAgentTurnOptions {
   config: CustomProviderConfig;
@@ -45,6 +47,8 @@ export interface HostAgentTurnOptions {
   images: string[];
   /** Only the agent modes reach here ('agent' | 'agent-full'). */
   mode: PermissionMode;
+  /** Working directory: default cwd for commands + base for relative file paths. '' = home. */
+  workingDir?: string;
   turnId: string;
   requestApproval: RequestApproval;
   emit?: (evt: AgentTurnEvent) => void;
@@ -63,6 +67,7 @@ function buildUserContent(message: string, images: string[]): unknown {
 export async function runHostAgentTurn(opts: HostAgentTurnOptions): Promise<{ reply: string; error?: string }> {
   const { config, apiKey, message, history, images, mode, turnId, requestApproval, emit } = opts;
   const scrub = opts.redact ?? ((t: string) => t);
+  const workingDir = opts.workingDir && opts.workingDir.trim() ? opts.workingDir.trim() : '';
   const url = resolveChatCompletionsUrl(config.baseUrl);
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
@@ -70,11 +75,18 @@ export async function runHostAgentTurn(opts: HostAgentTurnOptions): Promise<{ re
   };
   const model = config.selectedModel;
 
+  const systemContent = workingDir
+    ? `${SYSTEM_PROMPT}\n\nYour working directory is: ${workingDir}. Use it as the default location for commands and as the base for relative file paths.`
+    : SYSTEM_PROMPT;
+
   const messages: Array<Record<string, unknown>> = [
-    { role: 'system', content: SYSTEM_PROMPT },
+    { role: 'system', content: systemContent },
     ...history,
     { role: 'user', content: buildUserContent(message, images) },
   ];
+
+  // Once the user picks "allow all for this turn", stop prompting for the rest of it.
+  let allowAllThisTurn = false;
 
   try {
     for (let iter = 0; iter < MAX_TOOL_ITERATIONS; iter++) {
@@ -123,17 +135,20 @@ export async function runHostAgentTurn(opts: HostAgentTurnOptions): Promise<{ re
         const label = summarizeToolCall(name, args);
         emit?.({ turnId, kind: 'step', step: { id: stepId, kind: 'tool', label, status: 'running' } });
 
-        // Gate risky actions behind the user's approval.
-        if (needsApproval(mode, risk)) {
-          const approved = await requestApproval({ tool: name, risk, summary: label, args });
-          if (!approved) {
+        // Gate risky actions behind the user's approval (unless approved for the turn).
+        if (needsApproval(mode, risk) && !allowAllThisTurn) {
+          const decision = await requestApproval({ tool: name, risk, summary: label, args });
+          if (decision === 'all') {
+            allowAllThisTurn = true;
+          } else if (decision === 'deny') {
             emit?.({ turnId, kind: 'step', step: { id: stepId, kind: 'tool', label, status: 'error', detail: 'bị từ chối' } });
             messages.push({ role: 'tool', tool_call_id: tc.id, content: 'error: user denied this action' });
             continue;
           }
+          // 'once' → proceed with just this action.
         }
 
-        const result = await executeHostTool(name, args);
+        const result = await executeHostTool(name, args, { workingDir });
         const isErr = result.startsWith('error:');
         emit?.({
           turnId,
