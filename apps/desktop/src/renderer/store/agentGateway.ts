@@ -352,6 +352,72 @@ export const useAgentGatewayStore = create<AgentGatewayState>((set, get) => ({
         return true;
       }
 
+      // Direct model connection (codex-lb / 9router / any OpenAI-compatible):
+      // if the user configured + enabled a connection in the "Kết nối Model" tab,
+      // route non-izzi agents through it (main process → the endpoint) instead of
+      // the local Docker container. This is the "connect the app to codex-lb" path.
+      const customApi = (window as any).electronAPI?.customProvider;
+      if (agent.runtime !== 'izzi' && customApi?.chat && customApi?.getConfig) {
+        let connEnabled = false;
+        try {
+          const c = await customApi.getConfig();
+          connEnabled = !!(c?.enabled && c?.hasKey);
+        } catch {
+          /* no bridge / not configured — fall through to the container path */
+        }
+        if (connEnabled) {
+          const history = session.messages
+            .filter((m) => m.state === 'done' && m.content)
+            .slice(-8)
+            .map((m) => ({ role: m.role, content: m.content }));
+          const r = await customApi.chat({ message: content, history, turnId: assistantMsgId });
+          if (r?.reply) {
+            set((state) => ({
+              isSending: false,
+              sessions: state.sessions.map((s) =>
+                s.id === session.id
+                  ? {
+                      ...s,
+                      messages: s.messages.map((m) =>
+                        m.id === assistantMsgId
+                          ? {
+                              ...m,
+                              content: m.content && m.content.length > 0 ? m.content : (r.reply as string),
+                              state: 'done' as const,
+                            }
+                          : m,
+                      ),
+                    }
+                  : s,
+              ),
+            }));
+            return true;
+          }
+          const err = String(r?.error ?? 'không rõ');
+          const connMsg =
+            err === 'not-configured' || err === 'disabled'
+              ? '⚠️ Chưa cấu hình kết nối model. Mở tab "Kết nối Model" để nối codex-lb / 9router rồi thử lại.'
+              : /econnrefused|econnreset|\bconnect\b|fetch|time|unreachable|network|endpoint/i.test(err)
+                ? `⚠️ Không kết nối được endpoint model.\n\n**Lỗi:** ${err}\n\n` +
+                  'Kiểm tra codex-lb / 9router đang chạy đúng cổng, hoặc chỉnh lại trong tab "Kết nối Model".'
+                : `⚠️ Model chưa trả lời được.\n\n**Lỗi:** ${err}`;
+          set((state) => ({
+            isSending: false,
+            sessions: state.sessions.map((s) =>
+              s.id === session.id
+                ? {
+                    ...s,
+                    messages: s.messages.map((m) =>
+                      m.id === assistantMsgId ? { ...m, content: connMsg, state: 'done' as const } : m,
+                    ),
+                  }
+                : s,
+            ),
+          }));
+          return true;
+        }
+      }
+
       // Docker agents with an OpenAI-compatible endpoint (e.g. Hermes) route
       // through the main process via IPC — the API key stays in main and is
       // never exposed to the renderer.

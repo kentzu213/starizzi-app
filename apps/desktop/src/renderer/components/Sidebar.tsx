@@ -38,6 +38,7 @@ const WORKSPACE_ITEMS = [
 
 const EXPLORE_ITEMS = [
   { id: 'agents', icon: AgentHubIcon, label: 'Agent hub', badge: 'v2' },
+  { id: 'connections', icon: SetupIcon, label: 'Kết nối Model' },
   { id: 'marketplace', icon: MarketplaceIcon, label: 'Knowleadmarket', badge: 'Hot', prominent: true },
   { id: 'affiliate', icon: AffiliateIcon, label: 'Affiliate', badge: '20%', prominent: true },
   { id: 'extensions', icon: ExtensionIcon, label: 'Workflow imports' },

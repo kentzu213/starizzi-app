@@ -36,6 +36,7 @@ const BASELINE_PAGES = [
   'setup',
   'costs',
   'knowledge',
+  'connections',
   'affiliate',
 ] as const;
 

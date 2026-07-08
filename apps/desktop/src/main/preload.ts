@@ -204,6 +204,12 @@ const electronAPI = {
     deleteKey: () => ipcRenderer.invoke('customProvider:deleteKey'),
     testConnection: (input?: { apiKey?: string }) =>
       ipcRenderer.invoke('customProvider:testConnection', input),
+    chat: (payload: {
+      message: string;
+      history?: { role: 'system' | 'user' | 'assistant'; content: string }[];
+      turnId?: string;
+    }): Promise<{ reply?: string; error?: string }> =>
+      ipcRenderer.invoke('customProvider:chat', payload),
   },
 
   integrations: {

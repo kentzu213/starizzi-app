@@ -19,6 +19,7 @@ import { SettingsPage } from './pages/Settings';
 import { SetupWizardPage } from './pages/SetupWizard';
 import { CostDashboardPage } from './pages/CostDashboard';
 import { AffiliatePage } from './pages/Affiliate';
+import { ModelConnectionsPage } from './pages/ModelConnections';
 import KnowledgeUniversePage from './pages/KnowledgeUniverse';
 import { useAgentWorkspaceStore } from './store/agentWorkspace';
 import { vi } from './i18n/vi';
@@ -36,6 +37,7 @@ type Page =
   | 'setup'
   | 'costs'
   | 'knowledge'
+  | 'connections'
   | 'affiliate';
 
 const DEV_USER = {
@@ -332,6 +334,8 @@ export function App() {
         );
       case 'knowledge':
         return <KnowledgeUniversePage />;
+      case 'connections':
+        return <ModelConnectionsPage />;
       case 'affiliate':
         return <AffiliatePage />;
       default:

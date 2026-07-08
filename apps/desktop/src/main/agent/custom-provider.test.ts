@@ -108,14 +108,23 @@ describe('validateCustomConfig', () => {
     expect(validateCustomConfig(VALID_CONFIG).ok).toBe(true);
   });
 
-  it('rejects a model outside ALLOWED_MODELS', () => {
-    const res = validateCustomConfig({ ...VALID_CONFIG, selectedModel: 'gpt-4o' as any });
+  it('accepts any non-empty model (allowlist relaxed for custom endpoints like codex-lb/9router)', () => {
+    expect(validateCustomConfig({ ...VALID_CONFIG, selectedModel: 'gpt-4o' }).ok).toBe(true);
+  });
+
+  it('rejects an empty model', () => {
+    const res = validateCustomConfig({ ...VALID_CONFIG, selectedModel: '' as any });
     expect(res.ok).toBe(false);
   });
 
-  it('rejects a non-https base URL', () => {
+  it('rejects a non-https base URL for a REMOTE host', () => {
     const res = validateCustomConfig({ ...VALID_CONFIG, baseUrl: 'http://insecure.dev/v1' });
     expect(res.ok).toBe(false);
+  });
+
+  it('accepts http for a loopback endpoint (codex-lb / 9router on localhost)', () => {
+    expect(validateCustomConfig({ ...VALID_CONFIG, baseUrl: 'http://127.0.0.1:2455/v1' }).ok).toBe(true);
+    expect(validateCustomConfig({ ...VALID_CONFIG, baseUrl: 'http://localhost:4000/v1' }).ok).toBe(true);
   });
 
   it('rejects an unparseable base URL', () => {

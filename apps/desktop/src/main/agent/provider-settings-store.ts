@@ -10,7 +10,8 @@ export type ActiveProvider = 'managed' | 'custom';
 export interface CustomProviderConfig {
   baseUrl: string;
   authType: AuthType;
-  selectedModel: AllowedModel;
+  /** Model id to request. Any non-empty string (endpoint validates). */
+  selectedModel: string;
 }
 
 export interface ValidationResult {
@@ -23,6 +24,12 @@ const ENABLED_KEY = 'custom_provider_enabled';
 
 const AUTH_TYPES: readonly AuthType[] = ['bearer', 'x-api-key'];
 
+/** Loopback/local hosts where plain http is acceptable (the user's own machine). */
+function isLoopbackHost(hostname: string): boolean {
+  const h = hostname.toLowerCase();
+  return h === 'localhost' || h === '127.0.0.1' || h === '::1' || h === 'host.docker.internal';
+}
+
 /**
  * Validate a candidate custom-provider config in the MAIN process (R5.5).
  * Returns the list of concise error reasons (Vietnamese) when invalid.
@@ -34,14 +41,16 @@ export function validateCustomConfig(config: Partial<CustomProviderConfig> | nul
     return { ok: false, errors: ['Thiếu cấu hình custom provider'] };
   }
 
-  // baseUrl must be a valid https URL (R5.1 / INV-4)
+  // baseUrl must be https, OR http when pointing at a loopback/local endpoint
+  // (e.g. codex-lb / 9router / LiteLLM at 127.0.0.1) — that stays on the machine.
   if (!config.baseUrl || typeof config.baseUrl !== 'string') {
     errors.push('Base URL không được để trống');
   } else {
     try {
       const url = new URL(config.baseUrl);
-      if (url.protocol !== 'https:') {
-        errors.push('Base URL phải dùng https');
+      const loopbackHttp = url.protocol === 'http:' && isLoopbackHost(url.hostname);
+      if (url.protocol !== 'https:' && !loopbackHttp) {
+        errors.push('Base URL phải dùng https (hoặc http với localhost/127.0.0.1)');
       }
     } catch {
       errors.push('Base URL không hợp lệ');
@@ -53,9 +62,9 @@ export function validateCustomConfig(config: Partial<CustomProviderConfig> | nul
     errors.push('Kiểu auth không hợp lệ (chỉ Bearer hoặc x-api-key)');
   }
 
-  // selectedModel ∈ ALLOWED_MODELS (R5.2 / INV-3)
-  if (!config.selectedModel || !ALLOWED_MODELS.includes(config.selectedModel as AllowedModel)) {
-    errors.push('Model không thuộc danh sách cho phép');
+  // selectedModel: any non-empty string (the endpoint decides which models exist).
+  if (!config.selectedModel || typeof config.selectedModel !== 'string' || config.selectedModel.trim().length === 0) {
+    errors.push('Model không được để trống');
   }
 
   return { ok: errors.length === 0, errors };

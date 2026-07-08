@@ -28,6 +28,9 @@ import { PERMISSION_DEFINITIONS } from './extensions/permissions';
 import { installFromMarketplace } from './extensions/marketplace-download';
 import { ExtensionUpdateChecker } from './extensions/update-checker';
 import { AgentService } from './agent/agent-service';
+import { ProviderSettingsStore } from './agent/provider-settings-store';
+import { SecretStore } from './agent/secret-store';
+import { CustomOpenAIProvider } from './agent/custom-openai-provider';
 import { IntegrationsService } from './integrations/integrations-service';
 import { OnboardingService } from './onboarding/onboarding-service';
 import type { AgentTaskStatus, IntegrationProvider } from './agent/types';
@@ -657,6 +660,54 @@ function setupIPC() {
   ipcMain.handle('customProvider:testConnection', async (_event, input?: { apiKey?: string }) => {
     return agentService.testProviderConnection(input);
   });
+
+  // Chat directly against the user-configured OpenAI-compatible endpoint
+  // (codex-lb / 9router / any OpenAI-compatible). Streams content deltas to the
+  // renderer via 'agentStream:event' (correlated by turnId) and returns the full
+  // reply. The API key stays in main (SecretStore) and is redacted from errors.
+  ipcMain.handle(
+    'customProvider:chat',
+    async (
+      event,
+      payload: { message: string; history?: { role: string; content: string }[]; turnId?: string },
+    ): Promise<{ reply?: string; error?: string }> => {
+      const message = typeof payload?.message === 'string' ? payload.message.trim() : '';
+      const turnId = typeof payload?.turnId === 'string' ? payload.turnId : '';
+      if (!message) return { error: 'empty' };
+
+      const settings = new ProviderSettingsStore(dbManager);
+      const secrets = new SecretStore(dbManager);
+      if (!settings.isCustomEnabled()) return { error: 'disabled' };
+      const cfg = settings.getConfig();
+      const key = secrets.getKey();
+      if (!cfg || !key) return { error: 'not-configured' };
+
+      const history = Array.isArray(payload?.history)
+        ? payload.history
+            .filter(
+              (m): m is { role: 'system' | 'user' | 'assistant'; content: string } =>
+                !!m &&
+                typeof m.content === 'string' &&
+                (m.role === 'system' || m.role === 'user' || m.role === 'assistant'),
+            )
+            .slice(-8)
+        : [];
+
+      const provider = new CustomOpenAIProvider(cfg, key, (t) => secrets.redact(t));
+      let reply = '';
+      try {
+        for await (const chunk of provider.streamChat({ sessionId: '', message, history })) {
+          if (chunk.type === 'assistant_delta' && chunk.delta) {
+            reply += chunk.delta;
+            if (turnId) event.sender.send('agentStream:event', { turnId, kind: 'delta', text: chunk.delta });
+          }
+        }
+      } catch (err) {
+        return { error: secrets.redact(err instanceof Error ? err.message : String(err)) };
+      }
+      return { reply };
+    },
+  );
 
   ipcMain.handle('integrations:list', async () => {
     return integrationsService.list();
