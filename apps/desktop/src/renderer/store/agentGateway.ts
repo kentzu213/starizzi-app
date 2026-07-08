@@ -360,6 +360,71 @@ export const useAgentGatewayStore = create<AgentGatewayState>((set, get) => ({
         agent.setupMethod === 'docker' && agent.chatEndpoint === '/v1/chat/completions';
 
       if (isOpenAiCompatible && dockerAgentApi?.chat) {
+        // Patch just this turn's assistant message (used for startup status notes).
+        const patchAssistant = (patch: Partial<GatewayChatMessage>) =>
+          set((state) => ({
+            sessions: state.sessions.map((s) =>
+              s.id === session.id
+                ? {
+                    ...s,
+                    messages: s.messages.map((m) =>
+                      m.id === assistantMsgId ? { ...m, ...patch } : m,
+                    ),
+                  }
+                : s,
+            ),
+          }));
+
+        // A stopped container is the usual "can't chat / ECONNREFUSED" cause — try
+        // to (re)start it before sending so the user doesn't hit a dead connection.
+        const dockerMeta = {
+          id: agent.id,
+          defaultPort: agent.defaultPort,
+          dockerImage: agent.dockerImage,
+          dockerComposeUrl: agent.dockerComposeUrl,
+        };
+        try {
+          const st = await dockerAgentApi.status?.(dockerMeta);
+          if (st && st.running === false) {
+            patchAssistant({
+              content: `🚀 Đang khởi động ${agent.displayName}… (lần đầu có thể mất ~30–60s)`,
+            });
+            const started = await dockerAgentApi.start?.(dockerMeta);
+            if (!started?.ok) {
+              const why = started?.error ? `\n\n**Chi tiết:** ${started.error}` : '';
+              patchAssistant({
+                content:
+                  `⚠️ Chưa khởi động được ${agent.displayName}.${why}\n\n` +
+                  'Kiểm tra Docker đang chạy, hoặc mở Agent Hub để cài/chạy lại agent rồi thử lại.',
+                state: 'done',
+              });
+              set({ isSending: false });
+              return true;
+            }
+            get().updateAgentStatus(agent.id, 'running');
+            // Wait for /health before sending (the container needs a beat to listen).
+            if (dockerAgentApi.healthCheck) {
+              for (let i = 0; i < 20; i++) {
+                try {
+                  const h = await dockerAgentApi.healthCheck({
+                    defaultPort: agent.defaultPort,
+                    healthEndpoint: agent.healthEndpoint,
+                    timeoutMs: 4000,
+                  });
+                  if (h?.ok) break;
+                } catch {
+                  /* keep polling */
+                }
+                await new Promise((res) => setTimeout(res, 2000));
+              }
+            }
+            patchAssistant({ content: '' }); // clear the note so the reply stream fills the bubble
+          }
+        } catch {
+          // status/start bridge unavailable (e.g. Docker CLI missing) — fall through;
+          // the chat call below surfaces the concrete error.
+        }
+
         const r = await dockerAgentApi.chat(
           {
             id: agent.id,
@@ -398,10 +463,15 @@ export const useAgentGatewayStore = create<AgentGatewayState>((set, get) => ({
         }
 
         // Honest error from the agent/provider (no fallback simulation).
-        const errReply =
-          `⚠️ ${agent.displayName} chưa trả lời được.\n\n**Lỗi:** ${r.error ?? 'không rõ'}\n\n` +
-          'Nếu lỗi liên quan tới provider/model, hãy cấu hình model provider (API key) ' +
-          'hoặc chạy `hermes setup` cho agent, rồi thử lại.';
+        const rawErr = String(r.error ?? 'không rõ');
+        const isConnErr = /econnrefused|econnreset|\bconnect\b|fetch failed|socket hang up|network|timed? ?out/i.test(rawErr);
+        const errReply = isConnErr
+          ? `⚠️ ${agent.displayName} chưa kết nối được (agent chưa chạy hoặc đang khởi động).\n\n**Lỗi:** ${rawErr}\n\n` +
+            'Thử gửi lại sau vài giây (agent có thể đang khởi động), hoặc mở Agent Hub → chạy lại agent. ' +
+            'Đảm bảo Docker đang chạy.'
+          : `⚠️ ${agent.displayName} chưa trả lời được.\n\n**Lỗi:** ${rawErr}\n\n` +
+            'Nếu lỗi liên quan tới provider/model, hãy cấu hình model provider (API key) ' +
+            'hoặc chạy `hermes setup` cho agent, rồi thử lại.';
 
         set((state) => ({
           isSending: false,
