@@ -15,18 +15,20 @@ import { buildAuthHeaders, resolveChatCompletionsUrl } from './custom-openai-pro
 import type { CustomProviderConfig } from './provider-settings-store';
 import { HOST_TOOLS, classifyToolRisk, executeHostTool, summarizeToolCall, type ToolRisk } from './agent-tools';
 import { needsApproval, type PermissionMode } from './agent-permissions';
-import type { AgentTurnEvent } from '../../shared/agent-turn-events';
+import { extractSseEvents, type AgentTurnEvent } from '../../shared/agent-turn-events';
 
 const MAX_TOOL_ITERATIONS = 12;
 const TOOL_RESULT_CAP = 12000;
 
 const SYSTEM_PROMPT =
-  "You are an autonomous coding & ops agent running ON the user's computer through the Izzi desktop app. " +
-  'You have tools to run shell commands and read/write/list files on their machine. ' +
-  'Prefer DOING the task with your tools over telling the user to run commands themselves. ' +
-  'Work step by step: inspect first (read_file / list_dir / run_command), make the change (write_file / run_command), then verify it. ' +
-  'When you run a command, say briefly why. Keep going until the task is complete, then give a short summary of what you did. ' +
-  'Reply in the user\'s language.';
+  "You are an autonomous coding & ops agent running ON the user's computer through the Izzi desktop app. Work like a capable senior engineer paired with the user.\n\n" +
+  'How you work:\n' +
+  '- For a non-trivial task, start with a brief plan (1-3 short steps).\n' +
+  '- Then DO the work with your tools (run shell commands, read/write/list files) — do NOT just tell the user to run things themselves. Inspect first, make the change, then VERIFY it (run the build / tests / the command and check the result).\n' +
+  '- Narrate concisely: one short line before an action saying what you are doing and why. Do not over-explain or dump long output.\n' +
+  '- Make the smallest change that solves the task; do not touch unrelated things.\n' +
+  '- Keep going until the task is actually done. Then give a short summary of what you changed and what you verified, and be honest about anything you could NOT verify.\n' +
+  "- Reply in the user's language.";
 
 export interface HostApprovalRequest {
   tool: string;
@@ -63,6 +65,80 @@ function buildUserContent(message: string, images: string[]): unknown {
   ];
 }
 
+interface StreamedToolCall {
+  id: string;
+  name: string;
+  args: string;
+}
+
+/**
+ * POST a streaming chat completion and consume the SSE: emit each content token
+ * live via `onDelta` while accumulating the final content + any tool_calls
+ * (whose `arguments` arrive in fragments). Standard OpenAI streaming shape.
+ * Throws on a non-OK HTTP response so the caller surfaces the error.
+ */
+async function streamChatTurn(
+  url: string,
+  headers: Record<string, string>,
+  body: unknown,
+  onDelta: (text: string) => void,
+): Promise<{ content: string; toolCalls: StreamedToolCall[] }> {
+  const res = await fetch(url, { method: 'POST', headers, body: JSON.stringify(body) });
+  if (!res.ok || !res.body) {
+    const errBody = await res.text().catch(() => '');
+    throw new Error(`http ${res.status}${errBody ? ': ' + errBody.slice(0, 200) : ''}`);
+  }
+  const decoder = new TextDecoder();
+  let buffer = '';
+  let content = '';
+  const acc = new Map<number, StreamedToolCall>();
+
+  for await (const chunk of res.body as unknown as AsyncIterable<Uint8Array>) {
+    buffer += decoder.decode(chunk, { stream: true });
+    const { events, rest } = extractSseEvents(buffer);
+    buffer = rest;
+    for (const ev of events) {
+      const payload = ev
+        .split(/\r?\n/)
+        .filter((l) => l.startsWith('data:'))
+        .map((l) => l.slice(5).trim())
+        .join('');
+      if (!payload || payload === '[DONE]') continue;
+      let obj: {
+        choices?: Array<{
+          delta?: {
+            content?: unknown;
+            tool_calls?: Array<{ index?: number; id?: string; function?: { name?: string; arguments?: string } }>;
+          };
+        }>;
+      };
+      try {
+        obj = JSON.parse(payload);
+      } catch {
+        continue;
+      }
+      const delta = obj?.choices?.[0]?.delta;
+      if (!delta) continue;
+      if (typeof delta.content === 'string' && delta.content) {
+        content += delta.content;
+        onDelta(delta.content);
+      }
+      if (Array.isArray(delta.tool_calls)) {
+        for (const t of delta.tool_calls) {
+          const idx = typeof t?.index === 'number' ? t.index : 0;
+          const cur = acc.get(idx) ?? { id: '', name: '', args: '' };
+          if (typeof t?.id === 'string' && t.id) cur.id = t.id;
+          if (typeof t?.function?.name === 'string' && t.function.name) cur.name = t.function.name;
+          if (typeof t?.function?.arguments === 'string') cur.args += t.function.arguments;
+          acc.set(idx, cur);
+        }
+      }
+    }
+  }
+  const toolCalls = [...acc.entries()].sort((a, b) => a[0] - b[0]).map(([, v]) => v);
+  return { content, toolCalls };
+}
+
 /** Run one agent turn (may span several model round-trips + tool executions). */
 export async function runHostAgentTurn(opts: HostAgentTurnOptions): Promise<{ reply: string; error?: string }> {
   const { config, apiKey, message, history, images, mode, turnId, requestApproval, emit } = opts;
@@ -90,43 +166,38 @@ export async function runHostAgentTurn(opts: HostAgentTurnOptions): Promise<{ re
 
   try {
     for (let iter = 0; iter < MAX_TOOL_ITERATIONS; iter++) {
-      const res = await fetch(url, {
-        method: 'POST',
+      const { content, toolCalls } = await streamChatTurn(
+        url,
         headers,
-        body: JSON.stringify({ model, messages, tools: HOST_TOOLS, tool_choice: 'auto', stream: false }),
-      });
-      if (!res.ok) {
-        const body = await res.text().catch(() => '');
-        return { reply: '', error: scrub(`http ${res.status}${body ? ': ' + body.slice(0, 200) : ''}`) };
-      }
-      const data = (await res.json()) as {
-        choices?: Array<{
-          message?: {
-            content?: unknown;
-            tool_calls?: Array<{ id: string; function?: { name?: string; arguments?: string } }>;
-          };
-        }>;
-      };
-      const msg = data?.choices?.[0]?.message;
-      const toolCalls = Array.isArray(msg?.tool_calls) ? msg!.tool_calls! : [];
+        { model, messages, tools: HOST_TOOLS, tool_choice: 'auto', stream: true },
+        (text) => emit?.({ turnId, kind: 'delta', text }),
+      );
 
-      // No tool calls → the model gave its final answer.
+      // No tool calls → the model gave its final answer (already streamed live).
       if (toolCalls.length === 0) {
-        const content = msg?.content;
-        return typeof content === 'string' && content.length > 0
-          ? { reply: content }
-          : { reply: '', error: 'empty-response' };
+        return content.length > 0 ? { reply: content } : { reply: '', error: 'empty-response' };
       }
+
+      // Visually separate this step's narration from what comes next.
+      if (content) emit?.({ turnId, kind: 'delta', text: '\n\n' });
 
       // Record the assistant turn that requested the tools.
-      messages.push({ role: 'assistant', content: (msg?.content as string) || '', tool_calls: toolCalls });
+      messages.push({
+        role: 'assistant',
+        content: content || '',
+        tool_calls: toolCalls.map((t) => ({
+          id: t.id,
+          type: 'function',
+          function: { name: t.name, arguments: t.args },
+        })),
+      });
 
       for (const tc of toolCalls) {
-        const name = tc.function?.name || '';
+        const name = tc.name || '';
         const stepId = tc.id || `${name}-${Math.random().toString(36).slice(2, 8)}`;
         let args: Record<string, unknown> = {};
         try {
-          const parsed = JSON.parse(tc.function?.arguments || '{}');
+          const parsed = JSON.parse(tc.args || '{}');
           if (parsed && typeof parsed === 'object') args = parsed as Record<string, unknown>;
         } catch {
           args = {};
