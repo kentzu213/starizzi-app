@@ -210,6 +210,7 @@ const electronAPI = {
       message: string;
       history?: { role: 'system' | 'user' | 'assistant'; content: string }[];
       turnId?: string;
+      images?: string[];
     }): Promise<{ reply?: string; error?: string }> =>
       ipcRenderer.invoke('customProvider:chat', payload),
   },

@@ -370,7 +370,7 @@ export const useAgentGatewayStore = create<AgentGatewayState>((set, get) => ({
             .filter((m) => m.state === 'done' && m.content)
             .slice(-8)
             .map((m) => ({ role: m.role, content: m.content }));
-          const r = await customApi.chat({ message: content, history, turnId: assistantMsgId });
+          const r = await customApi.chat({ message: content, history, turnId: assistantMsgId, images: imgs });
           if (r?.reply) {
             set((state) => ({
               isSending: false,

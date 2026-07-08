@@ -700,11 +700,19 @@ function setupIPC() {
     'customProvider:chat',
     async (
       event,
-      payload: { message: string; history?: { role: string; content: string }[]; turnId?: string },
+      payload: {
+        message: string;
+        history?: { role: string; content: string }[];
+        turnId?: string;
+        images?: string[];
+      },
     ): Promise<{ reply?: string; error?: string }> => {
       const message = typeof payload?.message === 'string' ? payload.message.trim() : '';
       const turnId = typeof payload?.turnId === 'string' ? payload.turnId : '';
-      if (!message) return { error: 'empty' };
+      const images = Array.isArray(payload?.images)
+        ? payload.images.filter((u): u is string => typeof u === 'string' && u.startsWith('data:image/'))
+        : [];
+      if (!message && images.length === 0) return { error: 'empty' };
 
       const settings = new ProviderSettingsStore(dbManager);
       const secrets = new SecretStore(dbManager);
@@ -727,7 +735,7 @@ function setupIPC() {
       const provider = new CustomOpenAIProvider(cfg, key, (t) => secrets.redact(t));
       let reply = '';
       try {
-        for await (const chunk of provider.streamChat({ sessionId: '', message, history })) {
+        for await (const chunk of provider.streamChat({ sessionId: '', message, history, images })) {
           if (chunk.type === 'assistant_delta' && chunk.delta) {
             reply += chunk.delta;
             if (turnId) event.sender.send('agentStream:event', { turnId, kind: 'delta', text: chunk.delta });

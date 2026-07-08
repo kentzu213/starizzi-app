@@ -120,6 +120,8 @@ export interface ManagedAgentStreamRequest {
   sessionId: string;
   message: string;
   history: AgentHistoryMessage[];
+  /** Pasted image attachments as data URLs; sent as multimodal `image_url` parts. */
+  images?: string[];
   user?: {
     id?: string;
     email?: string;

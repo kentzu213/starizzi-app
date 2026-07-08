@@ -10,6 +10,25 @@ import type {
 
 const REQUEST_TIMEOUT_MS = 120000;
 
+/** True for a base64 data URL that carries an image (the only image form we accept). */
+function isDataImage(u: unknown): u is string {
+  return typeof u === 'string' && u.startsWith('data:image/');
+}
+
+/**
+ * Build the OpenAI-compatible `content` for the user turn: a plain string when
+ * there are no images, or a content-parts array (text + image_url) when images
+ * are attached. Vision-capable endpoints (e.g. codex-lb / gpt-5.5) read the
+ * image_url parts.
+ */
+function buildUserContent(message: string, images: string[]): unknown {
+  if (images.length === 0) return message;
+  return [
+    ...(message ? [{ type: 'text', text: message }] : []),
+    ...images.map((url) => ({ type: 'image_url', image_url: { url } })),
+  ];
+}
+
 /**
  * Map an HTTP/error condition into a concise, key-free message (R6).
  * `redact` is supplied by the caller (SecretStore.redact) so any key in the
@@ -88,9 +107,10 @@ export class CustomOpenAIProvider implements ChatProvider {
   async *streamChat(
     request: ManagedAgentStreamRequest,
   ): AsyncGenerator<ManagedProviderStreamChunk> {
-    const messages = [
+    const images = Array.isArray(request.images) ? request.images.filter(isDataImage) : [];
+    const messages: Array<{ role: string; content: unknown }> = [
       ...request.history.map((msg) => ({ role: msg.role, content: msg.content })),
-      { role: 'user' as const, content: request.message },
+      { role: 'user', content: buildUserContent(request.message, images) },
     ];
 
     let response;
