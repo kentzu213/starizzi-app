@@ -1,8 +1,8 @@
 {
   "name": "social-auto-poster",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "displayName": "Social Auto Poster",
-  "description": "Lên lịch và tự động đăng bài lên Facebook Page (và các kênh khác) qua backend đã cài trên máy. Agent có thể gọi trực tiếp để đăng/lên lịch.",
+  "description": "Lên lịch và tự động đăng bài lên Facebook / YouTube / TikTok qua Auto-Post Tool (backend izzi thống nhất). Dùng chung tài khoản izzi — cài xong agent gọi trực tiếp để đăng/lên lịch.",
   "main": "dist/index.js",
   "engine": ">=0.1.0",
   "author": {
@@ -37,15 +37,9 @@
       { "id": "social-auto-poster.dashboard", "title": "Social Auto Poster", "entry": "panel" }
     ],
     "settings": [
-      { "id": "backendUrl", "title": "Backend URL", "description": "API aitoearn đã cài, kèm prefix /api (vd: http://127.0.0.1:8080/api).", "type": "string", "default": "http://127.0.0.1:8080/api" },
-      { "id": "apiKey", "title": "API key / Token", "description": "API key tạo trong aitoearn. KHÔNG chia sẻ. Lưu cục bộ trên máy bạn.", "type": "string", "default": "" },
-      { "id": "channel", "title": "Kênh", "description": "Nền tảng đăng.", "type": "select", "default": "facebook_page", "options": [
-        { "label": "Facebook Page", "value": "facebook_page" },
-        { "label": "Facebook Group (cần browser automation)", "value": "facebook_group" },
-        { "label": "Instagram", "value": "instagram" },
-        { "label": "X / Twitter", "value": "twitter" }
-      ] },
-      { "id": "targetId", "title": "ID trang/kênh", "description": "ID Facebook Page (hoặc kênh) sẽ đăng.", "type": "string", "default": "" },
+      { "id": "backendUrl", "title": "Backend URL", "description": "Auto-Post Tool API (Starizzi tự điền từ phiên izzi; mặc định http://127.0.0.1:3001).", "type": "string", "default": "http://127.0.0.1:3001" },
+      { "id": "apiKey", "title": "API key / Token", "description": "Token izzi (JWT) — Starizzi TỰ ĐIỀN từ phiên đăng nhập, không cần nhập. Lưu cục bộ trên máy bạn.", "type": "string", "default": "" },
+      { "id": "targetId", "title": "ID trang/kênh (Social Account ID)", "description": "Social Account ID trong Auto-Post (chạy listAccounts để lấy). Để trống = tạo bản nháp.", "type": "string", "default": "" },
       { "id": "scheduleTimes", "title": "Khung giờ đăng", "description": "Các mốc giờ trong ngày, cách nhau bằng dấu phẩy (vd: 10:00,17:00,20:00).", "type": "string", "default": "10:00,17:00,20:00" },
       { "id": "timezone", "title": "Múi giờ", "type": "string", "default": "Asia/Ho_Chi_Minh" }
     ]

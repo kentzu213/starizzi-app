@@ -36,6 +36,7 @@ import { AgentPermissionStore, isPermissionMode, type PermissionMode } from './a
 import { AutopostAuth } from './autopost/autopost-auth';
 import { AutopostClient } from './autopost/autopost-client';
 import { AUTOPOST_TOOLS, classifyAutopostRisk, executeAutopostTool, isAutopostTool } from './autopost/autopost-tools';
+import type { LoadedExtension } from './extensions/extension-loader';
 import { IntegrationsService } from './integrations/integrations-service';
 import { OnboardingService } from './onboarding/onboarding-service';
 import type { AgentTaskStatus, IntegrationProvider } from './agent/types';
@@ -738,13 +739,15 @@ function setupIPC() {
   ipcMain.handle(
     'autopost:getStatus',
     async (): Promise<{ enabled: boolean; connected: boolean; backendUrl: string; workspaceId: string | null; accounts: number | null }> => {
-      const enabled = dbManager.getSetting('autopost_enabled') === '1';
+      const enabled = dbManager.getSetting('autopost_enabled') === '1' || isSocialAutoPosterActive();
       let connected = false;
       let accounts: number | null = null;
       if (enabled) {
         const jwt = await autopostAuth.getJwt();
         connected = !!jwt;
         if (connected) {
+          // Keep the extension's injected credentials fresh whenever status is checked.
+          await syncAutopostExtensionCredentials();
           try {
             const r = await new AutopostClient(autopostAuth).listAccounts();
             if (r.ok && Array.isArray(r.data)) accounts = (r.data as unknown[]).length;
@@ -764,7 +767,8 @@ function setupIPC() {
   );
   ipcMain.handle('autopost:setEnabled', async (_event, enabled: boolean): Promise<{ ok: boolean; enabled: boolean }> => {
     dbManager.setSetting('autopost_enabled', enabled ? '1' : '0');
-    if (!enabled) autopostAuth.clear();
+    if (enabled) await syncAutopostExtensionCredentials();
+    else autopostAuth.clear();
     return { ok: true, enabled: !!enabled };
   });
 
@@ -815,10 +819,11 @@ function setupIPC() {
       const permMode = permStore.getMode();
       if (permMode === 'agent' || permMode === 'agent-full') {
         const win = BrowserWindow.fromWebContents(event.sender) ?? mainWindow;
-        // Auto-Post tools: when the user enabled the Auto-Post connection, give the
-        // agent list/draft/schedule capabilities via REST (JWT from the izzi session).
-        // Drafting is safe; scheduling is risk-gated by the same approval flow.
-        const autopostClient = dbManager.getSetting('autopost_enabled') === '1' ? new AutopostClient(autopostAuth) : null;
+        // Auto-Post tools: enabled by the manual flag OR by installing the Social
+        // Auto Poster marketplace product. Gives the agent list/draft/schedule via
+        // REST (JWT from the izzi session). Drafting is safe; scheduling is risk-gated.
+        const autopostOn = dbManager.getSetting('autopost_enabled') === '1' || isSocialAutoPosterActive();
+        const autopostClient = autopostOn ? new AutopostClient(autopostAuth) : null;
         const result = await runHostAgentTurn({
           config: cfg,
           apiKey: key,
@@ -958,6 +963,40 @@ function autoConnectCodexLb(db: DatabaseManager): void {
     console.log('[OpenClaw] Auto-connected local codex-lb (CODEX_LB_API_KEY present, no active connection)');
   } catch {
     // Best-effort: a failure here must never block startup.
+  }
+}
+
+/** The loaded Social Auto Poster extension, if installed. */
+function socialAutoPosterExt(): LoadedExtension | undefined {
+  try {
+    return extensionLoader?.getAllExtensions().find((e) => e.name === 'social-auto-poster');
+  } catch {
+    return undefined;
+  }
+}
+
+/** True when the Social Auto Poster marketplace product is installed AND active. */
+function isSocialAutoPosterActive(): boolean {
+  return socialAutoPosterExt()?.state === 'running';
+}
+
+/**
+ * Push the Auto-Post backend URL + a fresh JWT (+ workspace) into the Social Auto
+ * Poster extension's storage so its commands hit Auto-Post with the izzi identity —
+ * no separate login. Best-effort; the JWT is re-minted from the live session.
+ */
+async function syncAutopostExtensionCredentials(): Promise<void> {
+  const ext = socialAutoPosterExt();
+  if (!ext) return;
+  const jwt = await autopostAuth.getJwt();
+  if (!jwt) return;
+  try {
+    extensionLoader.setStoredExtensionValue(ext.id, 'setting.backendUrl', autopostAuth.baseUrl);
+    extensionLoader.setStoredExtensionValue(ext.id, 'setting.apiKey', jwt);
+    const ws = autopostAuth.getWorkspaceId();
+    if (ws) extensionLoader.setStoredExtensionValue(ext.id, 'setting.workspaceId', ws);
+  } catch {
+    /* best-effort */
   }
 }
 

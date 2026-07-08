@@ -1,38 +1,30 @@
 /**
  * Social Auto Poster — Starizzi (.ocx) utility bundle
  *
- * Đăng / lên lịch bài social qua backend AITOEARN đã cài trên máy.
- * Agent gọi được các command bên dưới (params-based). Cấu hình ở Settings.
+ * Đăng / lên lịch bài social qua AUTO-POST TOOL (backend izzi thống nhất).
+ * Agent gọi được các command bên dưới (params-based). Starizzi tự bơm cấu hình
+ * (Backend URL + API key + workspace) từ phiên đăng nhập izzi — KHÔNG cần nhập tay.
  *
- * Backend mapping (aitoearn, nginx :8080, prefix /api — extension chạy trên HOST):
- *   - List accounts:   GET  /api/account/list/all
- *   - Publish/Schedule:POST /api/plat/publish/create   (publishTime tương lai = lên lịch)
- *   - List records:    POST /api/plat/publish/getList
- *   - Cancel task:     DELETE /api/plat/publish/delete/:id
- *   Auth: Authorization: Bearer <API key aitoearn>. Envelope: { data, code, message } (code 0 = OK).
+ * Backend mapping (Auto-Post Tool REST, mặc định http://127.0.0.1:3001; auth JWT izzi):
+ *   - List accounts:   GET    /social-auth/accounts
+ *   - Create/Schedule: POST   /posts        (scheduledAt tương lai = lên lịch; rỗng + có account = đăng ngay; không account = nháp)
+ *   - List posts:      GET    /posts?status=...
+ *   - Delete post:     DELETE /posts/:id
+ *   Auth: Authorization: Bearer <JWT izzi>. Response REST thuần (200 = OK; lỗi = {statusCode,message}).
  *
- * Facebook: PAGE đăng qua API OK (accountType 'facebook'). GROUP bị Meta chặn API — cần browser automation.
- * Bảo mật: apiKey lưu cục bộ (ctx.storage), không log giá trị, chỉ gửi tới backend người dùng cấu hình.
+ * An toàn: apiKey (JWT) do Starizzi bơm vào storage, không log, chỉ gửi tới backend đã cấu hình.
+ * Bài KHÔNG có account => nháp (không đăng). Có account + không hẹn giờ => đăng ngay (hành động người dùng chủ động).
  */
 
 let ctx = null;
 
-const SETTING_KEYS = ['backendUrl', 'apiKey', 'channel', 'targetId', 'scheduleTimes', 'timezone'];
-
-// channel (UI) -> aitoearn AccountType
-const CHANNEL_TO_ACCOUNT_TYPE = {
-  facebook_page: 'facebook',
-  facebook_group: 'facebook',
-  instagram: 'instagram',
-  twitter: 'twitter',
-};
+const SETTING_KEYS = ['backendUrl', 'apiKey', 'workspaceId', 'channel', 'targetId', 'scheduleTimes', 'timezone'];
 
 async function getConfig(override) {
   const cfg = {};
   for (const k of SETTING_KEYS) {
     try { cfg[k] = await ctx.storage.get('setting.' + k); } catch { cfg[k] = null; }
   }
-  cfg.channel = (override && override.channel) || cfg.channel || 'facebook_page';
   cfg.targetId = (override && override.targetId) || cfg.targetId || '';
   cfg.scheduleTimes = cfg.scheduleTimes || '10:00,17:00,20:00';
   cfg.timezone = cfg.timezone || 'Asia/Ho_Chi_Minh';
@@ -43,14 +35,14 @@ async function getConfig(override) {
 
 function base(cfg) {
   if (!cfg.backendUrl) {
-    const e = new Error('Chưa cấu hình Backend URL (vd http://127.0.0.1:8080/api). Mở Settings của "Social Auto Poster".');
+    const e = new Error('Chưa có Backend URL của Auto-Post. Mở Starizzi, đăng nhập izzi rồi bật "Social Auto Poster".');
     e.code = 'NOT_CONFIGURED';
     throw e;
   }
   return cfg.backendUrl.replace(/\/+$/, '');
 }
 
-/** Gọi backend aitoearn, trả về { httpStatus, code, message, data, raw }. */
+/** Gọi Auto-Post REST, trả về { httpStatus, ok, data, error }. */
 async function call(cfg, path, method, body) {
   const url = base(cfg) + path;
   const headers = { 'Content-Type': 'application/json' };
@@ -63,68 +55,52 @@ async function call(cfg, path, method, body) {
   });
   let parsed = null;
   try { parsed = res.body ? JSON.parse(res.body) : null; } catch { parsed = null; }
-  const env = parsed && typeof parsed === 'object' ? parsed : {};
-  return {
-    httpStatus: res.status,
-    code: (env.code !== undefined ? env.code : null),
-    message: env.message || null,
-    data: env.data !== undefined ? env.data : parsed,
-    raw: parsed,
-  };
-}
-
-/** aitoearn trả HTTP 200 + envelope; code 0/200 = OK. */
-function envOk(r) {
-  if (r.code === 0 || r.code === 200) return true;
-  if (r.code === null && r.httpStatus >= 200 && r.httpStatus < 300) return true;
-  return false;
-}
-
-function groupWarning(channel) {
-  if (channel === 'facebook_group') {
-    return 'Facebook Group không đăng được qua API (Meta chặn). Dùng Facebook Page, hoặc backend phải hỗ trợ browser automation cho group.';
+  const ok = res.status >= 200 && res.status < 300;
+  let error = null;
+  if (!ok) {
+    const m = parsed && parsed.message;
+    error = Array.isArray(m) ? m.join('; ') : (m || (parsed && parsed.error) || ('HTTP ' + res.status));
   }
-  return null;
+  return { httpStatus: res.status, ok, data: parsed, error };
 }
 
-/** "HH:MM" -> ISO instant hôm nay (theo giờ máy); nếu đã qua thì +1 ngày. */
+/** "HH:MM" -> ISO instant hôm nay (giờ máy); nếu đã qua thì +addDays (mặc định +1 ngày). */
 function timeToIso(hhmm, addDays) {
   const m = /^(\d{1,2}):(\d{2})$/.exec(String(hhmm).trim());
   if (!m) return null;
   const now = new Date();
   const d = new Date(now.getFullYear(), now.getMonth(), now.getDate(), Number(m[1]), Number(m[2]), 0, 0);
   if (addDays) d.setDate(d.getDate() + addDays);
-  else if (d.getTime() <= now.getTime()) d.setDate(d.getDate() + 1); // giờ đã qua -> ngày mai
+  else if (d.getTime() <= now.getTime()) d.setDate(d.getDate() + 1);
   return d.toISOString();
 }
 
-function buildPublishBody(cfg, p, publishTimeIso) {
-  const isVideo = Boolean(p.videoUrl) || p.type === 'video';
+/** Body cho POST /posts. Không có targetId => nháp (an toàn). */
+function buildPostBody(cfg, p, scheduledAtIso) {
+  const media = Array.isArray(p.mediaUrls) && p.mediaUrls.length
+    ? p.mediaUrls
+    : (p.videoUrl ? [p.videoUrl] : undefined);
   const body = {
-    accountId: cfg.targetId,
-    accountType: CHANNEL_TO_ACCOUNT_TYPE[cfg.channel] || 'facebook',
-    type: isVideo ? 'video' : 'article',
-    desc: p.content,
+    workspaceId: cfg.workspaceId || undefined,
+    content: p.content,
     title: p.title || undefined,
-    topics: Array.isArray(p.topics) ? p.topics : [],
-    publishTime: publishTimeIso,
+    socialAccountIds: cfg.targetId ? [cfg.targetId] : undefined,
+    mediaUrls: media,
   };
-  if (p.videoUrl) body.videoUrl = p.videoUrl;
-  if (p.coverUrl) body.coverUrl = p.coverUrl;
-  if (Array.isArray(p.mediaUrls) && p.mediaUrls.length) body.imgUrlList = p.mediaUrls;
+  if (scheduledAtIso) body.scheduledAt = scheduledAtIso;
+  if (p.contentType) body.contentType = p.contentType;
   return body;
 }
 
-function requireContentAndAccount(p, cfg) {
+function requireContent(p) {
   if (!p.content || typeof p.content !== 'string') return 'Thiếu "content" (nội dung bài đăng).';
-  if (!cfg.targetId) return 'Thiếu targetId (accountId aitoearn). Chạy "listAccounts" để lấy ID trang đã kết nối.';
   return null;
 }
 
 const extension = {
   async activate(context) {
     ctx = context;
-    ctx.log.info('[social-auto-poster] activated');
+    ctx.log.info('[social-auto-poster] activated (Auto-Post backend)');
     try { await ctx.ui.registerPanel('social-auto-poster.dashboard', renderPanel()); }
     catch (e) { ctx.log.warn('registerPanel failed: ' + (e && e.message)); }
   },
@@ -139,106 +115,95 @@ const extension = {
         configured: Boolean(cfg.backendUrl),
         backendUrl: cfg.backendUrl || null,
         hasApiKey: Boolean(cfg.apiKey),
-        channel: cfg.channel,
         targetId: cfg.targetId || null,
         scheduleTimes: cfg.scheduleTimes,
-        note: groupWarning(cfg.channel),
       };
-      if (!cfg.backendUrl) { out.connected = false; out.message = 'Chưa cấu hình Backend URL.'; return out; }
+      if (!cfg.backendUrl) { out.connected = false; out.message = 'Chưa có Backend URL.'; return out; }
       try {
-        if (cfg.apiKey) {
-          const r = await call(cfg, '/account/list/all', 'GET');
-          out.connected = envOk(r);
-          out.authOk = r.code !== 401;
-          out.accountCount = Array.isArray(r.data) ? r.data.length : undefined;
-          if (!out.connected) out.message = r.message || ('code ' + r.code);
-          return out;
-        }
-        const h = await call(cfg, '/health', 'GET');
-        out.connected = h.httpStatus >= 200 && h.httpStatus < 400;
-        out.message = out.connected ? 'Backend sống nhưng CHƯA có API key (chưa xác thực).' : 'Backend không phản hồi.';
+        const r = await call(cfg, '/social-auth/accounts', 'GET');
+        out.connected = r.ok;
+        out.authOk = r.httpStatus !== 401;
+        out.accountCount = Array.isArray(r.data) ? r.data.length : undefined;
+        if (!r.ok) out.message = r.error;
         return out;
       } catch (err) { out.connected = false; out.error = err.message; return out; }
     },
 
-    /** Liệt kê tài khoản đã kết nối trên aitoearn (lấy accountId của Page). */
+    /** Liệt kê tài khoản MXH đã liên kết trong Auto-Post (lấy socialAccountId). */
     'social-auto-poster.listAccounts': async function listAccounts(params) {
       const cfg = await getConfig(params || {});
       try {
-        const r = await call(cfg, '/account/list/all', 'GET');
-        if (!envOk(r)) return { ok: false, code: r.code, error: r.message || 'Không lấy được danh sách tài khoản.' };
-        const list = Array.isArray(r.data) ? r.data.map(a => ({ id: a.id || a._id, type: a.type, name: a.nickname || a.account || a.name, uid: a.uid })) : r.data;
+        const r = await call(cfg, '/social-auth/accounts', 'GET');
+        if (!r.ok) return { ok: false, error: r.error };
+        const list = Array.isArray(r.data)
+          ? r.data.map(a => ({ id: a.id, platform: a.platform, name: a.accountName || a.name || a.username, status: a.status }))
+          : r.data;
         return { ok: true, accounts: list };
       } catch (err) { return { ok: false, error: err.message, code: err.code }; }
     },
 
-    /** Đăng ngay. params: { content, title?, mediaUrls?, videoUrl?, targetId?, channel?, topics? } */
+    /** Đăng ngay. params: { content, title?, mediaUrls?, videoUrl?, targetId?, contentType? } */
     'social-auto-poster.postNow': async function postNow(params) {
       const p = params || {};
       const cfg = await getConfig(p);
-      const bad = requireContentAndAccount(p, cfg);
+      const bad = requireContent(p);
       if (bad) return { ok: false, error: bad };
-      const warn = groupWarning(cfg.channel);
+      const draftOnly = !cfg.targetId;
       try {
-        const body = buildPublishBody(cfg, p, new Date(Date.now() + 60 * 1000).toISOString()); // +1 phút = "ngay"
-        const r = await call(cfg, '/plat/publish/create', 'POST', body);
-        const ok = envOk(r);
-        await ctx.ui.showNotification(ok ? 'Đã tạo task đăng bài trên aitoearn.' : ('Backend lỗi: ' + (r.message || r.code)), ok ? 'success' : 'error');
-        return { ok, code: r.code, httpStatus: r.httpStatus, message: r.message, result: r.data, note: warn };
-      } catch (err) { return { ok: false, error: err.message, code: err.code, note: warn }; }
+        const r = await call(cfg, '/posts', 'POST', buildPostBody(cfg, p, null));
+        await ctx.ui.showNotification(
+          r.ok ? (draftOnly ? 'Đã tạo bản nháp (chưa chọn tài khoản để đăng).' : 'Đã tạo bài đăng trên Auto-Post.') : ('Lỗi: ' + r.error),
+          r.ok ? 'success' : 'error',
+        );
+        return { ok: r.ok, httpStatus: r.httpStatus, error: r.error, result: r.data, note: draftOnly ? 'Chưa có targetId → tạo nháp. Chạy listAccounts để lấy socialAccountId.' : null };
+      } catch (err) { return { ok: false, error: err.message, code: err.code }; }
     },
 
-    /**
-     * Lên lịch. params: { content, times?, days?, targetId?, channel?, ... }
-     * Tạo 1 task cho mỗi mốc giờ (times, mặc định từ settings) trong `days` ngày (mặc định 1 = hôm nay/mai).
-     */
+    /** Lên lịch. params: { content, times?, days?, targetId?, ... } — 1 bài/mốc giờ. */
     'social-auto-poster.schedule': async function schedule(params) {
       const p = params || {};
       const cfg = await getConfig(p);
-      const bad = requireContentAndAccount(p, cfg);
+      const bad = requireContent(p);
       if (bad) return { ok: false, error: bad };
       const times = (p.times || cfg.scheduleTimes || '').split(',').map(s => s.trim()).filter(Boolean);
       if (times.length === 0) return { ok: false, error: 'Thiếu khung giờ (times).' };
       const days = Math.max(1, Number(p.days) || 1);
-      const warn = groupWarning(cfg.channel);
       const created = [];
       try {
         for (let day = 0; day < days; day++) {
           for (const t of times) {
             const iso = timeToIso(t, day > 0 ? day : undefined);
             if (!iso) { created.push({ time: t, ok: false, error: 'Giờ không hợp lệ' }); continue; }
-            const r = await call(cfg, '/plat/publish/create', 'POST', buildPublishBody(cfg, p, iso));
-            created.push({ time: t, publishTime: iso, ok: envOk(r), code: r.code, message: r.message, result: r.data });
+            const r = await call(cfg, '/posts', 'POST', buildPostBody(cfg, p, iso));
+            created.push({ time: t, scheduledAt: iso, ok: r.ok, error: r.error, result: r.data });
           }
         }
         const okCount = created.filter(c => c.ok).length;
-        await ctx.ui.showNotification('Đã lên lịch ' + okCount + '/' + created.length + ' task.', okCount > 0 ? 'success' : 'error');
-        return { ok: okCount > 0, scheduled: created, timezone: cfg.timezone, note: warn };
-      } catch (err) { return { ok: false, error: err.message, code: err.code, note: warn, scheduled: created }; }
+        await ctx.ui.showNotification('Đã lên lịch ' + okCount + '/' + created.length + ' bài.', okCount > 0 ? 'success' : 'error');
+        return { ok: okCount > 0, scheduled: created, timezone: cfg.timezone, note: cfg.targetId ? null : 'Chưa có targetId → các bài là nháp.' };
+      } catch (err) { return { ok: false, error: err.message, scheduled: created }; }
     },
 
-    /** Xem task đã đặt. params?: { status?, accountId? } */
+    /** Xem bài đã lên lịch. params?: { status? } (mặc định scheduled) */
     'social-auto-poster.listScheduled': async function listScheduled(params) {
       const p = params || {};
       const cfg = await getConfig(p);
+      const status = p.status || 'scheduled';
       try {
-        const filter = {};
-        if (p.status) filter.status = p.status;
-        if (p.accountId || cfg.targetId) filter.accountId = p.accountId || cfg.targetId;
-        const r = await call(cfg, '/plat/publish/getList', 'POST', filter);
-        return { ok: envOk(r), code: r.code, message: r.message, result: r.data };
-      } catch (err) { return { ok: false, error: err.message, code: err.code }; }
+        const r = await call(cfg, '/posts?status=' + encodeURIComponent(status), 'GET');
+        return { ok: r.ok, error: r.error, result: r.data };
+      } catch (err) { return { ok: false, error: err.message }; }
     },
 
-    /** Huỷ task. params: { id } */
+    /** Huỷ / xoá 1 bài. params: { id } */
     'social-auto-poster.cancelScheduled': async function cancelScheduled(params) {
       const p = params || {};
-      if (!p.id) return { ok: false, error: 'Thiếu "id" task cần huỷ.' };
+      if (!p.id) return { ok: false, error: 'Thiếu "id" bài cần huỷ.' };
       const cfg = await getConfig(p);
       try {
-        const r = await call(cfg, '/plat/publish/delete/' + encodeURIComponent(p.id), 'DELETE');
-        return { ok: envOk(r), code: r.code, message: r.message, result: r.data };
-      } catch (err) { return { ok: false, error: err.message, code: err.code }; }
+        const r = await call(cfg, '/posts/' + encodeURIComponent(p.id), 'DELETE');
+        return { ok: r.ok, error: r.error, result: r.data };
+      } catch (err) { return { ok: false, error: err.message }; }
     },
   },
 };
@@ -247,15 +212,15 @@ function renderPanel() {
   return [
     '<div style="font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;padding:16px;line-height:1.5">',
     '<h2 style="margin:0 0 8px">📱 Social Auto Poster</h2>',
-    '<p style="color:#8a94a6;margin:0 0 12px">Đăng &amp; lên lịch bài social qua aitoearn đã cài. Agent gọi trực tiếp được.</p>',
+    '<p style="color:#8a94a6;margin:0 0 12px">Đăng &amp; lên lịch bài social qua Auto-Post Tool. Dùng chung tài khoản izzi — Starizzi tự cấu hình, agent gọi trực tiếp được.</p>',
     '<ol style="margin:0 0 12px;padding-left:18px">',
-    '<li>Vào aitoearn (localhost:8080) → <b>kết nối Facebook Page</b> (OAuth).</li>',
-    '<li>Tạo <b>API key</b> trong aitoearn. Mở <b>Settings</b> tiện ích: điền <b>Backend URL</b> <code>http://127.0.0.1:8080/api</code> + <b>API key</b>.</li>',
-    '<li>Chạy <b>listAccounts</b> để lấy <b>accountId</b> của Page → điền vào <b>ID trang</b>.</li>',
+    '<li>Đăng nhập izzi trong Starizzi (đã dùng cho toàn app).</li>',
+    '<li>Mở dashboard Auto-Post → <b>kết nối tài khoản MXH</b> (Facebook Page / YouTube / TikTok).</li>',
+    '<li>Chạy <b>listAccounts</b> để lấy <b>socialAccountId</b> → điền vào <b>ID trang/kênh</b>.</li>',
     '<li>Dùng <b>Đăng bài ngay</b> hoặc <b>Lên lịch</b> (mặc định 10:00, 17:00, 20:00).</li>',
     '</ol>',
-    '<div style="background:#2a1f1f;border:1px solid #6b3b3b;border-radius:8px;padding:10px;color:#e6b8b8;font-size:13px">',
-    '⚠️ <b>Facebook Group</b>: Meta chặn đăng group qua API — hãy dùng <b>Facebook Page</b> (browser automation cho group là việc riêng).',
+    '<div style="background:#1f2a1f;border:1px solid #3b6b3b;border-radius:8px;padding:10px;color:#b8e6b8;font-size:13px">',
+    'ℹ️ Backend URL &amp; API key được Starizzi tự điền từ phiên izzi — bạn không cần nhập tay. Bài không chọn tài khoản sẽ là <b>bản nháp</b>.',
     '</div>',
     '</div>',
   ].join('');
