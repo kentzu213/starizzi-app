@@ -771,6 +771,55 @@ function setupIPC() {
     else autopostAuth.clear();
     return { ok: true, enabled: !!enabled };
   });
+  // Read surfaces for the in-app Auto-Post page (native, over the same REST bridge
+  // + izzi JWT). The JWT stays in main; the renderer only ever sees plain data.
+  ipcMain.handle(
+    'autopost:listAccounts',
+    async (): Promise<{ ok: boolean; accounts?: unknown[]; error?: string }> => {
+      const r = await new AutopostClient(autopostAuth).listAccounts();
+      if (!r.ok) return { ok: false, error: r.error };
+      return { ok: true, accounts: Array.isArray(r.data) ? (r.data as unknown[]) : [] };
+    },
+  );
+  ipcMain.handle(
+    'autopost:listPosts',
+    async (_event, status?: string): Promise<{ ok: boolean; posts?: unknown[]; error?: string }> => {
+      const r = await new AutopostClient(autopostAuth).listPosts(typeof status === 'string' && status ? status : undefined);
+      if (!r.ok) return { ok: false, error: r.error };
+      // Normalize array | { items } | { data } → a plain array for the renderer.
+      const d = r.data as unknown;
+      const posts = Array.isArray(d)
+        ? d
+        : Array.isArray((d as { items?: unknown[] })?.items)
+          ? (d as { items: unknown[] }).items
+          : Array.isArray((d as { data?: unknown[] })?.data)
+            ? (d as { data: unknown[] }).data
+            : [];
+      return { ok: true, posts };
+    },
+  );
+  ipcMain.handle(
+    'autopost:createDraft',
+    async (_event, input: { content: string; title?: string }): Promise<{ ok: boolean; error?: string }> => {
+      const content = typeof input?.content === 'string' ? input.content.trim() : '';
+      if (!content) return { ok: false, error: 'empty' };
+      const r = await new AutopostClient(autopostAuth).createDraft({
+        content,
+        title: typeof input?.title === 'string' && input.title.trim() ? input.title.trim() : undefined,
+      });
+      return r.ok ? { ok: true } : { ok: false, error: r.error };
+    },
+  );
+  // Open the full Auto-Post web dashboard (campaigns/approvals/analytics) externally.
+  ipcMain.handle('autopost:openWeb', async (): Promise<{ ok: boolean; url: string }> => {
+    const url = (process.env.AUTOPOST_WEB_URL || 'http://127.0.0.1:3005').trim();
+    try {
+      await shell.openExternal(url);
+      return { ok: true, url };
+    } catch {
+      return { ok: false, url };
+    }
+  });
 
   // Chat directly against the user-configured OpenAI-compatible endpoint
   // (codex-lb / 9router / any OpenAI-compatible). Streams content deltas to the

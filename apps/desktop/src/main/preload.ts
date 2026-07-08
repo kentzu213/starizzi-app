@@ -236,6 +236,13 @@ const electronAPI = {
     }> => ipcRenderer.invoke('autopost:getStatus'),
     setEnabled: (enabled: boolean): Promise<{ ok: boolean; enabled: boolean }> =>
       ipcRenderer.invoke('autopost:setEnabled', enabled),
+    listAccounts: (): Promise<{ ok: boolean; accounts?: unknown[]; error?: string }> =>
+      ipcRenderer.invoke('autopost:listAccounts'),
+    listPosts: (status?: string): Promise<{ ok: boolean; posts?: unknown[]; error?: string }> =>
+      ipcRenderer.invoke('autopost:listPosts', status),
+    createDraft: (input: { content: string; title?: string }): Promise<{ ok: boolean; error?: string }> =>
+      ipcRenderer.invoke('autopost:createDraft', input),
+    openWeb: (): Promise<{ ok: boolean; url: string }> => ipcRenderer.invoke('autopost:openWeb'),
   },
 
   integrations: {

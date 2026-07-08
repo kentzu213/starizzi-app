@@ -249,3 +249,12 @@ export function AffiliateIcon({ className }: IconProps) {
     </BaseIcon>
   );
 }
+
+export function AutoPostIcon({ className }: IconProps) {
+  return (
+    <BaseIcon className={className}>
+      <path d="M4 11.5 20 4l-6.5 16-2.7-6.3z" />
+      <path d="M20 4 11 13" />
+    </BaseIcon>
+  );
+}

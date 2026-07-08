@@ -20,6 +20,7 @@ import { SetupWizardPage } from './pages/SetupWizard';
 import { CostDashboardPage } from './pages/CostDashboard';
 import { AffiliatePage } from './pages/Affiliate';
 import { ModelConnectionsPage } from './pages/ModelConnections';
+import { AutoPostPage } from './pages/AutoPost';
 import KnowledgeUniversePage from './pages/KnowledgeUniverse';
 import { useAgentWorkspaceStore } from './store/agentWorkspace';
 import { vi } from './i18n/vi';
@@ -38,6 +39,7 @@ type Page =
   | 'costs'
   | 'knowledge'
   | 'connections'
+  | 'autopost'
   | 'affiliate';
 
 const DEV_USER = {
@@ -336,6 +338,8 @@ export function App() {
         return <KnowledgeUniversePage />;
       case 'connections':
         return <ModelConnectionsPage />;
+      case 'autopost':
+        return <AutoPostPage />;
       case 'affiliate':
         return <AffiliatePage />;
       default:
