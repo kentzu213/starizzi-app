@@ -847,6 +847,18 @@ app.on('window-all-closed', () => {
 
 // Graceful shutdown — stop all extension hosts
 app.on('before-quit', async () => {
+  // FIRST + synchronous: SIGKILL extension host children now. They run as the
+  // Electron binary (fork + ELECTRON_RUN_AS_NODE); before-quit is NOT awaited by
+  // Electron, so the async shutdownAll below can't finish before the process
+  // exits — without this, those children orphan and linger as "Izzi OpenClaw.exe",
+  // which blocks the NSIS updater ("Izzi OpenClaw cannot be closed").
+  if (extensionLoader) {
+    try {
+      extensionLoader.killAll();
+    } catch {
+      /* best-effort */
+    }
+  }
   if (updateChecker) {
     updateChecker.stop();
   }

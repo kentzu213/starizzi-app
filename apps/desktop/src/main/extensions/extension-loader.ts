@@ -341,6 +341,26 @@ export class ExtensionLoader {
   }
 
   /**
+   * Synchronously SIGKILL every running extension host. Called on app quit so the
+   * forked runner processes (which run as the Electron binary) cannot linger as
+   * orphaned "Izzi OpenClaw.exe" processes and block the NSIS updater. Runs before
+   * Electron proceeds to quit (unlike the async shutdownAll). Never throws.
+   */
+  killAll(): void {
+    for (const ext of this.extensions.values()) {
+      if (ext.host) {
+        try {
+          ext.host.forceKill();
+        } catch {
+          // best-effort — keep killing the rest
+        }
+        ext.host = null;
+        ext.state = 'stopped';
+      }
+    }
+  }
+
+  /**
    * Shutdown all running extensions.
    */
   async shutdownAll(): Promise<void> {
