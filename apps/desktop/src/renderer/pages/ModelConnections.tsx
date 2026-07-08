@@ -57,6 +57,7 @@ interface CustomProviderApi {
     apiKey?: string;
   }) => Promise<{ ok: boolean; errors?: string[] }>;
   setEnabled: (enabled: boolean) => Promise<unknown>;
+  autoConnectLocal: () => Promise<{ ok: boolean; enabled?: boolean; reason?: string }>;
   testConnection: (input?: { apiKey?: string }) => Promise<{ ok: boolean; model?: string; message?: string }>;
 }
 
@@ -155,8 +156,39 @@ export function ModelConnectionsPage() {
     }
   }
 
-  async function handleSaveEnable() {
-    if (!api?.saveConfig) return;
+  async function handleQuickConnect() {
+    if (!api?.autoConnectLocal) return;
+    setBusy(true);
+    setNotice(null);
+    try {
+      const r = await api.autoConnectLocal();
+      if (r?.ok) {
+        setPresetId('codex-lb');
+        setBaseUrl('http://127.0.0.1:2455/v1');
+        setModel('gpt-5.5');
+        setAuthType('bearer');
+        setEnabled(true);
+        await refreshKeyState();
+        setNotice({
+          ok: true,
+          text: 'Đã kết nối codex-lb (local) từ CODEX_LB_API_KEY. Mở tab Chat agent và chat như thường.',
+        });
+      } else if (r?.reason === 'no-env-key') {
+        setNotice({
+          ok: false,
+          text: 'Không thấy CODEX_LB_API_KEY trên máy. Chọn preset codex-lb, dán API key rồi bấm "Lưu & Bật".',
+        });
+      } else {
+        setNotice({ ok: false, text: 'Không kết nối nhanh được. Thử dán key thủ công rồi "Lưu & Bật".' });
+      }
+    } catch {
+      setNotice({ ok: false, text: 'Lỗi khi kết nối nhanh' });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleSaveEnable() {    if (!api?.saveConfig) return;
     setBusy(true);
     setNotice(null);
     try {
@@ -215,6 +247,21 @@ export function ModelConnectionsPage() {
           {hasKey ? '' : ' · ⚠️ chưa có API key'}
         </div>
       )}
+
+      <div className="model-conn__quick">
+        <div className="model-conn__quick-text">
+          <b>Kết nối nhanh codex-lb (local)</b>
+          <span>Tự lấy API key từ máy (CODEX_LB_API_KEY) và bật ngay — không cần dán gì.</span>
+        </div>
+        <button
+          type="button"
+          className="btn btn--primary"
+          disabled={busy}
+          onClick={() => void handleQuickConnect()}
+        >
+          🔌 Kết nối nhanh
+        </button>
+      </div>
 
       <div className="model-conn__presets">
         {PRESETS.map((p) => (

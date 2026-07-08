@@ -202,6 +202,8 @@ const electronAPI = {
     }) => ipcRenderer.invoke('customProvider:saveConfig', input),
     setEnabled: (enabled: boolean) => ipcRenderer.invoke('customProvider:setEnabled', enabled),
     deleteKey: () => ipcRenderer.invoke('customProvider:deleteKey'),
+    autoConnectLocal: (): Promise<{ ok: boolean; enabled?: boolean; reason?: string }> =>
+      ipcRenderer.invoke('customProvider:autoConnectLocal'),
     testConnection: (input?: { apiKey?: string }) =>
       ipcRenderer.invoke('customProvider:testConnection', input),
     chat: (payload: {

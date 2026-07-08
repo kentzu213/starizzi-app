@@ -822,6 +822,34 @@
   border-color: var(--color-border-accent);
   color: var(--color-text-primary);
 }
+.model-conn__quick {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 16px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border-accent);
+  background: var(--color-bg-elevated);
+}
+.model-conn__quick-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.model-conn__quick-text b {
+  color: var(--color-text-primary);
+  font-size: 14px;
+}
+.model-conn__quick-text span {
+  color: var(--color-text-tertiary);
+  font-size: 12px;
+}
+.model-conn__quick .btn {
+  white-space: nowrap;
+  flex-shrink: 0;
+}
 .model-conn__status code,
 .model-conn__guide code {
   font-family: var(--font-mono);

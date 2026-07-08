@@ -661,6 +661,37 @@ function setupIPC() {
     return agentService.testProviderConnection(input);
   });
 
+  // One-click local connection ("Kết nối nhanh codex-lb"): read the codex-lb key
+  // from the environment (CODEX_LB_API_KEY) in the MAIN process and wire the app
+  // to the local codex-lb router (127.0.0.1:2455, gpt-5.5) + enable it. Explicit
+  // user action from the "Kết nối Model" tab; the key stays in main, never returned.
+  ipcMain.handle(
+    'customProvider:autoConnectLocal',
+    async (): Promise<{ ok: boolean; enabled?: boolean; reason?: string }> => {
+      const envKey = (process.env.CODEX_LB_API_KEY || process.env.CODEX_LB_KEY || '').trim();
+      if (!envKey) return { ok: false, reason: 'no-env-key' };
+      try {
+        const settings = new ProviderSettingsStore(dbManager);
+        const secrets = new SecretStore(dbManager);
+        settings.saveConfig({
+          baseUrl: 'http://127.0.0.1:2455/v1',
+          authType: 'bearer',
+          selectedModel: 'gpt-5.5',
+        });
+        secrets.setKey(envKey);
+        settings.setEnabled(true);
+        dbManager.appendDiagnosticEvent({
+          type: 'model_connection.autoconnect',
+          status: 'info',
+          detail: 'Manually connected local codex-lb from CODEX_LB_API_KEY env (Kết nối nhanh).',
+        });
+        return { ok: true, enabled: true };
+      } catch {
+        return { ok: false, reason: 'save-failed' };
+      }
+    },
+  );
+
   // Chat directly against the user-configured OpenAI-compatible endpoint
   // (codex-lb / 9router / any OpenAI-compatible). Streams content deltas to the
   // renderer via 'agentStream:event' (correlated by turnId) and returns the full
@@ -759,12 +790,16 @@ function setupIPC() {
 
 /**
  * Zero-config local model connection. If the machine exposes a codex-lb key in
- * the environment (CODEX_LB_API_KEY — the same var the Codex CLI uses), wire the
- * app's custom provider to the local codex-lb router (127.0.0.1:2455, gpt-5.5) so
- * the gateway's non-izzi agents chat through it out of the box — no manual setup.
+ * the environment (CODEX_LB_API_KEY — the same var the Codex CLI uses) AND no
+ * model connection is currently enabled, wire the app's custom provider to the
+ * local codex-lb router (127.0.0.1:2455, gpt-5.5) and enable it, so the gateway's
+ * non-izzi agents chat through it out of the box — no manual setup.
  *
- * Best-effort + non-destructive: it never overwrites a connection the user has
- * already configured, and the key value is only referenced by name (never logged).
+ * Fires whenever nothing is enabled (not just first run) so it also repairs a
+ * half-configured state — e.g. a connection that was saved by "Kiểm tra kết nối"
+ * but never enabled, which otherwise leaves chat falling through to the empty
+ * Hermes reply. An already-enabled connection is respected and left untouched;
+ * the key value is only referenced by name (never logged).
  */
 function autoConnectCodexLb(db: DatabaseManager): void {
   try {
@@ -773,8 +808,9 @@ function autoConnectCodexLb(db: DatabaseManager): void {
 
     const settings = new ProviderSettingsStore(db);
     const secrets = new SecretStore(db);
-    // Respect an existing user connection — don't clobber their config or key.
-    if (settings.getConfig() || secrets.hasKey()) return;
+    // Respect an active connection the user has enabled — don't clobber it.
+    // But if nothing is enabled, chat can't reach any model, so wire local codex-lb.
+    if (settings.isCustomEnabled()) return;
 
     settings.saveConfig({
       baseUrl: 'http://127.0.0.1:2455/v1',
@@ -786,9 +822,9 @@ function autoConnectCodexLb(db: DatabaseManager): void {
     db.appendDiagnosticEvent({
       type: 'model_connection.autoconnect',
       status: 'info',
-      detail: 'Auto-connected local codex-lb from CODEX_LB_API_KEY env.',
+      detail: 'Enabled local codex-lb connection from CODEX_LB_API_KEY env (no connection was active).',
     });
-    console.log('[OpenClaw] Auto-connected local codex-lb (CODEX_LB_API_KEY present)');
+    console.log('[OpenClaw] Auto-connected local codex-lb (CODEX_LB_API_KEY present, no active connection)');
   } catch {
     // Best-effort: a failure here must never block startup.
   }
