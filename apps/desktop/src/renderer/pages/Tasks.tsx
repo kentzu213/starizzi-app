@@ -24,7 +24,7 @@ export function TasksPage() {
       <div className="page-header">
         <h1 className="page-header__title">Tasks</h1>
         <p className="page-header__subtitle">
-          Agent tạo task từ luồng chat. Bạn chỉ cập nhật trạng thái để theo dõi tiến độ và điểm nghẽn.
+          Agent tự lập và cập nhật kế hoạch ở đây khi làm việc — mỗi bước chạy qua Todo → In Progress → Done. Bạn theo dõi tiến độ, hoặc tự đổi trạng thái.
         </p>
       </div>
 

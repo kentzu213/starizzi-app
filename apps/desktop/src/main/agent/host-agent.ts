@@ -23,7 +23,7 @@ const TOOL_RESULT_CAP = 12000;
 const SYSTEM_PROMPT =
   "You are an autonomous coding & ops agent running ON the user's computer through the Izzi desktop app. Work like a capable senior engineer paired with the user.\n\n" +
   'How you work:\n' +
-  '- For a non-trivial task, start with a brief plan (1-3 short steps).\n' +
+  '- For a multi-step task, FIRST call the update_plan tool to publish your steps — this shows the user a live task board — then keep it updated: set a step in_progress before you start it, and completed when it is done.\n' +
   '- Then DO the work with your tools (run shell commands, read/write/list files) — do NOT just tell the user to run things themselves. Inspect first, make the change, then VERIFY it (run the build / tests / the command and check the result).\n' +
   '- Narrate concisely: one short line before an action saying what you are doing and why. Do not over-explain or dump long output.\n' +
   '- Make the smallest change that solves the task; do not touch unrelated things.\n' +
@@ -46,6 +46,58 @@ function buildEnvNote(): string {
     `\n\nEnvironment: host OS is ${process.platform}. run_command runs through the default shell (${shell})` +
     ' To create or overwrite files, prefer the write_file tool instead of shell here-docs or New-Item.'
   );
+}
+
+/** One step of the agent's live task plan (surfaced on the Tasks board). */
+export interface PlanStep {
+  step: string;
+  status: 'pending' | 'in_progress' | 'completed' | 'blocked';
+}
+
+/** Meta-tool: lets the model publish/update its task plan so the user watches progress. */
+const UPDATE_PLAN_TOOL: OpenAiTool = {
+  type: 'function',
+  function: {
+    name: 'update_plan',
+    description:
+      'Publish or update your task plan for this turn so the user can follow progress on the Tasks board. ' +
+      'Call it once early with the full list of short steps (each status "pending"), then call it again to set a step ' +
+      '"in_progress" before you start it and "completed" when done (or "blocked" if stuck). Send the FULL list each time.',
+    parameters: {
+      type: 'object',
+      properties: {
+        plan: {
+          type: 'array',
+          description: 'The full ordered list of steps with their current status.',
+          items: {
+            type: 'object',
+            properties: {
+              step: { type: 'string', description: 'Short description of the step.' },
+              status: { type: 'string', enum: ['pending', 'in_progress', 'completed', 'blocked'] },
+            },
+            required: ['step', 'status'],
+          },
+        },
+      },
+      required: ['plan'],
+    },
+  },
+};
+
+/** Parse the model's update_plan arguments into clean PlanStep[]. Never throws. */
+function parsePlan(args: Record<string, unknown>): PlanStep[] {
+  const raw = Array.isArray((args as { plan?: unknown }).plan) ? (args as { plan: unknown[] }).plan : [];
+  const allowed = new Set(['pending', 'in_progress', 'completed', 'blocked']);
+  const out: PlanStep[] = [];
+  for (const item of raw) {
+    if (!item || typeof item !== 'object') continue;
+    const step = typeof (item as { step?: unknown }).step === 'string' ? (item as { step: string }).step.trim() : '';
+    if (!step) continue;
+    const s = (item as { status?: unknown }).status;
+    const status = typeof s === 'string' && allowed.has(s) ? (s as PlanStep['status']) : 'pending';
+    out.push({ step, status });
+  }
+  return out.slice(0, 20);
 }
 
 export interface HostApprovalRequest {
@@ -79,6 +131,8 @@ export interface HostAgentTurnOptions {
   executeExtra?: (name: string, args: Record<string, unknown>) => Promise<string | undefined>;
   /** Risk for an extra tool; return undefined to fall back to the host-tool classifier. */
   classifyExtraRisk?: (name: string) => ToolRisk | undefined;
+  /** Called whenever the model publishes/updates its task plan (→ live Tasks board). */
+  onPlan?: (steps: PlanStep[]) => void;
 }
 
 function buildUserContent(message: string, images: string[]): unknown {
@@ -174,7 +228,7 @@ export async function runHostAgentTurn(opts: HostAgentTurnOptions): Promise<{ re
     ...buildAuthHeaders(config.authType, apiKey),
   };
   const model = config.selectedModel;
-  const tools = opts.extraTools && opts.extraTools.length ? [...HOST_TOOLS, ...opts.extraTools] : HOST_TOOLS;
+  const tools = [...HOST_TOOLS, UPDATE_PLAN_TOOL, ...(opts.extraTools && opts.extraTools.length ? opts.extraTools : [])];
 
   const systemContent = workingDir
     ? `${SYSTEM_PROMPT}\n\nYour working directory is: ${workingDir}. Use it as the default location for commands and as the base for relative file paths.${buildEnvNote()}`
@@ -227,6 +281,22 @@ export async function runHostAgentTurn(opts: HostAgentTurnOptions): Promise<{ re
         } catch {
           args = {};
         }
+
+        // Planning meta-tool: publish/update the task plan → live Tasks board.
+        // It never touches the machine, so it bypasses the approval gate.
+        if (name === 'update_plan') {
+          const steps = parsePlan(args);
+          opts.onPlan?.(steps);
+          const done = steps.filter((s) => s.status === 'completed').length;
+          emit?.({
+            turnId,
+            kind: 'step',
+            step: { id: stepId, kind: 'progress', label: `Kế hoạch: ${done}/${steps.length} bước`, status: 'done' },
+          });
+          messages.push({ role: 'tool', tool_call_id: tc.id, content: `ok: plan recorded (${steps.length} steps)` });
+          continue;
+        }
+
         const risk = opts.classifyExtraRisk?.(name) ?? classifyToolRisk(name);
         const label = summarizeToolCall(name, args);
         emit?.({ turnId, kind: 'step', step: { id: stepId, kind: 'tool', label, status: 'running' } });

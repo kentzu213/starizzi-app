@@ -39,7 +39,7 @@ import { AUTOPOST_TOOLS, classifyAutopostRisk, executeAutopostTool, isAutopostTo
 import type { LoadedExtension } from './extensions/extension-loader';
 import { IntegrationsService } from './integrations/integrations-service';
 import { OnboardingService } from './onboarding/onboarding-service';
-import type { AgentTaskStatus, IntegrationProvider } from './agent/types';
+import type { AgentTask, AgentTaskStatus, IntegrationProvider } from './agent/types';
 import { UpdaterService } from './updater/updater-service';
 import { SetupWizardService } from './setup/setup-wizard-service';
 import { registerAgentIpcHandlers, shutdownAgents } from './agents';
@@ -890,6 +890,35 @@ function setupIPC() {
           classifyExtraRisk: autopostClient
             ? (name) => (isAutopostTool(name) ? classifyAutopostRisk(name) : undefined)
             : undefined,
+          // The agent's live plan → real tasks on the Replay board (Todo/In-Progress/
+          // Done). Written to the shared agent_tasks table + pushed live via the
+          // 'agent:stream' task_upsert channel the board already listens on.
+          onPlan: (steps) => {
+            const now = new Date().toISOString();
+            steps.forEach((s, i) => {
+              const status: AgentTaskStatus =
+                s.status === 'completed'
+                  ? 'done'
+                  : s.status === 'in_progress'
+                    ? 'in_progress'
+                    : s.status === 'blocked'
+                      ? 'blocked'
+                      : 'todo';
+              const task: AgentTask = {
+                id: `plan--${turnId || 'turn'}--${i}`,
+                title: s.step.slice(0, 80),
+                status,
+                createdAt: now,
+                updatedAt: now,
+              };
+              try {
+                const saved = dbManager.upsertAgentTask(task);
+                event.sender.send('agent:stream', { requestId: '', sessionId: '', type: 'task_upsert', task: saved });
+              } catch {
+                /* best-effort: a board write must never break the turn */
+              }
+            });
+          },
           emit: (evt) => event.sender.send('agentStream:event', evt),
           requestApproval: async (req) => {
             if (!win || win.isDestroyed()) return 'deny';
