@@ -133,6 +133,10 @@ export interface HostAgentTurnOptions {
   classifyExtraRisk?: (name: string) => ToolRisk | undefined;
   /** Called whenever the model publishes/updates its task plan (→ live Tasks board). */
   onPlan?: (steps: PlanStep[]) => void;
+  /** Abort signal — when aborted, the turn stops after the current step (Stop button). */
+  signal?: AbortSignal;
+  /** Drain any user "steering" messages queued mid-turn; injected before the next round. */
+  pollInjection?: () => string | undefined;
 }
 
 function buildUserContent(message: string, images: string[]): unknown {
@@ -160,8 +164,9 @@ async function streamChatTurn(
   headers: Record<string, string>,
   body: unknown,
   onDelta: (text: string) => void,
+  signal?: AbortSignal,
 ): Promise<{ content: string; toolCalls: StreamedToolCall[] }> {
-  const res = await fetch(url, { method: 'POST', headers, body: JSON.stringify(body) });
+  const res = await fetch(url, { method: 'POST', headers, body: JSON.stringify(body), signal });
   if (!res.ok || !res.body) {
     const errBody = await res.text().catch(() => '');
     throw new Error(`http ${res.status}${errBody ? ': ' + errBody.slice(0, 200) : ''}`);
@@ -245,11 +250,29 @@ export async function runHostAgentTurn(opts: HostAgentTurnOptions): Promise<{ re
 
   try {
     for (let iter = 0; iter < MAX_TOOL_ITERATIONS; iter++) {
+      if (opts.signal?.aborted) return { reply: '', error: 'aborted' };
+      // Fold in any "steering" the user typed while the agent was working, before
+      // the next model round so it can course-correct mid-task.
+      for (let injected = opts.pollInjection?.(); injected; injected = opts.pollInjection?.()) {
+        messages.push({ role: 'user', content: injected });
+        emit?.({
+          turnId,
+          kind: 'step',
+          step: {
+            id: `inject-${Math.random().toString(36).slice(2, 8)}`,
+            kind: 'progress',
+            label: `Điều chỉnh: ${injected.slice(0, 60)}`,
+            status: 'done',
+          },
+        });
+      }
+
       const { content, toolCalls } = await streamChatTurn(
         url,
         headers,
         { model, messages, tools, tool_choice: 'auto', stream: true },
         (text) => emit?.({ turnId, kind: 'delta', text }),
+        opts.signal,
       );
 
       // No tool calls → the model gave its final answer (already streamed live).
@@ -272,6 +295,7 @@ export async function runHostAgentTurn(opts: HostAgentTurnOptions): Promise<{ re
       });
 
       for (const tc of toolCalls) {
+        if (opts.signal?.aborted) return { reply: '', error: 'aborted' };
         const name = tc.name || '';
         const stepId = tc.id || `${name}-${Math.random().toString(36).slice(2, 8)}`;
         let args: Record<string, unknown> = {};
@@ -346,6 +370,7 @@ export async function runHostAgentTurn(opts: HostAgentTurnOptions): Promise<{ re
           stream: true,
         },
         (text) => emit?.({ turnId, kind: 'delta', text }),
+        opts.signal,
       );
       if (content.trim().length > 0) return { reply: content };
     } catch {
@@ -356,6 +381,7 @@ export async function runHostAgentTurn(opts: HostAgentTurnOptions): Promise<{ re
         'Mình đã chạy nhiều bước cho tác vụ này nhưng chưa hoàn tất trong một lượt. Nhắn "tiếp tục" để mình làm tiếp từ chỗ đang dở.',
     };
   } catch (err) {
+    if (opts.signal?.aborted) return { reply: '', error: 'aborted' };
     return { reply: '', error: scrub((err as Error).message || 'network') };
   }
 }

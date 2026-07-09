@@ -213,6 +213,9 @@ const electronAPI = {
       images?: string[];
     }): Promise<{ reply?: string; error?: string }> =>
       ipcRenderer.invoke('customProvider:chat', payload),
+    abort: (turnId: string): Promise<{ ok: boolean }> => ipcRenderer.invoke('customProvider:abort', turnId),
+    inject: (turnId: string, text: string): Promise<{ ok: boolean }> =>
+      ipcRenderer.invoke('customProvider:inject', turnId, text),
   },
 
   agentPermission: {

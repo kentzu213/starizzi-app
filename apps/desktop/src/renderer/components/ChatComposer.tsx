@@ -20,6 +20,10 @@ interface ChatComposerProps {
   onChange: (value: string) => void;
   onImagesChange: React.Dispatch<React.SetStateAction<string[]>>;
   onSubmit: () => void;
+  /** When set + running, shows a Stop button that aborts the in-flight turn. */
+  onCancel?: () => void;
+  /** When set + running, lets the user inject a steering message mid-turn. */
+  onInject?: (text: string) => void;
 }
 
 /** Max images per message + per-image size cap (keeps a paste/drop from ballooning the payload). */
@@ -70,6 +74,8 @@ export function ChatComposer({
   onChange,
   onImagesChange,
   onSubmit,
+  onCancel,
+  onInject,
 }: ChatComposerProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -149,6 +155,18 @@ export function ChatComposer({
   }, [menuOpen]);
 
   const canSubmit = !disabled && (value.trim().length > 0 || images.length > 0);
+  // While a turn is running (gateway host-agent path), the composer offers Stop
+  // + lets the user inject a "steering" message instead of starting a new turn.
+  const interruptible = isSubmitting && !!onCancel;
+  const canInject = isSubmitting && !!onInject && value.trim().length > 0;
+
+  function handleInject() {
+    if (!onInject) return;
+    const t = value.trim();
+    if (!t) return;
+    onInject(t);
+    onChange('');
+  }
 
   /** Shared path for paste / file-picker / drag-drop: read image files → data URLs → tray. */
   function addImageFiles(files: File[]) {
@@ -319,7 +337,11 @@ export function ChatComposer({
         <textarea
           ref={textareaRef}
           className="chat-composer__input"
-          placeholder="Giao việc cho agent, mô tả mục tiêu, hoặc dán ảnh (Ctrl+V)..."
+          placeholder={
+            interruptible
+              ? 'Thêm điều chỉnh khi agent đang chạy — Enter để chèn...'
+              : 'Giao việc cho agent, mô tả mục tiêu, hoặc dán ảnh (Ctrl+V)...'
+          }
           value={value}
           disabled={disabled}
           rows={1}
@@ -328,20 +350,46 @@ export function ChatComposer({
           onKeyDown={(event) => {
             if (event.key === 'Enter' && !event.shiftKey) {
               event.preventDefault();
-              if (canSubmit) {
+              if (interruptible) {
+                if (value.trim()) handleInject();
+              } else if (canSubmit) {
                 onSubmit();
               }
             }
           }}
         />
-        <button
-          type="button"
-          className="btn btn--primary chat-composer__submit"
-          disabled={!canSubmit}
-          onClick={onSubmit}
-        >
-          {isSubmitting ? 'Đang gửi...' : 'Gửi'}
-        </button>
+        {interruptible ? (
+          <div className="chat-composer__running-actions">
+            {onInject && (
+              <button
+                type="button"
+                className="btn btn--ghost chat-composer__inject"
+                disabled={!canInject}
+                onClick={handleInject}
+                title="Chèn điều chỉnh vào lượt đang chạy"
+              >
+                Chèn
+              </button>
+            )}
+            <button
+              type="button"
+              className="btn chat-composer__stop"
+              onClick={onCancel}
+              title="Dừng agent giữa chừng"
+            >
+              ⏹ Dừng
+            </button>
+          </div>
+        ) : (
+          <button
+            type="button"
+            className="btn btn--primary chat-composer__submit"
+            disabled={!canSubmit}
+            onClick={onSubmit}
+          >
+            {isSubmitting ? 'Đang gửi...' : 'Gửi'}
+          </button>
+        )}
       </div>
       <div className="chat-composer__footer">
         <label

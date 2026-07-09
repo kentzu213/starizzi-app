@@ -46,6 +46,8 @@ interface AgentGatewayState {
 
   // UI state
   isSending: boolean;
+  /** turnId of the in-flight agent turn — powers the Stop button + mid-turn steering. */
+  currentTurnId: string | null;
   errorMessage: string | null;
   /** Session id currently being reconfigured (e.g. reasoning effort → container restart). */
   reconfiguringSessionId: string | null;
@@ -68,6 +70,10 @@ interface AgentGatewayState {
   closeAgentChat: (sessionId: string) => void;
   switchSession: (sessionId: string) => void;
   sendGatewayMessage: (text: string, images?: string[]) => Promise<boolean>;
+  /** Stop the in-flight agent turn (Stop button) — keeps the partial answer. */
+  abortGateway: () => Promise<void>;
+  /** Inject a steering message into the running agent turn (adjust mid-work). */
+  injectGateway: (text: string) => Promise<boolean>;
   newGatewaySession: (agentId: string) => void;
   setSessionModel: (sessionId: string, model: string, provider: AIProvider) => void;
   /** Change a Docker agent's reasoning effort (rewrites config + restarts container). */
@@ -83,6 +89,7 @@ export const useAgentGatewayStore = create<AgentGatewayState>((set, get) => ({
   sessions: [],
   activeSessionId: null,
   isSending: false,
+  currentTurnId: null,
   errorMessage: null,
   reconfiguringSessionId: null,
   hydrated: false,
@@ -232,6 +239,61 @@ export const useAgentGatewayStore = create<AgentGatewayState>((set, get) => ({
     set({ activeSessionId: sessionId });
   },
 
+  abortGateway: async () => {
+    const turnId = get().currentTurnId;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const api = (window as any).electronAPI?.customProvider;
+    if (turnId && api?.abort) {
+      try {
+        await api.abort(turnId);
+      } catch {
+        /* best-effort — the turn will still finish on its own */
+      }
+    }
+  },
+
+  injectGateway: async (text) => {
+    const t = text.trim();
+    const turnId = get().currentTurnId;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const api = (window as any).electronAPI?.customProvider;
+    if (!t || !turnId || !api?.inject) return false;
+    const session = get().activeSession();
+    // Show the steering note in the thread (just above the in-progress reply).
+    if (session) {
+      const noteId = createLocalId('gw-user');
+      set((state) => ({
+        sessions: state.sessions.map((s) =>
+          s.id === session.id
+            ? {
+                ...s,
+                messages: [
+                  ...s.messages.slice(0, -1),
+                  {
+                    id: noteId,
+                    sessionId: session.id,
+                    agentId: session.agentId,
+                    role: 'user' as const,
+                    content: t,
+                    state: 'done' as const,
+                    model: session.model,
+                    createdAt: new Date().toISOString(),
+                  },
+                  ...s.messages.slice(-1),
+                ],
+              }
+            : s,
+        ),
+      }));
+    }
+    try {
+      const r = await api.inject(turnId, t);
+      return !!r?.ok;
+    } catch {
+      return false;
+    }
+  },
+
   sendGatewayMessage: async (text, images) => {
     const content = text.trim();
     // Accept base64 image data URLs only; an image-only message (no text) is allowed.
@@ -276,6 +338,7 @@ export const useAgentGatewayStore = create<AgentGatewayState>((set, get) => ({
     // Optimistic update
     set((state) => ({
       isSending: true,
+      currentTurnId: assistantMsgId,
       errorMessage: null,
       sessions: state.sessions.map((s) =>
         s.id === session.id
@@ -394,6 +457,31 @@ export const useAgentGatewayStore = create<AgentGatewayState>((set, get) => ({
             return true;
           }
           const err = String(r?.error ?? 'không rõ');
+          if (err === 'aborted') {
+            // Stopped by the user — keep whatever streamed so far, mark it done.
+            set((state) => ({
+              isSending: false,
+              currentTurnId: null,
+              sessions: state.sessions.map((s) =>
+                s.id === session.id
+                  ? {
+                      ...s,
+                      messages: s.messages.map((m) =>
+                        m.id === assistantMsgId
+                          ? {
+                              ...m,
+                              content:
+                                (m.content && m.content.trim().length > 0 ? m.content + '\n\n' : '') + '⏹️ Đã dừng.',
+                              state: 'done' as const,
+                            }
+                          : m,
+                      ),
+                    }
+                  : s,
+              ),
+            }));
+            return true;
+          }
           const connMsg =
             err === 'not-configured' || err === 'disabled'
               ? '⚠️ Chưa cấu hình kết nối model. Mở tab "Kết nối Model" để nối codex-lb / 9router rồi thử lại.'

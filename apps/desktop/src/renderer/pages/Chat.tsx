@@ -53,6 +53,8 @@ export function ChatPage({ user, onBuyApi, onNavigateToDashboard, onNavigateToAg
   const gwCloseSession = useAgentGatewayStore((state) => state.closeAgentChat);
   const gwOpenChat = useAgentGatewayStore((state) => state.openAgentChat);
   const gwSendMessage = useAgentGatewayStore((state) => state.sendGatewayMessage);
+  const gwAbort = useAgentGatewayStore((state) => state.abortGateway);
+  const gwInject = useAgentGatewayStore((state) => state.injectGateway);
   const gwSetModel = useAgentGatewayStore((state) => state.setSessionModel);
   const gwActiveSession = useAgentGatewayStore((state) => state.activeSession);
   const gwRefreshStatuses = useAgentGatewayStore((state) => state.refreshAgentStatuses);
@@ -81,6 +83,10 @@ export function ChatPage({ user, onBuyApi, onNavigateToDashboard, onNavigateToAg
   const deferredMessages = useDeferredValue(isGatewayMode ? gwMessages : messages);
   const isSending = isGatewayMode ? gwIsSending : isSendingLegacy;
   const isReconfiguring = Boolean(activeGwSession && gwReconfiguringId === activeGwSession.id);
+  // Interrupt/steer only makes sense on the host-agent (codex-lb) path — non-izzi
+  // gateway agents. izzi persona turns run server-side and aren't abortable here.
+  const activeAgentRuntime = gwAgents.find((a) => a.id === activeGwSession?.agentId)?.runtime;
+  const canInterrupt = isGatewayMode && !!activeGwSession && activeAgentRuntime !== 'izzi';
 
   async function handleSubmit() {
     const text = draft.trim();
@@ -363,11 +369,13 @@ export function ChatPage({ user, onBuyApi, onNavigateToDashboard, onNavigateToAg
           value={draft}
           images={images}
           menuActions={composerMenuActions}
-          disabled={isBootstrapping || isSending || isReconfiguring}
+          disabled={isBootstrapping || isReconfiguring || (!isGatewayMode && isSendingLegacy)}
           isSubmitting={isSending}
           onChange={setDraft}
           onImagesChange={setImages}
           onSubmit={() => void handleSubmit()}
+          onCancel={canInterrupt ? () => void gwAbort() : undefined}
+          onInject={canInterrupt ? (t) => void gwInject(t) : undefined}
         />
       </footer>
 

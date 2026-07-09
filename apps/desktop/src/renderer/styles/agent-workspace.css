@@ -620,6 +620,30 @@
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+  /* Always a full-width row above the input, thumbnails starting at the LEFT and
+     flowing to the right — regardless of the composer's align-items (some base
+     rules set align-items:flex-end which would otherwise push these right). */
+  align-self: stretch;
+  width: 100%;
+  justify-content: flex-start;
+}
+.chat-composer__running-actions {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.chat-composer__stop {
+  min-width: 92px;
+  border: 1px solid var(--color-error, #ff6b6b);
+  color: var(--color-error, #ff6b6b);
+  background: color-mix(in srgb, var(--color-error, #ff6b6b) 12%, transparent);
+}
+.chat-composer__stop:hover {
+  background: color-mix(in srgb, var(--color-error, #ff6b6b) 22%, transparent);
+}
+.chat-composer__inject {
+  min-width: 68px;
 }
 .chat-composer__thumb {
   position: relative;

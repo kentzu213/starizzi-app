@@ -825,6 +825,11 @@ function setupIPC() {
   // (codex-lb / 9router / any OpenAI-compatible). Streams content deltas to the
   // renderer via 'agentStream:event' (correlated by turnId) and returns the full
   // reply. The API key stays in main (SecretStore) and is redacted from errors.
+  // In-flight host-agent turns (codex-lb path) keyed by turnId — powers the Stop
+  // button (abort) + mid-turn steering (inject). runHostAgentTurn never throws, so
+  // entries are cleaned up right after it resolves.
+  const activeAgentTurns = new Map<string, { controller: AbortController; queue: string[] }>();
+
   ipcMain.handle(
     'customProvider:chat',
     async (
@@ -873,6 +878,9 @@ function setupIPC() {
         // REST (JWT from the izzi session). Drafting is safe; scheduling is risk-gated.
         const autopostOn = dbManager.getSetting('autopost_enabled') === '1' || isSocialAutoPosterActive();
         const autopostClient = autopostOn ? new AutopostClient(autopostAuth) : null;
+        const controller = new AbortController();
+        const control = { controller, queue: [] as string[] };
+        if (turnId) activeAgentTurns.set(turnId, control);
         const result = await runHostAgentTurn({
           config: cfg,
           apiKey: key,
@@ -882,6 +890,8 @@ function setupIPC() {
           mode: permMode,
           workingDir: permStore.getWorkingDir(),
           turnId,
+          signal: controller.signal,
+          pollInjection: () => control.queue.shift(),
           redact: (t) => secrets.redact(t),
           extraTools: autopostClient ? AUTOPOST_TOOLS : undefined,
           executeExtra: autopostClient
@@ -935,6 +945,7 @@ function setupIPC() {
             return r.response === 2 ? 'all' : r.response === 1 ? 'once' : 'deny';
           },
         });
+        if (turnId) activeAgentTurns.delete(turnId);
         return result.error ? { error: result.error } : { reply: result.reply };
       }
 
@@ -953,6 +964,25 @@ function setupIPC() {
       return { reply };
     },
   );
+
+  // Stop an in-flight agent turn (Stop button). Aborts the streaming fetch; the
+  // turn returns error 'aborted' and the partial answer already streamed stays.
+  ipcMain.handle('customProvider:abort', (_event, turnId: string): { ok: boolean } => {
+    const c = typeof turnId === 'string' ? activeAgentTurns.get(turnId) : undefined;
+    if (!c) return { ok: false };
+    c.controller.abort();
+    return { ok: true };
+  });
+
+  // Inject a user "steering" message into a running turn; the agent folds it in
+  // before its next model round so it can course-correct without a new turn.
+  ipcMain.handle('customProvider:inject', (_event, turnId: string, text: string): { ok: boolean } => {
+    const c = typeof turnId === 'string' ? activeAgentTurns.get(turnId) : undefined;
+    const t = typeof text === 'string' ? text.trim() : '';
+    if (!c || !t) return { ok: false };
+    c.queue.push(t);
+    return { ok: true };
+  });
 
   ipcMain.handle('integrations:list', async () => {
     return integrationsService.list();
