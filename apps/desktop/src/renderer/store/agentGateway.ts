@@ -48,6 +48,9 @@ interface AgentGatewayState {
   isSending: boolean;
   /** turnId of the in-flight agent turn — powers the Stop button + mid-turn steering. */
   currentTurnId: string | null;
+  /** Composer draft + attachments — kept in the store so they survive tab switches. */
+  composerDraft: string;
+  composerImages: string[];
   errorMessage: string | null;
   /** Session id currently being reconfigured (e.g. reasoning effort → container restart). */
   reconfiguringSessionId: string | null;
@@ -74,6 +77,9 @@ interface AgentGatewayState {
   abortGateway: () => Promise<void>;
   /** Inject a steering message into the running agent turn (adjust mid-work). */
   injectGateway: (text: string) => Promise<boolean>;
+  /** Composer draft setters (persisted state above). */
+  setComposerDraft: (value: string) => void;
+  setComposerImages: (value: string[] | ((prev: string[]) => string[])) => void;
   newGatewaySession: (agentId: string) => void;
   setSessionModel: (sessionId: string, model: string, provider: AIProvider) => void;
   /** Change a Docker agent's reasoning effort (rewrites config + restarts container). */
@@ -90,6 +96,8 @@ export const useAgentGatewayStore = create<AgentGatewayState>((set, get) => ({
   activeSessionId: null,
   isSending: false,
   currentTurnId: null,
+  composerDraft: '',
+  composerImages: [],
   errorMessage: null,
   reconfiguringSessionId: null,
   hydrated: false,
@@ -293,6 +301,12 @@ export const useAgentGatewayStore = create<AgentGatewayState>((set, get) => ({
       return false;
     }
   },
+
+  setComposerDraft: (value) => set({ composerDraft: value }),
+  setComposerImages: (value) =>
+    set((state) => ({
+      composerImages: typeof value === 'function' ? value(state.composerImages) : value,
+    })),
 
   sendGatewayMessage: async (text, images) => {
     const content = text.trim();

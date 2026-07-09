@@ -25,8 +25,12 @@ interface ChatPageProps {
 }
 
 export function ChatPage({ user, onBuyApi, onNavigateToDashboard, onNavigateToAgentHub, onNavigateToExtensions }: ChatPageProps) {
-  const [draft, setDraft] = useState('');
-  const [images, setImages] = useState<string[]>([]);
+  // Composer draft + attachments live in the gateway store so they survive tab
+  // switches (this page unmounts when you leave it) — fixes losing typed text.
+  const draft = useAgentGatewayStore((state) => state.composerDraft);
+  const setDraft = useAgentGatewayStore((state) => state.setComposerDraft);
+  const images = useAgentGatewayStore((state) => state.composerImages);
+  const setImages = useAgentGatewayStore((state) => state.setComposerImages);
   const [showAgentPicker, setShowAgentPicker] = useState(false);
   const [railCollapsed, setRailCollapsed] = useState(false);
   const [activeTask, setActiveTask] = useState<LoopTask | null>(null);
