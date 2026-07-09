@@ -13,6 +13,7 @@ import type {
   OnboardingState,
 } from '../../main/agent/types';
 import type { DesktopUpdaterState } from '../../main/updater/types';
+import type { MemoryItemDTO } from '../../shared/graph-types';
 
 function createLocalId(prefix: string): string {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
@@ -79,6 +80,9 @@ interface AgentWorkspaceState {
   messages: ChatMessage[];
   tasks: AgentTask[];
   memories: AgentMemory[];
+  /** izzi shared-brain memory (read-only mirror of /aibase/memory). */
+  izziMemories: MemoryItemDTO[];
+  izziMemoryState: 'idle' | 'loading' | 'ready' | 'signed-out' | 'error';
   runtimeState: AgentRuntimeState;
   diagnostics: DiagnosticEvent[];
   updaterState: DesktopUpdaterState;
@@ -98,6 +102,8 @@ interface AgentWorkspaceState {
   refreshStatus: (sessionId?: string) => Promise<void>;
   refreshTasks: (sessionId?: string) => Promise<void>;
   refreshMemories: (sessionId?: string) => Promise<void>;
+  /** Load the izzi shared-brain memory (Phase 1: read-only). */
+  refreshIzziMemories: () => Promise<void>;
   refreshDiagnostics: (limit?: number) => Promise<void>;
   refreshUpdaterState: () => Promise<void>;
   checkForUpdates: () => Promise<void>;
@@ -127,6 +133,8 @@ export const useAgentWorkspaceStore = create<AgentWorkspaceState>((set, get) => 
   messages: [],
   tasks: [],
   memories: [],
+  izziMemories: [],
+  izziMemoryState: 'idle',
   runtimeState: createIdleState(),
   diagnostics: [],
   updaterState: createUpdaterState(),
@@ -467,6 +475,28 @@ export const useAgentWorkspaceStore = create<AgentWorkspaceState>((set, get) => 
     if (!window.electronAPI?.agent) return;
     const memories = await window.electronAPI.agent.listMemories(sessionId);
     set({ memories: sortMemories(memories) });
+  },
+  refreshIzziMemories: async () => {
+    const api = window.electronAPI;
+    // Feature-detect: no bridge → treat as signed-out (can't reach the izzi brain).
+    if (!api?.memory?.list || !api?.auth?.isAuthenticated) {
+      set({ izziMemories: [], izziMemoryState: 'signed-out' });
+      return;
+    }
+    set({ izziMemoryState: 'loading' });
+    try {
+      // Distinguish signed-out vs empty vs error from AUTH, not from an empty
+      // array (listMemory fail-closes to [] on no-auth/error) — Socrates gate.
+      const authed = await api.auth.isAuthenticated();
+      if (!authed) {
+        set({ izziMemories: [], izziMemoryState: 'signed-out' });
+        return;
+      }
+      const items = await api.memory.list('', 100);
+      set({ izziMemories: Array.isArray(items) ? items : [], izziMemoryState: 'ready' });
+    } catch {
+      set({ izziMemoryState: 'error' });
+    }
   },
 
   refreshDiagnostics: async (limit = 50) => {
