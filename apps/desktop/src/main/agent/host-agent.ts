@@ -17,7 +17,7 @@ import { HOST_TOOLS, classifyToolRisk, executeHostTool, summarizeToolCall, type 
 import { needsApproval, type PermissionMode } from './agent-permissions';
 import { extractSseEvents, type AgentTurnEvent } from '../../shared/agent-turn-events';
 
-const MAX_TOOL_ITERATIONS = 30;
+const MAX_TOOL_ITERATIONS = 60;
 const TOOL_RESULT_CAP = 12000;
 
 const SYSTEM_PROMPT =
@@ -28,6 +28,7 @@ const SYSTEM_PROMPT =
   '- Narrate concisely: one short line before an action saying what you are doing and why. Do not over-explain or dump long output.\n' +
   '- Make the smallest change that solves the task; do not touch unrelated things.\n' +
   '- If a command or step fails, read the error and fix the root cause. Do NOT blindly retry the same action several different ways — that wastes your step budget.\n' +
+  '- Reuse what you already learned this turn: do NOT re-read a file or re-list a directory you have already seen — the earlier tool results are still in the conversation.\n' +
   '- Keep going until the task is actually done. Then give a short summary of what you changed and what you verified, and be honest about anything you could NOT verify.\n' +
   "- Reply in the user's language.";
 

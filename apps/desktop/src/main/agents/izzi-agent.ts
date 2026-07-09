@@ -25,7 +25,7 @@ import { createStreamCollector, type AgentTurnEvent } from '../../shared/agent-t
 import type { SessionRecorder } from './agent-session-recorder';
 
 const IZZI_LLM_BASE = process.env.OPENAI_BASE_URL || 'https://api.izziapi.com/v1';
-const MAX_TOOL_ITERATIONS = 12;
+const MAX_TOOL_ITERATIONS = 20;
 
 export interface IzziAgentMessage {
   role: 'system' | 'user' | 'assistant';
