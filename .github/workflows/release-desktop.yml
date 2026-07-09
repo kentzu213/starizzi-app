@@ -48,6 +48,10 @@ jobs:
 
   build-mac:
     runs-on: macos-latest
+    # Run AFTER build-windows (not in parallel) so only one job creates the
+    # GitHub release; this one then uploads the mac assets to the existing
+    # release. Prevents the "422 already_exists" race when both jobs publish.
+    needs: build-windows
     defaults:
       run:
         working-directory: apps/desktop

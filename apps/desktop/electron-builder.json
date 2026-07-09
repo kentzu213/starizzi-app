@@ -28,8 +28,14 @@
     {
       "from": "build/icon.icns",
       "to": "build/icon.icns"
+    },
+    {
+      "from": "resources/bundled-extensions",
+      "to": "bundled-extensions"
     }
   ],
+
+  "beforePack": "scripts/before-pack.cjs",
 
   "win": {
     "target": [

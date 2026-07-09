@@ -25,7 +25,7 @@ import { createStreamCollector, type AgentTurnEvent } from '../../shared/agent-t
 import type { SessionRecorder } from './agent-session-recorder';
 
 const IZZI_LLM_BASE = process.env.OPENAI_BASE_URL || 'https://api.izziapi.com/v1';
-const MAX_TOOL_ITERATIONS = 5;
+const MAX_TOOL_ITERATIONS = 12;
 
 export interface IzziAgentMessage {
   role: 'system' | 'user' | 'assistant';
@@ -186,7 +186,38 @@ export class IzziAgent {
         }
         // loop for the model's next turn
       }
-      return { reply: '', error: 'tool-loop-exhausted' };
+      // Step budget reached: one final answer WITHOUT tools so the user gets a real
+      // reply (progress + what's left) instead of an empty error. Resumable next turn.
+      try {
+        const res = await fetch(`${IZZI_LLM_BASE}/chat/completions`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` },
+          body: JSON.stringify({
+            model,
+            messages: [
+              ...reqMessages,
+              {
+                role: 'user',
+                content:
+                  'Bạn đã dùng hết số bước công cụ cho lượt này — DỪNG gọi công cụ. Tổng kết ngắn gọn: đã làm được gì và còn bước nào chưa xong. Nếu chưa hoàn tất, nói rõ để người dùng nhắn "tiếp tục".',
+              },
+            ],
+            stream: false,
+            max_tokens: 1200,
+          }),
+        });
+        if (res.ok) {
+          const data = (await res.json()) as { choices?: Array<{ message?: { content?: unknown } }> };
+          const content = data?.choices?.[0]?.message?.content;
+          if (typeof content === 'string' && content.trim().length > 0) return { reply: content };
+        }
+      } catch {
+        /* fall through to a static wrap-up */
+      }
+      return {
+        reply:
+          'Mình đã chạy nhiều bước cho tác vụ này nhưng chưa xong trong một lượt. Nhắn "tiếp tục" để mình làm tiếp.',
+      };
     } catch {
       return { reply: '', error: 'network' };
     }

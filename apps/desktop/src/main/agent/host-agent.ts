@@ -17,7 +17,7 @@ import { HOST_TOOLS, classifyToolRisk, executeHostTool, summarizeToolCall, type 
 import { needsApproval, type PermissionMode } from './agent-permissions';
 import { extractSseEvents, type AgentTurnEvent } from '../../shared/agent-turn-events';
 
-const MAX_TOOL_ITERATIONS = 12;
+const MAX_TOOL_ITERATIONS = 30;
 const TOOL_RESULT_CAP = 12000;
 
 const SYSTEM_PROMPT =
@@ -27,8 +27,25 @@ const SYSTEM_PROMPT =
   '- Then DO the work with your tools (run shell commands, read/write/list files) — do NOT just tell the user to run things themselves. Inspect first, make the change, then VERIFY it (run the build / tests / the command and check the result).\n' +
   '- Narrate concisely: one short line before an action saying what you are doing and why. Do not over-explain or dump long output.\n' +
   '- Make the smallest change that solves the task; do not touch unrelated things.\n' +
+  '- If a command or step fails, read the error and fix the root cause. Do NOT blindly retry the same action several different ways — that wastes your step budget.\n' +
   '- Keep going until the task is actually done. Then give a short summary of what you changed and what you verified, and be honest about anything you could NOT verify.\n' +
   "- Reply in the user's language.";
+
+/**
+ * A short environment note appended to the system prompt so the model emits
+ * shell-correct commands from the first try (the #1 cause of wasted steps is the
+ * model guessing the wrong shell — e.g. PowerShell cmdlets on cmd.exe).
+ */
+function buildEnvNote(): string {
+  const isWin = process.platform === 'win32';
+  const shell = isWin
+    ? 'cmd.exe on Windows. Use cmd-compatible syntax; to use PowerShell cmdlets, invoke `powershell -NoProfile -Command "..."`.'
+    : '/bin/sh.';
+  return (
+    `\n\nEnvironment: host OS is ${process.platform}. run_command runs through the default shell (${shell})` +
+    ' To create or overwrite files, prefer the write_file tool instead of shell here-docs or New-Item.'
+  );
+}
 
 export interface HostApprovalRequest {
   tool: string;
@@ -159,8 +176,8 @@ export async function runHostAgentTurn(opts: HostAgentTurnOptions): Promise<{ re
   const tools = opts.extraTools && opts.extraTools.length ? [...HOST_TOOLS, ...opts.extraTools] : HOST_TOOLS;
 
   const systemContent = workingDir
-    ? `${SYSTEM_PROMPT}\n\nYour working directory is: ${workingDir}. Use it as the default location for commands and as the base for relative file paths.`
-    : SYSTEM_PROMPT;
+    ? `${SYSTEM_PROMPT}\n\nYour working directory is: ${workingDir}. Use it as the default location for commands and as the base for relative file paths.${buildEnvNote()}`
+    : `${SYSTEM_PROMPT}${buildEnvNote()}`;
 
   const messages: Array<Record<string, unknown>> = [
     { role: 'system', content: systemContent },
@@ -237,7 +254,36 @@ export async function runHostAgentTurn(opts: HostAgentTurnOptions): Promise<{ re
         messages.push({ role: 'tool', tool_call_id: tc.id, content: scrub(result).slice(0, TOOL_RESULT_CAP) });
       }
     }
-    return { reply: '', error: 'tool-loop-exhausted' };
+    // Step budget reached: ask for a final wrap-up WITHOUT tools so the user always
+    // gets a real answer (progress + what's left) instead of an empty error. The
+    // turn is resumable — the next message continues with full history.
+    emit?.({ turnId, kind: 'delta', text: '\n\n' });
+    try {
+      const { content } = await streamChatTurn(
+        url,
+        headers,
+        {
+          model,
+          messages: [
+            ...messages,
+            {
+              role: 'user',
+              content:
+                'Bạn đã dùng hết số bước công cụ cho lượt này — DỪNG gọi công cụ. Tổng kết ngắn gọn: đã làm được gì, kiểm chứng được gì, và còn bước nào chưa xong. Nếu chưa hoàn tất, nói rõ để người dùng nhắn "tiếp tục".',
+            },
+          ],
+          stream: true,
+        },
+        (text) => emit?.({ turnId, kind: 'delta', text }),
+      );
+      if (content.trim().length > 0) return { reply: content };
+    } catch {
+      /* fall through to a static wrap-up */
+    }
+    return {
+      reply:
+        'Mình đã chạy nhiều bước cho tác vụ này nhưng chưa hoàn tất trong một lượt. Nhắn "tiếp tục" để mình làm tiếp từ chỗ đang dở.',
+    };
   } catch (err) {
     return { reply: '', error: scrub((err as Error).message || 'network') };
   }

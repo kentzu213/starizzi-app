@@ -12,7 +12,7 @@ import { execFile } from 'child_process';
  * Keyed by the marketplace/extension id.
  */
 const BUNDLED_OCX: Record<string, string> = {
-  'ext-social-auto-poster': 'social-auto-poster-0.1.0.ocx',
+  'ext-social-auto-poster': 'social-auto-poster-0.2.0.ocx',
 };
 import { AuthManager } from './auth/auth-manager';
 import { DatabaseManager } from './db/database';

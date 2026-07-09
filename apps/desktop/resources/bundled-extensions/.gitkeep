@@ -1,0 +1,3 @@
+# Keeps this directory present so electron-builder's extraResources `from` always
+# resolves. The bundled .ocx is generated fresh at build time by scripts/before-pack.cjs
+# (see electron-builder.json) and is intentionally gitignored (*.ocx).
