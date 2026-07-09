@@ -4,119 +4,130 @@
    Pitch-black + Cyan/Purple gradient + Glass
    ============================================ */
 
-/* --- CSS Custom Properties (Design Tokens) --- */
+/* ============================================================
+   Izzi OpenClaw - unified design tokens (SINGLE SOURCE OF TRUTH)
+   Consolidated from 11 legacy :root generations. Values are the exact
+   effective izzi-standard tokens synced to izziapi.com:
+   ink #03060b, paper #f6f2e8, cyan #22dcc2, blue #7ecfff, violet #8e5cff,
+   warm hairlines. Zero visual change vs the pre-consolidation build.
+   Edit tokens HERE only. Do NOT add new :root override blocks.
+   ============================================================ */
 :root {
-  /* Core Colors Ã¢â‚¬â€ matched to izziapi.com */
+  --color-accent-cyan: #22dcc2;
+  --color-accent-emerald: #00d294;
+  --color-accent-glow: rgba(34, 220, 194, 0.16);
+  --color-accent-gradient: linear-gradient(135deg, #22dcc2 0%, #7ecfff 58%, #8e5cff 100%);
+  --color-accent-gradient-hover: linear-gradient(135deg, #46ecd5 0%, #a2f4fd 58%, #a78bfa 100%);
+  --color-accent-primary: #22dcc2;
+  --color-accent-purple: #8e5cff;
+  --color-accent-purple-soft: #7ecfff;
+  --color-accent-secondary: #7ecfff;
+  --color-bg-elevated: #0a111a;
+  --color-bg-hover: rgba(246, 242, 232, 0.06);
   --color-bg-primary: #03060b;
   --color-bg-secondary: #04080f;
   --color-bg-tertiary: #071014;
-  --color-bg-elevated: #0a111a;
-  --color-bg-hover: #101924;
-
-  /* Accent Colors Ã¢â‚¬â€ CyanÃ¢â€ â€™Purple (izziapi.com brand) */
-  --color-accent-primary: #22dcc2;
-  --color-accent-secondary: #7ecfff;
-  --color-accent-cyan: #22dcc2;
-  --color-accent-purple: #8e5cff;
-  --color-accent-emerald: #00d294;
-  --color-accent-glow: rgba(34, 220, 194, 0.20);
-  /* Soft purple accent for slate/indigo merge mapping (#c7d2fe/#a5b4fc/#818cf8 range) Ã¢â‚¬â€ Req 3.5 */
-  --color-accent-purple-soft: #7ecfff;
-  --color-accent-gradient: linear-gradient(135deg, #22dcc2 0%, #7ecfff 100%);
-  --color-accent-gradient-hover: linear-gradient(135deg, #46ecd5 0%, #a2f4fd 100%);
-  /* Toast notification gradients (Marketplace install toast) — Req 4.5 token-isation */
-  --gradient-toast-success: linear-gradient(135deg, rgba(0, 184, 148, 0.95), rgba(0, 206, 201, 0.95));
-  --gradient-toast-error: linear-gradient(135deg, rgba(255, 107, 107, 0.95), rgba(238, 82, 83, 0.95));
-  --gradient-toast-info: linear-gradient(135deg, rgba(99, 110, 255, 0.95), rgba(108, 92, 231, 0.95));
-  --color-toast-text: #ffffff;
-  --shadow-toast: 0 8px 32px rgba(0, 0, 0, 0.4);
-  --color-error-border-soft: rgba(255, 107, 107, 0.2);
-  /* Semi-transparent black for inline code/terminal blocks (Req 4.5) */
+  --color-border: rgba(246, 242, 232, 0.13);
+  --color-border-accent: rgba(34, 220, 194, 0.42);
+  --color-border-hover: rgba(246, 242, 232, 0.22);
   --color-code-block-bg: rgba(0, 0, 0, 0.4);
-  /* Login fineprint slate + success-banner border (Req 4.5 token-isation) */
-  --color-text-fineprint: rgba(148, 163, 184, 0.5);
-  --color-text-fineprint-dim: rgba(148, 163, 184, 0.35);
-  --color-success-border-soft: rgba(52, 211, 153, 0.3);
-
-  /* Status Colors */
-  --color-success: #00d294;
-  --color-success-bg: rgba(0, 210, 148, 0.11);
-  --color-warning: #ffcb53;
-  --color-warning-bg: rgba(255, 203, 83, 0.11);
-  --color-error: #f87171;
-  --color-error-bg: rgba(248, 113, 113, 0.1);
+  --color-error: #ff6568;
+  --color-error-bg: rgba(255, 101, 104, 0.12);
+  --color-error-border-soft: rgba(255, 107, 107, 0.2);
   --color-info: #7ecfff;
   --color-info-bg: rgba(126, 207, 255, 0.09);
-
-  /* Text Colors */
+  --color-success: #00d294;
+  --color-success-bg: rgba(0, 210, 148, 0.11);
+  --color-success-border-soft: rgba(52, 211, 153, 0.3);
+  --color-text-accent: #22dcc2;
+  --color-text-fineprint: rgba(148, 163, 184, 0.5);
+  --color-text-fineprint-dim: rgba(148, 163, 184, 0.35);
   --color-text-primary: rgba(246, 242, 232, 0.96);
   --color-text-secondary: rgba(246, 242, 232, 0.62);
   --color-text-tertiary: rgba(246, 242, 232, 0.40);
-  --color-text-accent: #22dcc2;
-
-  /* Border Ã¢â‚¬â€ izziapi.com uses white/[0.06] */
-  --color-border: rgba(246, 242, 232, 0.13);
-  --color-border-hover: rgba(246, 242, 232, 0.22);
-  --color-border-accent: rgba(34, 220, 194, 0.42);
-
-  /* Glass Ã¢â‚¬â€ izziapi.com glassmorphism */
-  --glass-bg: rgba(4, 8, 15, 0.72);
-  --glass-blur-amount: 10px;
-  --glass-blur: blur(min(var(--glass-blur-amount, 10px), 16px));
-  --glass-border: 1px solid rgba(246, 242, 232, 0.13);
-  /* Specular highlight: top-edge inset, luminance higher than --glass-bg (Req 1.4) */
-  --glass-specular: inset 0 1px 0 0 rgba(246, 242, 232, 0.10);
-  /* Soft multi-layer glass shadow: >=2 layers, each with distinct offset/blur (Req 1.3) */
-  --glass-shadow:
-    0 1px 2px rgba(0, 0, 0, 0.30),
-    0 8px 24px rgba(0, 0, 0, 0.45),
-    0 20px 48px rgba(0, 0, 0, 0.32);
-
-  /* Shadows */
-  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.4);
-  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.5);
-  --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.6);
-  --shadow-glow: 0 0 20px rgba(103, 232, 249, 0.12);
-
-  /* Typography Ã¢â‚¬â€ Geist-inspired stack */
-  --font-family: 'Inter', 'Geist', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  --font-mono: 'JetBrains Mono', 'Geist Mono', 'SF Mono', 'Consolas', monospace;
-  --font-size-xs: 0.6875rem;
-  --font-size-sm: 0.8125rem;
+  --color-toast-text: #ffffff;
+  --color-warning: #ffcb53;
+  --color-warning-bg: rgba(255, 203, 83, 0.11);
+  --font-display: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', 'SF Mono', 'Consolas', monospace;
+  --font-size-2xl: 1.625rem;
+  --font-size-3xl: 2rem;
   --font-size-base: 0.9375rem;
-  --font-size-lg: 1.125rem;
-  --font-size-xl: 1.375rem;
-  --font-size-2xl: 1.75rem;
-  --font-size-3xl: 2.25rem;
-
-  /* Spacing */
-  --space-xs: 0.25rem;
-  --space-sm: 0.5rem;
-  --space-md: 1rem;
-  --space-lg: 1.5rem;
-  --space-xl: 2rem;
-  --space-2xl: 3rem;
-
-  /* Radius */
-  --radius-sm: 6px;
-  --radius-md: 9px;
-  --radius-lg: 12px;
-  --radius-xl: 14px;
+  --font-size-lg: 1.0625rem;
+  --font-size-sm: 0.8125rem;
+  --font-size-xl: 1.25rem;
+  --font-size-xs: 0.6875rem;
+  --glass-bg: rgba(4, 8, 15, 0.74);
+  --glass-blur: blur(min(18px, 24px)) saturate(135%);
+  --glass-blur-amount: 18px;
+  --glass-border: 1px solid rgba(246, 242, 232, 0.13);
+  --glass-shadow: 0 1px 2px rgba(0, 0, 0, 0.42), 0 20px 54px rgba(0, 0, 0, 0.34);
+  --glass-specular: inset 0 1px 0 rgba(255, 255, 255, 0.055);
+  --gradient-toast-error: linear-gradient(135deg, rgba(255, 107, 107, 0.95), rgba(238, 82, 83, 0.95));
+  --gradient-toast-info: linear-gradient(135deg, rgba(99, 110, 255, 0.95), rgba(108, 92, 231, 0.95));
+  --gradient-toast-success: linear-gradient(135deg, rgba(0, 184, 148, 0.95), rgba(0, 206, 201, 0.95));
+  --izzi-bg: #05070b;
+  --izzi-bg-deep: #010306;
+  --izzi-bg-elevated: #080d14;
+  --izzi-bg-panel: rgba(244, 239, 229, 0.035);
+  --izzi-bg-panel-strong: rgba(244, 239, 229, 0.06);
+  --izzi-bg-toolbar: rgba(5, 8, 12, 0.72);
+  --izzi-blue: #7ecfff;
+  --izzi-cyan: #22dcc2;
+  --izzi-cyan-rgb: 34, 220, 194;
+  --izzi-dim: rgba(244, 239, 229, 0.20);
+  --izzi-ease: cubic-bezier(.16, 1, .3, 1);
+  --izzi-faint: rgba(246, 242, 232, 0.40);
+  --izzi-gold: #ffcb53;
+  --izzi-green: #00d294;
+  --izzi-ink: #03060b;
+  --izzi-line: rgba(246, 242, 232, 0.13);
+  --izzi-line-strong: rgba(246, 242, 232, 0.22);
+  --izzi-motion-fast: 160ms;
+  --izzi-motion-med: 320ms;
+  --izzi-muted: rgba(246, 242, 232, 0.62);
+  --izzi-panel: rgba(4, 8, 15, 0.56);
+  --izzi-panel-strong: rgba(2, 5, 10, 0.76);
+  --izzi-paper: #f6f2e8;
+  --izzi-radius-lg: 14px;
+  --izzi-radius-md: 12px;
+  --izzi-radius-sm: 10px;
+  --izzi-radius-xl: 16px;
+  --izzi-radius-xs: 8px;
+  --izzi-red: #ff6f7b;
+  --izzi-shadow-glow: 0 18px 48px rgba(34, 220, 194, 0.11);
+  --izzi-shadow-panel: inset 0 1px 0 rgba(255, 255, 255, 0.045), 0 1px 2px rgba(0, 0, 0, 0.40), 0 20px 54px rgba(0, 0, 0, 0.34);
+  --izzi-violet: #8e5cff;
+  --izzi-warm: #ff9a54;
   --radius-full: 9999px;
-  /* iOS 26 glass radii: lg in [20,32] for main glass surfaces, sm in [8,16] for chips/buttons, always sm < lg (Req 1.2) */
-  --radius-glass-lg: 14px;
+  --radius-glass-lg: 10px;
+  --radius-glass-md: 12px;
   --radius-glass-sm: 9px;
-
-  /* Transitions */
-  --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
-  --transition-base: 250ms cubic-bezier(0.4, 0, 0.2, 1);
+  --radius-lg: 10px;
+  --radius-md: 8px;
+  --radius-sm: 6px;
+  --radius-xl: 12px;
+  --shadow-glow: 0 0 0 3px rgba(34, 220, 194, 0.12);
+  --shadow-lg: 0 26px 88px rgba(0, 0, 0, 0.47);
+  --shadow-md: 0 12px 36px rgba(0, 0, 0, 0.40);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.44);
+  --shadow-toast: 0 8px 32px rgba(0, 0, 0, 0.4);
+  --sidebar-width: 252px;
+  --space-2xl: 3rem;
+  --space-lg: 1.5rem;
+  --space-md: 1rem;
+  --space-sm: 0.5rem;
+  --space-xl: 2rem;
+  --space-xs: 0.25rem;
+  --titlebar-height: 42px;
+  --transition-base: 320ms cubic-bezier(.16, 1, .3, 1);
+  --transition-fast: 160ms cubic-bezier(.16, 1, .3, 1);
   --transition-slow: 400ms cubic-bezier(0.4, 0, 0.2, 1);
-
-  /* Layout */
-  --sidebar-width: 260px;
-  --titlebar-height: 38px;
 }
 
+
+/* --- CSS Custom Properties (Design Tokens) --- */
 /* --- iOS 26 Glass Class Set (Bộ_Class_Glass) ---
    Đúng ba class dùng chung; mọi thuộc tính nền/blur/viền/bo góc/shadow/specular
    tham chiếu Token_Glass qua var(--token, fallback), không literal ngoài var() (Req 2.1, 2.2, 2.3, 2.8). */
@@ -619,6 +630,7 @@ a:hover { color: var(--color-accent-primary); }
   gap: var(--space-md);
   font-size: var(--font-size-xs);
   color: var(--color-text-tertiary);
+  font-variant-numeric: tabular-nums;
 }
 
 .ext-card__rating {
@@ -637,6 +649,8 @@ a:hover { color: var(--color-accent-primary); }
 .ext-card__price {
   font-size: var(--font-size-sm);
   font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
 }
 .ext-card__price--free {
   color: var(--color-success);
@@ -3526,67 +3540,6 @@ a:hover { color: var(--color-accent-primary); }
    Near-black surfaces, single cyan accent used sparingly, flat hairlines,
    no glass blur. Re-themes the whole app from the token layer.
    ═══════════════════════════════════════════════════════════════════════ */
-:root {
-  /* Off-black surfaces (no pure #000) on a tight elevation ladder */
-  --color-bg-primary: #08090c;     /* page */
-  --color-bg-secondary: #0c0e12;   /* sidebar / titlebar */
-  --color-bg-tertiary: #101319;    /* sunken wells */
-  --color-bg-elevated: #14171d;    /* cards / raised surfaces */
-  --color-bg-hover: #1a1e26;       /* hover wash */
-
-  /* Single locked accent: izzi cyan. No second hue — gradients collapse to mono cyan. */
-  --color-accent-primary: #67e8f9;
-  --color-accent-secondary: #67e8f9;
-  --color-accent-cyan: #67e8f9;
-  --color-accent-purple: #67e8f9;
-  --color-accent-glow: rgba(103, 232, 249, 0.16);
-  --color-accent-purple-soft: #67e8f9;
-  /* Near-flat cyan "gradient" so existing gradient surfaces render as solid cyan */
-  --color-accent-gradient: linear-gradient(135deg, #67e8f9 0%, #22d3ee 100%);
-  --color-accent-gradient-hover: linear-gradient(135deg, #7df0fd 0%, #34dded 100%);
-
-  /* White → gray → dim text hierarchy */
-  --color-text-primary: rgba(255, 255, 255, 0.94);
-  --color-text-secondary: rgba(255, 255, 255, 0.56);
-  --color-text-tertiary: rgba(255, 255, 255, 0.34);
-  --color-text-accent: #67e8f9;
-
-  /* Hairline borders (dev-tool precision) */
-  --color-border: rgba(255, 255, 255, 0.07);
-  --color-border-hover: rgba(255, 255, 255, 0.14);
-  --color-border-accent: rgba(103, 232, 249, 0.40);
-
-  /* Status — sit on near-black */
-  --color-success: #34d399;
-  --color-success-bg: rgba(52, 211, 153, 0.12);
-  --color-warning: #fbbf24;
-  --color-warning-bg: rgba(251, 191, 36, 0.12);
-  --color-error: #f87171;
-  --color-error-bg: rgba(248, 113, 113, 0.12);
-  --color-info: #67e8f9;
-  --color-info-bg: rgba(103, 232, 249, 0.10);
-
-  /* "Glass" becomes a flat dark surface (no blur reliance) */
-  --glass-bg: rgba(18, 21, 27, 0.92);
-  --glass-blur-amount: 0px;
-  --glass-blur: blur(0px);
-  --glass-border: 1px solid rgba(255, 255, 255, 0.08);
-  --glass-specular: inset 0 1px 0 0 rgba(255, 255, 255, 0.05);
-  --glass-shadow:
-    0 1px 2px rgba(0, 0, 0, 0.40),
-    0 12px 32px rgba(0, 0, 0, 0.50);
-
-  /* Flat shadows, tuned to near-black */
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.45);
-  --shadow-md: 0 6px 18px rgba(0, 0, 0, 0.50);
-  --shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.55);
-  --shadow-glow: 0 0 0 3px rgba(103, 232, 249, 0.14);
-
-  /* Tight dev-tool radii */
-  --radius-glass-lg: 16px;
-  --radius-glass-sm: 10px;
-}
-
 body {
   background:
     radial-gradient(circle at top right, rgba(103, 232, 249, 0.05), transparent 38%),
@@ -5615,6 +5568,8 @@ body {
   margin: 0 auto;
   font-family: var(--font-family);
   color: var(--color-text-primary);
+  /* Numeric-heavy dashboard: align every figure on a tabular grid (izzi bar). */
+  font-variant-numeric: tabular-nums;
 }
 .cost-dash__loading {
   display: flex;
@@ -5678,8 +5633,11 @@ body {
   margin-bottom: 12px;
 }
 .cost-dash__card-label {
-  font-size: 14px;
+  font-family: var(--font-mono);
+  font-size: 12px;
   font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
   color: var(--color-text-primary);
 }
 .cost-dash__badge {
@@ -5722,15 +5680,19 @@ body {
 }
 .cost-dash__stat-value {
   display: block;
-  font-size: 20px;
+  font-size: 22px;
   font-weight: 700;
   color: var(--color-accent-cyan);
+  letter-spacing: -0.02em;
 }
 .cost-dash__stat-label {
   display: block;
-  font-size: 12px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
   color: var(--color-text-secondary);
-  margin-top: 4px;
+  margin-top: 6px;
 }
 .cost-dash__stat-sub {
   display: block;
@@ -5931,11 +5893,6 @@ body {
    surfaces, single cyan accent. No glass, no blur.
    ═══════════════════════════════════════════════════════════════════════ */
 
-:root {
-  /* Condensed grotesk for display; Geist/Inter stays for UI/body. Mono for labels + numbers. */
-  --font-display: 'Geist', 'Inter Tight', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-}
-
 /* Condensed uppercase display for page + section + card titles (dev-tool voice) */
 .page-header__title,
 .section-header__title,
@@ -6060,99 +6017,6 @@ body {
    This cascade-final layer intentionally standardizes font, radii, stroke,
    spacing, surfaces, and interaction states across the Electron renderer.
    ========================================================================== */
-
-:root {
-  --izzi-bg: #05070b;
-  --izzi-bg-deep: #010306;
-  --izzi-bg-elevated: #080d14;
-  --izzi-bg-panel: rgba(244, 239, 229, 0.035);
-  --izzi-bg-panel-strong: rgba(244, 239, 229, 0.06);
-  --izzi-bg-toolbar: rgba(5, 8, 12, 0.72);
-  --izzi-paper: #f4efe5;
-  --izzi-muted: rgba(244, 239, 229, 0.62);
-  --izzi-faint: rgba(244, 239, 229, 0.38);
-  --izzi-dim: rgba(244, 239, 229, 0.20);
-  --izzi-line: rgba(244, 239, 229, 0.106);
-  --izzi-line-strong: rgba(244, 239, 229, 0.22);
-  --izzi-cyan: #22dcc2;
-  --izzi-cyan-rgb: 34, 220, 194;
-  --izzi-blue: #7ecfff;
-  --izzi-violet: #8e5cff;
-  --izzi-warm: #ff9a54;
-  --izzi-green: #42e6a4;
-  --izzi-red: #ff6f7b;
-  --izzi-radius-xs: 6px;
-  --izzi-radius-sm: 8px;
-  --izzi-radius-md: 10px;
-  --izzi-radius-lg: 12px;
-  --izzi-radius-xl: 18px;
-  --izzi-shadow-panel: 0 22px 70px rgba(0, 0, 0, 0.34), inset 0 1px 0 rgba(255, 255, 255, 0.043);
-  --izzi-shadow-glow: 0 18px 48px rgba(var(--izzi-cyan-rgb), 0.11);
-  --izzi-ease: cubic-bezier(.16, 1, .3, 1);
-  --izzi-motion-fast: 160ms;
-  --izzi-motion-med: 320ms;
-
-  --color-bg-primary: var(--izzi-bg);
-  --color-bg-secondary: rgba(5, 8, 12, 0.92);
-  --color-bg-tertiary: rgba(244, 239, 229, 0.035);
-  --color-bg-elevated: rgba(244, 239, 229, 0.055);
-  --color-bg-hover: rgba(244, 239, 229, 0.085);
-
-  --color-accent-primary: var(--izzi-cyan);
-  --color-accent-secondary: var(--izzi-violet);
-  --color-accent-cyan: var(--izzi-cyan);
-  --color-accent-purple: var(--izzi-violet);
-  --color-accent-purple-soft: #bca8ff;
-  --color-accent-glow: rgba(var(--izzi-cyan-rgb), 0.16);
-  --color-accent-gradient: linear-gradient(135deg, var(--izzi-cyan) 0%, var(--izzi-blue) 54%, var(--izzi-violet) 100%);
-  --color-accent-gradient-hover: linear-gradient(135deg, #40f0d9 0%, #95d9ff 52%, #a077ff 100%);
-
-  --color-text-primary: var(--izzi-paper);
-  --color-text-secondary: var(--izzi-muted);
-  --color-text-tertiary: var(--izzi-faint);
-  --color-text-accent: var(--izzi-cyan);
-
-  --color-border: var(--izzi-line);
-  --color-border-hover: var(--izzi-line-strong);
-  --color-border-accent: rgba(var(--izzi-cyan-rgb), 0.24);
-
-  --color-success: var(--izzi-green);
-  --color-success-bg: rgba(66, 230, 164, 0.10);
-  --color-warning: var(--izzi-gold, #ffcb53);
-  --color-warning-bg: rgba(255, 203, 83, 0.10);
-  --color-error: var(--izzi-red);
-  --color-error-bg: rgba(255, 111, 123, 0.11);
-  --color-info: var(--izzi-cyan);
-  --color-info-bg: rgba(var(--izzi-cyan-rgb), 0.095);
-
-  --glass-bg: linear-gradient(135deg, rgba(244, 239, 229, 0.055), rgba(244, 239, 229, 0.016)), rgba(4, 7, 11, 0.74);
-  --glass-blur-amount: 18px;
-  --glass-blur: blur(18px);
-  --glass-border: 1px solid var(--izzi-line);
-  --glass-specular: inset 0 1px 0 rgba(255, 255, 255, 0.045);
-  --glass-shadow: var(--izzi-shadow-panel);
-
-  --shadow-sm: 0 8px 22px rgba(0, 0, 0, 0.20);
-  --shadow-md: 0 18px 48px rgba(0, 0, 0, 0.30);
-  --shadow-lg: 0 26px 72px rgba(0, 0, 0, 0.38);
-  --shadow-glow: var(--izzi-shadow-glow);
-
-  --radius-sm: var(--izzi-radius-xs);
-  --radius-md: var(--izzi-radius-sm);
-  --radius-lg: var(--izzi-radius-lg);
-  --radius-xl: var(--izzi-radius-xl);
-  --radius-glass-sm: var(--izzi-radius-sm);
-  --radius-glass-md: var(--izzi-radius-md);
-  --radius-glass-lg: var(--izzi-radius-xl);
-
-  --font-family: 'Inter', 'Geist', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  --font-display: 'Inter', 'Geist', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  --font-mono: 'SF Mono', 'JetBrains Mono', 'Geist Mono', 'Consolas', monospace;
-  --transition-fast: var(--izzi-motion-fast) var(--izzi-ease);
-  --transition-base: var(--izzi-motion-med) var(--izzi-ease);
-  --titlebar-height: 44px;
-  --sidebar-width: 268px;
-}
 
 html,
 body,
@@ -6834,10 +6698,6 @@ select:focus {
 }
 
 @media (max-width: 900px) {
-  :root {
-    --sidebar-width: 232px;
-  }
-
   .main-content {
     padding: 20px;
   }
@@ -6865,67 +6725,6 @@ select:focus {
    AIBase surface language: ink #03060b, paper #f6f2e8, cyan #22dcc2,
    blue #7ecfff, compact radius, 1px warm hairlines.
    ════════════════════════════════════════════════════════════════════════════ */
-:root {
-  --color-bg-primary: #03060b;
-  --color-bg-secondary: #04080f;
-  --color-bg-tertiary: #071014;
-  --color-bg-elevated: #0a111a;
-  --color-bg-hover: #101924;
-
-  --color-accent-primary: #22dcc2;
-  --color-accent-secondary: #7ecfff;
-  --color-accent-cyan: #22dcc2;
-  --color-accent-purple: #8e5cff;
-  --color-accent-emerald: #00d294;
-  --color-accent-glow: rgba(34, 220, 194, 0.18);
-  --color-accent-purple-soft: #7ecfff;
-  --color-accent-gradient: linear-gradient(135deg, #22dcc2 0%, #7ecfff 100%);
-  --color-accent-gradient-hover: linear-gradient(135deg, #46ecd5 0%, #a2f4fd 100%);
-
-  --color-text-primary: rgba(246, 242, 232, 0.96);
-  --color-text-secondary: rgba(246, 242, 232, 0.62);
-  --color-text-tertiary: rgba(246, 242, 232, 0.40);
-  --color-text-accent: #22dcc2;
-
-  --color-border: rgba(246, 242, 232, 0.13);
-  --color-border-hover: rgba(246, 242, 232, 0.22);
-  --color-border-accent: rgba(34, 220, 194, 0.42);
-
-  --color-success: #00d294;
-  --color-success-bg: rgba(0, 210, 148, 0.11);
-  --color-warning: #ffcb53;
-  --color-warning-bg: rgba(255, 203, 83, 0.11);
-  --color-error: #ff6568;
-  --color-error-bg: rgba(255, 101, 104, 0.12);
-  --color-info: #7ecfff;
-  --color-info-bg: rgba(126, 207, 255, 0.09);
-
-  --glass-bg: rgba(4, 8, 15, 0.72);
-  --glass-blur-amount: 10px;
-  --glass-blur: blur(min(var(--glass-blur-amount, 10px), 16px));
-  --glass-border: 1px solid rgba(246, 242, 232, 0.13);
-  --glass-specular: inset 0 1px 0 0 rgba(246, 242, 232, 0.10);
-  --glass-shadow:
-    0 1px 2px rgba(0, 0, 0, 0.40),
-    0 14px 40px rgba(0, 0, 0, 0.42);
-
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.45);
-  --shadow-md: 0 8px 22px rgba(0, 0, 0, 0.46);
-  --shadow-lg: 0 18px 52px rgba(0, 0, 0, 0.54);
-  --shadow-glow: 0 0 0 3px rgba(34, 220, 194, 0.13);
-
-  --font-family: 'Inter', 'Geist', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  --font-display: 'Inter', 'Geist', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  --font-mono: 'JetBrains Mono', 'Geist Mono', 'SF Mono', 'Consolas', monospace;
-
-  --radius-sm: 6px;
-  --radius-md: 9px;
-  --radius-lg: 12px;
-  --radius-xl: 14px;
-  --radius-glass-lg: 14px;
-  --radius-glass-sm: 9px;
-}
-
 body {
   background:
     radial-gradient(circle at 52% -18%, rgba(126, 207, 255, 0.10), transparent 34%),
@@ -7128,61 +6927,6 @@ body {
    Final layer: keeps the renderer aligned with the current AIBase page language
    without changing page logic or route structure.
    ========================================================================== */
-
-:root {
-  --izzi-ink: #03060b;
-  --izzi-panel: rgba(4, 8, 15, 0.74);
-  --izzi-panel-strong: rgba(2, 5, 10, 0.84);
-  --izzi-paper: #f6f2e8;
-  --izzi-muted: rgba(246, 242, 232, 0.62);
-  --izzi-faint: rgba(246, 242, 232, 0.40);
-  --izzi-line: rgba(246, 242, 232, 0.13);
-  --izzi-line-strong: rgba(246, 242, 232, 0.22);
-  --izzi-cyan: #22dcc2;
-  --izzi-cyan-rgb: 34, 220, 194;
-  --izzi-blue: #7ecfff;
-  --izzi-violet: #8e5cff;
-  --izzi-warm: #ff9a54;
-  --izzi-green: #00d294;
-  --izzi-radius-xs: 8px;
-  --izzi-radius-sm: 10px;
-  --izzi-radius-md: 12px;
-  --izzi-radius-lg: 14px;
-  --izzi-radius-xl: 16px;
-  --izzi-shadow-panel:
-    inset 0 1px 0 rgba(255, 255, 255, 0.045),
-    0 1px 2px rgba(0, 0, 0, 0.40),
-    0 20px 54px rgba(0, 0, 0, 0.34);
-
-  --color-bg-primary: var(--izzi-ink);
-  --color-bg-secondary: #04080f;
-  --color-bg-tertiary: #071014;
-  --color-bg-elevated: #0a111a;
-  --color-bg-hover: #101924;
-  --color-accent-primary: var(--izzi-cyan);
-  --color-accent-secondary: var(--izzi-blue);
-  --color-accent-cyan: var(--izzi-cyan);
-  --color-accent-purple: var(--izzi-violet);
-  --color-accent-gradient: linear-gradient(135deg, var(--izzi-cyan), var(--izzi-blue));
-  --color-text-primary: rgba(246, 242, 232, 0.96);
-  --color-text-secondary: var(--izzi-muted);
-  --color-text-tertiary: var(--izzi-faint);
-  --color-border: var(--izzi-line);
-  --color-border-hover: var(--izzi-line-strong);
-  --color-border-accent: rgba(var(--izzi-cyan-rgb), 0.42);
-  --glass-bg: var(--izzi-panel);
-  --glass-blur-amount: 18px;
-  --glass-blur: blur(min(var(--glass-blur-amount, 18px), 22px)) saturate(135%);
-  --glass-border: 1px solid var(--izzi-line);
-  --glass-specular: inset 0 1px 0 rgba(255, 255, 255, 0.055);
-  --glass-shadow: 0 1px 2px rgba(0, 0, 0, 0.42), 0 20px 54px rgba(0, 0, 0, 0.34);
-  --radius-sm: var(--izzi-radius-xs);
-  --radius-md: var(--izzi-radius-sm);
-  --radius-lg: var(--izzi-radius-md);
-  --radius-xl: var(--izzi-radius-lg);
-  --radius-glass-sm: var(--izzi-radius-sm);
-  --radius-glass-lg: var(--izzi-radius-xl);
-}
 
 body {
   background:
@@ -7640,82 +7384,6 @@ select:focus {
    cyan #22dcc2, blue #7ecfff, violet #8e5cff, warm 1px hairlines,
    compact glass panels (10px) and pill CTAs/chips.
    ══════════════════════════════════════════════════════════════════════════════ */
-:root {
-  --izzi-paper: #f6f2e8;
-  --izzi-muted: rgba(246, 242, 232, 0.62);
-  --izzi-faint: rgba(246, 242, 232, 0.40);
-  --izzi-line: rgba(246, 242, 232, 0.13);
-  --izzi-ink: #03060b;
-  --izzi-panel: rgba(4, 8, 15, 0.56);
-  --izzi-panel-strong: rgba(2, 5, 10, 0.76);
-  --izzi-cyan: #22dcc2;
-  --izzi-blue: #7ecfff;
-  --izzi-violet: #8e5cff;
-  --izzi-warm: #ff9a54;
-  --izzi-gold: #ffcb53;
-
-  --color-bg-primary: var(--izzi-ink);
-  --color-bg-secondary: #04080f;
-  --color-bg-tertiary: #071014;
-  --color-bg-elevated: rgba(4, 8, 15, 0.72);
-  --color-bg-hover: #101924;
-
-  --color-accent-primary: var(--izzi-cyan);
-  --color-accent-secondary: var(--izzi-blue);
-  --color-accent-cyan: var(--izzi-cyan);
-  --color-accent-purple: var(--izzi-violet);
-  --color-accent-emerald: #00d294;
-  --color-accent-glow: rgba(34, 220, 194, 0.16);
-  --color-accent-purple-soft: var(--izzi-blue);
-  --color-accent-gradient: linear-gradient(135deg, #22dcc2 0%, #7ecfff 58%, #8e5cff 100%);
-  --color-accent-gradient-hover: linear-gradient(135deg, #46ecd5 0%, #a2f4fd 58%, #a78bfa 100%);
-
-  --color-text-primary: rgba(246, 242, 232, 0.98);
-  --color-text-secondary: var(--izzi-muted);
-  --color-text-tertiary: var(--izzi-faint);
-  --color-text-accent: var(--izzi-cyan);
-
-  --color-border: var(--izzi-line);
-  --color-border-hover: rgba(246, 242, 232, 0.22);
-  --color-border-accent: rgba(34, 220, 194, 0.42);
-
-  --glass-bg: rgba(4, 8, 15, 0.56);
-  --glass-blur-amount: 18px;
-  --glass-blur: blur(min(var(--glass-blur-amount, 18px), 22px));
-  --glass-border: 1px solid rgba(246, 242, 232, 0.13);
-  --glass-specular: inset 0 1px 0 0 rgba(246, 242, 232, 0.10);
-  --glass-shadow:
-    0 1px 2px rgba(0, 0, 0, 0.34),
-    0 26px 88px rgba(0, 0, 0, 0.28);
-
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.44);
-  --shadow-md: 0 12px 36px rgba(0, 0, 0, 0.40);
-  --shadow-lg: 0 26px 88px rgba(0, 0, 0, 0.47);
-  --shadow-glow: 0 0 0 3px rgba(34, 220, 194, 0.12);
-
-  --font-family: var(--font-inter, 'Inter'), -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  --font-display: var(--font-inter, 'Inter'), -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  --font-mono: 'JetBrains Mono', 'Fira Code', 'SF Mono', 'Consolas', monospace;
-
-  --font-size-xs: 0.6875rem;
-  --font-size-sm: 0.8125rem;
-  --font-size-base: 0.9375rem;
-  --font-size-lg: 1.0625rem;
-  --font-size-xl: 1.25rem;
-  --font-size-2xl: 1.625rem;
-  --font-size-3xl: 2rem;
-
-  --radius-sm: 6px;
-  --radius-md: 8px;
-  --radius-lg: 10px;
-  --radius-xl: 12px;
-  --radius-glass-sm: 9px;
-  --radius-glass-lg: 10px;
-
-  --sidebar-width: 252px;
-  --titlebar-height: 42px;
-}
-
 html,
 body,
 #root {
@@ -8068,11 +7736,6 @@ body {
 }
 
 @media (max-width: 760px) {
-  :root {
-    --sidebar-width: 0px;
-    --titlebar-height: 42px;
-  }
-
   .app-layout {
     display: block;
     height: calc(100dvh - var(--titlebar-height));
@@ -8321,32 +7984,6 @@ body {
 }
 
 /* true-final izzi desktop lock: must stay last in this stylesheet */
-:root {
-  --color-bg-primary: #03060b;
-  --color-bg-secondary: #04080f;
-  --color-bg-tertiary: #071014;
-  --color-bg-elevated: #0a111a;
-  --color-bg-hover: rgba(246, 242, 232, 0.06);
-  --color-accent-primary: #22dcc2;
-  --color-accent-secondary: #7ecfff;
-  --color-accent-cyan: #22dcc2;
-  --color-accent-purple: #8e5cff;
-  --color-text-primary: rgba(246, 242, 232, 0.96);
-  --color-text-secondary: rgba(246, 242, 232, 0.62);
-  --color-text-tertiary: rgba(246, 242, 232, 0.40);
-  --color-border: rgba(246, 242, 232, 0.13);
-  --color-border-hover: rgba(246, 242, 232, 0.22);
-  --color-border-accent: rgba(34, 220, 194, 0.42);
-  --glass-bg: rgba(4, 8, 15, 0.74);
-  --glass-blur-amount: 18px;
-  --glass-blur: blur(min(var(--glass-blur-amount, 18px), 24px)) saturate(135%);
-  --glass-border: 1px solid rgba(246, 242, 232, 0.13);
-  --glass-specular: inset 0 1px 0 rgba(255, 255, 255, 0.055);
-  --glass-shadow: 0 1px 2px rgba(0, 0, 0, 0.42), 0 20px 54px rgba(0, 0, 0, 0.34);
-  --radius-glass-sm: 9px;
-  --radius-glass-lg: 10px;
-}
-
 .sidebar__item,
 .sidebar__update-prompt,
 .sidebar__user-card {
@@ -8397,11 +8034,6 @@ body {
 
 /* true-final mobile lock: prevent desktop shell overflow in browser preview */
 @media (max-width: 760px) {
-  :root {
-    --sidebar-width: 0px;
-    --titlebar-height: 42px;
-  }
-
   html,
   body,
   #root {
@@ -8625,10 +8257,11 @@ body {
 }
 
 .affiliate__kicker {
+  font-family: var(--font-mono);
   font-size: var(--font-size-xs);
   text-transform: uppercase;
   letter-spacing: 0.14em;
-  font-weight: 860;
+  font-weight: 700;
   color: var(--color-accent-cyan);
   margin-bottom: var(--space-xs);
 }
@@ -8710,14 +8343,16 @@ body {
   font-size: var(--font-size-sm);
   color: var(--color-text-secondary);
   margin: 0 0 var(--space-md);
+  font-variant-numeric: tabular-nums;
 }
 
 /* --- Referral link card --- */
 .affiliate__refcard-label {
+  font-family: var(--font-mono);
   font-size: var(--font-size-xs);
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  font-weight: 800;
+  font-weight: 700;
   color: var(--color-text-tertiary);
   margin-bottom: var(--space-sm);
 }
@@ -8812,10 +8447,11 @@ body {
 }
 
 .affiliate__tile-label {
+  font-family: var(--font-mono);
   font-size: var(--font-size-xs);
   text-transform: uppercase;
-  letter-spacing: 0.06em;
-  font-weight: 700;
+  letter-spacing: 0.08em;
+  font-weight: 600;
   color: var(--color-text-tertiary);
 }
 

@@ -30,11 +30,18 @@
 .agent-hub__top-card-info { flex: 1; min-width: 0; }
 .agent-hub__top-card-name { font-size: 15px; font-weight: 600; color: var(--color-text-primary); margin: 0; }
 .agent-hub__top-card-stars { font-size: 11px; color: var(--color-text-tertiary); }
-.agent-hub__top-card-category { font-size: 10px; padding: 2px 7px; border-radius: 4px; background: var(--color-info-bg); color: var(--color-accent-cyan); font-weight: 500; }
+.agent-hub__top-card-category {
+  font-size: 10px; padding: 2px 7px; border-radius: 4px; background: var(--color-info-bg); color: var(--color-accent-cyan); font-weight: 500;
+  /* The header category collided with the absolute status badge (both flush top-right)
+     and squeezed the name/stars column. It is fully redundant with the tags row below
+     (the category always appears there), so hide it and let the status own the corner. */
+  display: none;
+}
 
 .agent-hub__top-card-status {
   position: absolute; top: 16px; right: 16px;
   font-size: 10px; padding: 2px 8px; border-radius: 6px; font-weight: 600;
+  white-space: nowrap;
 }
 .agent-hub__top-card-status--running { background: var(--color-success-bg); color: var(--color-success); }
 .agent-hub__top-card-status--stopped { background: var(--color-warning-bg); color: var(--color-warning); }
