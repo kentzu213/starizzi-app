@@ -285,9 +285,10 @@ export function AgentStorePage({ onNavigateToChat }: AgentStorePageProps = {}) {
           <div className="agent-hub__top-grid">
             {externalAgents.map((agent) => (
               <div key={agent.id} className="agent-hub__top-card glass-card">
-                <span className={`agent-hub__top-card-status agent-hub__top-card-status--${agent.status}`}>
-                  {agent.status === 'running' ? '🟢 Running' :
-                   agent.status === 'stopped' ? '🟡 Stopped' :
+                <span className={`agent-hub__top-card-status agent-hub__top-card-status--${agent.runtime === 'izzi' ? 'running' : agent.status}`}>
+                  {agent.runtime === 'izzi' ? '⚡ Sẵn sàng' :
+                   agent.status === 'running' ? '🟢 Running' :
+                   agent.status === 'stopped' ? '🟡 Stopped (đã cài)' :
                    agent.status === 'installing' ? '⏳ Installing' :
                    agent.status === 'error' ? '🔴 Error' :
                    '⚪ Not Installed'}
@@ -311,23 +312,26 @@ export function AgentStorePage({ onNavigateToChat }: AgentStorePageProps = {}) {
                   ))}
                 </div>
                 <div className="agent-hub__top-card-actions">
-                  {agent.status === 'not-installed' ? (
-                    agent.runtime === 'izzi' ? (
-                      <button
-                        className="agent-hub__top-card-btn agent-hub__top-card-btn--setup"
-                        onClick={() => updateAgentStatus(agent.id, 'running')}
-                        title="Cài đặt tức thì — chạy qua Izzi API, không cần Docker"
-                      >
-                        🚀 Cài đặt (1 lệnh)
-                      </button>
-                    ) : (
-                      <button
-                        className="agent-hub__top-card-btn agent-hub__top-card-btn--setup"
-                        onClick={() => setSetupAgent(agent)}
-                      >
-                        ⚙️ Hướng dẫn & Kết nối
-                      </button>
-                    )
+                  {agent.runtime === 'izzi' ? (
+                    // izzi personas run via the Izzi API — always ready, no install
+                    // to do (and nothing to persist). Open a chat directly.
+                    <button
+                      className="agent-hub__top-card-btn agent-hub__top-card-btn--chat"
+                      onClick={() => {
+                        useAgentGatewayStore.getState().openAgentChat(agent.id);
+                        onNavigateToChat?.();
+                      }}
+                      title="Chạy qua Izzi API — luôn sẵn sàng, không cần cài đặt"
+                    >
+                      💬 Chat
+                    </button>
+                  ) : agent.status === 'not-installed' ? (
+                    <button
+                      className="agent-hub__top-card-btn agent-hub__top-card-btn--setup"
+                      onClick={() => setSetupAgent(agent)}
+                    >
+                      ⚙️ Hướng dẫn & Kết nối
+                    </button>
                   ) : agent.status === 'running' ? (
                     <button
                       className="agent-hub__top-card-btn agent-hub__top-card-btn--chat"
@@ -339,11 +343,12 @@ export function AgentStorePage({ onNavigateToChat }: AgentStorePageProps = {}) {
                       💬 Chat Now
                     </button>
                   ) : (
+                    // Installed but stopped/errored (e.g. Hermes exited) — offer Start.
                     <button
                       className="agent-hub__top-card-btn agent-hub__top-card-btn--start"
                       onClick={() => setSetupAgent(agent)}
                     >
-                      ▶️ Start / Re-setup
+                      ▶️ Khởi động lại
                     </button>
                   )}
                 </div>

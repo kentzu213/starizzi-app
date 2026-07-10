@@ -76,6 +76,8 @@ export interface DockerStartResult extends DockerResult {
 
 export interface DockerStatusResult {
   running: boolean;
+  /** True if a container exists in ANY state (running or stopped/exited). */
+  installed?: boolean;
   error?: string;
 }
 
@@ -441,18 +443,22 @@ export class DockerAgentService {
   /** Report whether the agent container is currently running. */
   async status(payload: DockerAgentPayload): Promise<DockerStatusResult> {
     const name = dockerContainerName(payload.id);
+    // `docker ps -a` (all states) + State so we can tell "installed but stopped"
+    // apart from "not installed" — a stopped/exited container is still installed.
     const { code, stdout, stderr } = await this.exec(
-      ['ps', '--filter', `name=${name}`, '--format', '{{.Names}}'],
+      ['ps', '-a', '--filter', `name=${name}`, '--format', '{{.Names}}\t{{.State}}'],
       DEFAULT_EXEC_TIMEOUT,
     );
     if (code !== 0) {
-      return { running: false, error: summarizeDockerError(stderr) };
+      return { running: false, installed: false, error: summarizeDockerError(stderr) };
     }
-    const running = stdout
+    const row = stdout
       .split(/\r?\n/)
       .map((l) => l.trim())
-      .includes(name);
-    return { running };
+      .find((l) => l.split('\t')[0] === name);
+    if (!row) return { running: false, installed: false };
+    const state = (row.split('\t')[1] || '').toLowerCase();
+    return { running: state === 'running', installed: true };
   }
 
   /** Whether a container with the exact name exists in any state. */

@@ -157,7 +157,7 @@ export const useAgentGatewayStore = create<AgentGatewayState>((set, get) => ({
     // Hermes' aiohttp server) reject browser-origin requests with 403 — so a
     // running agent would keep showing "Not Installed". `docker ps` sees the truth.
     const dockerApi = (typeof window !== 'undefined'
-      ? (window as unknown as { electronAPI?: { dockerAgent?: { status?: (p: { id: string; defaultPort: number }) => Promise<{ running: boolean }> } } }).electronAPI?.dockerAgent
+      ? (window as unknown as { electronAPI?: { dockerAgent?: { status?: (p: { id: string; defaultPort: number }) => Promise<{ running: boolean; installed?: boolean }> } } }).electronAPI?.dockerAgent
       : undefined);
     if (!dockerApi?.status) return; // no bridge (browser dev) — nothing to sync
 
@@ -169,12 +169,15 @@ export const useAgentGatewayStore = create<AgentGatewayState>((set, get) => ({
       try {
         const res = await dockerApi.status({ id: agent.id, defaultPort: agent.defaultPort });
         const running = !!res?.running;
+        const installed = !!res?.installed;
         set((state) => ({
           agents: state.agents.map((a) => {
             if (a.id !== agent.id) return a;
             if (running) return { ...a, status: 'running' };
-            // Not running: reflect 'stopped' only if we previously thought it was
-            // up; otherwise leave the current badge (e.g. 'not-installed') as-is.
+            // A container that exists but isn't running is INSTALLED + stopped
+            // (e.g. Hermes crashed/exited) — show 'stopped', not 'not-installed'.
+            if (installed) return { ...a, status: 'stopped' };
+            // Truly absent: only downgrade a previously-'running' badge.
             if (a.status === 'running') return { ...a, status: 'stopped' };
             return a;
           }),

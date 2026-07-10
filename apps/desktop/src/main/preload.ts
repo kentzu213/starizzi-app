@@ -133,7 +133,7 @@ const electronAPI = {
       ipcRenderer.invoke('dockerAgent:start', payload),
     stop: (payload: { id: string; dockerImage?: string; defaultPort: number; dockerComposeUrl?: string }): Promise<{ ok: boolean; error?: string }> =>
       ipcRenderer.invoke('dockerAgent:stop', payload),
-    status: (payload: { id: string; dockerImage?: string; defaultPort: number; dockerComposeUrl?: string }): Promise<{ running: boolean; error?: string }> =>
+    status: (payload: { id: string; dockerImage?: string; defaultPort: number; dockerComposeUrl?: string }): Promise<{ running: boolean; installed?: boolean; error?: string }> =>
       ipcRenderer.invoke('dockerAgent:status', payload),
     chat: (
       payload: { id: string; defaultPort: number; agentName?: string; reasoningEffort?: string; turnId?: string; images?: string[] },
