@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { apiClient } from '../lib/api-client';
+import { ExtensionServicePanel } from '../components/ExtensionServicePanel';
 
 interface ExtensionDetailProps {
   extension: {
@@ -19,6 +20,8 @@ interface ExtensionDetailProps {
   onInstall: () => void;
   isInstalling: boolean;
   onBack: () => void;
+  /** Open the agent chat seeded with a self-install prompt for this tool. */
+  onLoopPrompt?: () => void;
 }
 
 interface VersionEntry {
@@ -82,6 +85,7 @@ export function ExtensionDetailPage({
   onInstall,
   isInstalling,
   onBack,
+  onLoopPrompt,
 }: ExtensionDetailProps) {
   const [activeTab, setActiveTab] = useState<'overview' | 'changelog' | 'reviews' | 'permissions'>('overview');
   const [changelog, setChangelog] = useState<VersionEntry[]>([]);
@@ -222,6 +226,15 @@ export function ExtensionDetailPage({
               {isInstalling ? '⏳ Đang cài...' : '📦 Cài đặt ngay'}
             </button>
           )}
+          {onLoopPrompt && (
+            <button
+              className="ext-detail__loop-btn"
+              onClick={onLoopPrompt}
+              title="Mở loop prompt để agent tự cài đặt tiện ích trong phiên chat"
+            >
+              ⟳ Tự cài đặt bằng chat
+            </button>
+          )}
         </div>
       </div>
 
@@ -242,6 +255,12 @@ export function ExtensionDetailPage({
       <div className="ext-detail__content">
         {activeTab === 'overview' && (
           <div className="ext-detail__overview">
+            {/* Managed local backend — self-hides when the extension has no service.
+                When installed, opening this view auto-boots the localhost backend. */}
+            {isInstalled && (
+              <ExtensionServicePanel extensionId={extension.id} isInstalled={isInstalled} />
+            )}
+
             <div className="ext-detail__section">
               <h3 className="ext-detail__section-title">Mô tả</h3>
               <p className="ext-detail__description">{extension.description}</p>

@@ -18,7 +18,7 @@ const { execFileSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 
-const OCX_NAME = 'social-auto-poster-0.2.0.ocx';
+const OCX_NAME = 'social-auto-poster-0.3.0.ocx';
 
 exports.default = async function beforePack(_context) {
   const appDir = path.resolve(__dirname, '..'); // apps/desktop
@@ -34,8 +34,11 @@ exports.default = async function beforePack(_context) {
       return;
     }
     // Only pack files that exist; manifest + dist are required, README optional.
+    // `service/` (the managed local backend profile: docker-compose.izzi.yml) is
+    // packed when present so the host can boot the backend on the user's machine.
     const entries = ['manifest.json', 'dist'];
     if (fs.existsSync(path.join(srcDir, 'README.md'))) entries.splice(1, 0, 'README.md');
+    if (fs.existsSync(path.join(srcDir, 'service'))) entries.push('service');
 
     const outFile = path.join(outDir, OCX_NAME);
     // `tar` is available on windows-latest, macos-latest and linux CI runners.

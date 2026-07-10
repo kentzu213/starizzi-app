@@ -306,7 +306,7 @@ export function App() {
           />
         );
       case 'marketplace':
-        return <MarketplacePage />;
+        return <MarketplacePage onNavigateToChat={() => setCurrentPage('chat')} />;
       case 'agents':
         return <AgentStorePage onNavigateToChat={() => setCurrentPage('chat')} />;
       case 'extensions':

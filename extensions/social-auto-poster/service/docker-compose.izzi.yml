@@ -1,0 +1,137 @@
+# Izzi OpenClaw — Social Auto Poster local backend profile.
+#
+# Booted by LocalServiceManager when the user OPENS the extension. All values
+# come from a host-generated .env (see ./README.md) via `--env-file`.
+#
+# Security posture:
+#   • ONLY the API publishes a port, and it binds to loopback (${IZZI_BIND}).
+#   • Postgres / Redis / MinIO have NO host ports — they live on the internal
+#     compose network only, so nothing but the API is reachable from the host.
+#   • Every secret (JWT_SECRET, ENCRYPTION_KEY, POSTGRES_PASSWORD,
+#     MINIO_ROOT_PASSWORD) is generated locally by the host; none ship in the .ocx.
+#
+# Images are the prebuilt artifacts published by the Auto-Post repo CI
+# (ghcr.io/kentzu213/autopost-{api,worker}) — see ./README.md.
+
+name: izzi-svc-social-auto-poster
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: izzi
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: autopost
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U izzi -d autopost']
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    networks: [autopost]
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: redis-server --save 60 1 --loglevel warning
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    networks: [autopost]
+
+  minio:
+    image: minio/minio:latest
+    restart: unless-stopped
+    command: server /data
+    environment:
+      MINIO_ROOT_USER: izzi
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    volumes:
+      - minio_data:/data
+    networks: [autopost]
+
+  # One-shot schema migration — mirrors the Auto-Post prod topology (the API image
+  # does NOT self-migrate). Runs `prisma migrate deploy` once, then exits; the API
+  # waits for it to complete successfully before starting.
+  migrate:
+    image: ${AUTOPOST_API_IMAGE:-ghcr.io/kentzu213/autopost-api:latest}
+    restart: 'no'
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: ['node_modules/.bin/prisma', 'migrate', 'deploy', '--schema=apps/api/prisma/schema.prisma']
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://izzi:${POSTGRES_PASSWORD}@postgres:5432/autopost?schema=public
+    networks: [autopost]
+
+  api:
+    # Prebuilt image (published by the Auto-Post CI) — avoids a slow local build.
+    # Override with AUTOPOST_API_IMAGE; pin by @sha256 digest in prod.
+    image: ${AUTOPOST_API_IMAGE:-ghcr.io/kentzu213/autopost-api:latest}
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    # The ONLY published port. IZZI_BIND=127.0.0.1, IZZI_PORT_API=allocated host port.
+    ports:
+      - '${IZZI_BIND:-127.0.0.1}:${IZZI_PORT_API:-3001}:3001'
+    environment:
+      NODE_ENV: production
+      PORT: '3001'
+      DATABASE_URL: postgresql://izzi:${POSTGRES_PASSWORD}@postgres:5432/autopost?schema=public
+      REDIS_HOST: redis
+      REDIS_PORT: '6379'
+      JWT_SECRET: ${JWT_SECRET}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY}
+      S3_ENDPOINT: http://minio:9000
+      S3_FORCE_PATH_STYLE: 'true'
+      S3_ACCESS_KEY: izzi
+      S3_SECRET_KEY: ${MINIO_ROOT_PASSWORD}
+      S3_BUCKET: autopost
+      # Calls arrive from the desktop main process (Node, no Origin) — keep CORS
+      # restricted to loopback in case the renderer ever calls directly.
+      CORS_ORIGIN: http://127.0.0.1:${IZZI_PORT_API:-3001}
+    # Readiness is gated by the host on /health/ready (Postgres+Redis+Storage up);
+    # the image's own HEALTHCHECK hits /health/live.
+    networks: [autopost]
+
+  worker:
+    image: ${AUTOPOST_WORKER_IMAGE:-ghcr.io/kentzu213/autopost-worker:latest}
+    restart: unless-stopped
+    depends_on:
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://izzi:${POSTGRES_PASSWORD}@postgres:5432/autopost?schema=public
+      REDIS_HOST: redis
+      REDIS_PORT: '6379'
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY}
+      S3_ENDPOINT: http://minio:9000
+      S3_FORCE_PATH_STYLE: 'true'
+      S3_ACCESS_KEY: izzi
+      S3_SECRET_KEY: ${MINIO_ROOT_PASSWORD}
+      S3_BUCKET: autopost
+    networks: [autopost]
+
+volumes:
+  postgres_data:
+  redis_data:
+  minio_data:
+
+networks:
+  autopost:
+    driver: bridge

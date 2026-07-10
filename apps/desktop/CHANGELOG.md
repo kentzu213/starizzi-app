@@ -1,5 +1,25 @@
 # Changelog — Izzi OpenClaw Desktop
 
+## 1.10.0
+
+Managed local backends for extensions + "Loop Prompt" self-install.
+
+- **Managed local service for extensions.** An extension can now declare a
+  `service` block in its `.ocx` manifest; opening the extension boots its backend
+  on the user's machine via `docker compose` (health-gated on `/health/ready`,
+  every port bound to loopback, secrets generated locally at 0600) and injects the
+  resolved `backendUrl`. New `LocalServiceManager` (main process) drives the
+  compose lifecycle, generalizing the single-container `DockerAgentService`.
+- **Social Auto Poster local profile.** Ships `docker-compose.izzi.yml`
+  (Postgres/Redis/MinIO + api/worker + one-shot migrate) using prebuilt images
+  published by CI; falls back to the hosted Auto-Post backend when Docker is
+  unavailable.
+- **Loop Prompt (Tự cài đặt).** Agent Hub cards (Top Agents + Izzi Agents +
+  Installed), the Marketplace tool cards, and the extension detail page get a
+  "⟳ Tự cài" action that opens an agent chat pre-seeded with a self-install
+  instruction (assess → act → verify → retry). The prompt is seeded into the
+  composer — never auto-sent — so installing stays a deliberate user action.
+
 ## 1.5.2
 
 Bug-fix release on top of 1.5.1.

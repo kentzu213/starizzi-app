@@ -162,3 +162,16 @@
   color: var(--color-accent-cyan);
   word-break: break-all;
 }
+
+/* Loop Prompt button — compact secondary action beside the primary Chat/Setup
+   button. Ghost styling so it never competes with the primary CTA. */
+.agent-hub__top-card-btn--loop {
+  flex: none;
+  background: transparent;
+  border: 1px solid var(--color-border);
+  color: var(--color-text-secondary);
+}
+.agent-hub__top-card-btn--loop:hover {
+  border-color: var(--color-border-hover);
+  color: var(--color-text-primary);
+}

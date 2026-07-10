@@ -4,6 +4,8 @@ import { ExtensionDetailPage } from './ExtensionDetail';
 import { DeveloperUploadPage } from './DeveloperUpload';
 import { DeveloperDashboardPage } from './DeveloperDashboard';
 import { SkeletonGrid } from '../components/Skeleton';
+import { useAgentGatewayStore } from '../store/agentGateway';
+import { buildSelfInstallPrompt } from '../lib/agent-self-install-prompt';
 
 interface MarketplaceExtension {
   id: string;
@@ -31,7 +33,7 @@ const DEMO_EXTENSIONS: MarketplaceExtension[] = [
   { id: 'ext-chatbot', name: 'smart-chatbot', displayName: 'Smart Chatbot Builder', description: 'Xây dựng chatbot AI cho website và Messenger. Tự động trả lời khách hàng 24/7.', author: 'BotFactory', version: '1.0.0', category: 'Customer Support', rating: 4.4, installs: 3200, price: { monthly: 24.99, yearly: 249.99 }, icon: '🤖' },
 ];
 
-export function MarketplacePage() {
+export function MarketplacePage({ onNavigateToChat }: { onNavigateToChat?: () => void } = {}) {
   const [extensions, setExtensions] = useState<MarketplaceExtension[]>([]);
   const [filteredExtensions, setFilteredExtensions] = useState<MarketplaceExtension[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -189,6 +191,22 @@ export function MarketplacePage() {
 
   const [installToast, setInstallToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
 
+  /**
+   * "Loop Prompt" for a tool: a tool isn't a chat agent, so open a capable izzi
+   * persona's chat and seed a self-install instruction for this extension. The
+   * user reviews + sends; the agent installs/configures it in-session.
+   */
+  function openLoopPromptForTool(ext: MarketplaceExtension) {
+    const gw = useAgentGatewayStore.getState();
+    const installer = gw.agents.find((a) => a.runtime === 'izzi') ?? gw.agents[0];
+    if (!installer) return;
+    gw.openAgentChat(installer.id);
+    gw.setComposerDraft(
+      buildSelfInstallPrompt({ kind: 'tool', id: ext.id, displayName: ext.displayName, setupHint: `Danh mục: ${ext.category}` }),
+    );
+    onNavigateToChat?.();
+  }
+
   async function handleInstall(ext: MarketplaceExtension) {
     setInstallingId(ext.id);
     setInstallToast({ message: `Đang tải ${ext.displayName}...`, type: 'info' });
@@ -253,6 +271,7 @@ export function MarketplacePage() {
           onInstall={() => handleInstall(selectedExtension)}
           isInstalling={installingId === selectedExtension.id}
           onBack={() => setSelectedExtension(null)}
+          onLoopPrompt={() => openLoopPromptForTool(selectedExtension)}
         />
 
         {/* Install Toast */}
@@ -520,6 +539,13 @@ export function MarketplacePage() {
                           {isInstalling ? '⏳' : '📦'} {isInstalling ? 'Đang cài...' : 'Cài đặt'}
                         </button>
                       )}
+                      <button
+                        className="ext-card__loop-btn"
+                        onClick={() => openLoopPromptForTool(ext)}
+                        title="Mở loop prompt để agent tự cài đặt tiện ích trong phiên chat"
+                      >
+                        ⟳ Tự cài
+                      </button>
                     </div>
                   </div>
                 </div>

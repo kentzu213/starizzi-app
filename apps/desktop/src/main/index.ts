@@ -12,7 +12,7 @@ import { execFile } from 'child_process';
  * Keyed by the marketplace/extension id.
  */
 const BUNDLED_OCX: Record<string, string> = {
-  'ext-social-auto-poster': 'social-auto-poster-0.2.0.ocx',
+  'ext-social-auto-poster': 'social-auto-poster-0.3.0.ocx',
 };
 import { AuthManager } from './auth/auth-manager';
 import { DatabaseManager } from './db/database';
@@ -27,6 +27,7 @@ import { ExtensionLoader } from './extensions/extension-loader';
 import { PERMISSION_DEFINITIONS } from './extensions/permissions';
 import { installFromMarketplace } from './extensions/marketplace-download';
 import { ExtensionUpdateChecker } from './extensions/update-checker';
+import { LocalServiceManager } from './extensions/local-service-manager';
 import { AgentService } from './agent/agent-service';
 import { ProviderSettingsStore } from './agent/provider-settings-store';
 import { SecretStore } from './agent/secret-store';
@@ -57,6 +58,7 @@ let dbManager: DatabaseManager;
 let syncEngine: SyncEngine;
 let extensionManager: ExtensionManager;
 let extensionLoader: ExtensionLoader;
+let localServiceManager: LocalServiceManager;
 let updateChecker: ExtensionUpdateChecker;
 let agentService: AgentService;
 let autopostAuth: AutopostAuth;
@@ -321,7 +323,8 @@ function setupIPC() {
 
   ipcMain.handle('extensions:runtime:start', async (_event, extensionId: string) => {
     try {
-      await extensionLoader.startExtension(extensionId);
+      // User-initiated open → boot the extension's declared local backend too.
+      await extensionLoader.startExtension(extensionId, { withService: true });
       return { success: true };
     } catch (err: any) {
       return { success: false, error: err.message };
@@ -332,6 +335,31 @@ function setupIPC() {
     try {
       await extensionLoader.stopExtension(extensionId);
       return { success: true };
+    } catch (err: any) {
+      return { success: false, error: err.message };
+    }
+  });
+
+  // Managed local service — status / explicit stop / logs (used by the extension panel).
+  ipcMain.handle('extensions:runtime:serviceStatus', async (_event, extensionId: string) => {
+    try {
+      return { success: true, ...(await extensionLoader.getServiceStatus(extensionId)) };
+    } catch (err: any) {
+      return { success: false, error: err.message };
+    }
+  });
+
+  ipcMain.handle('extensions:runtime:serviceStop', async (_event, extensionId: string) => {
+    try {
+      return await extensionLoader.stopExtensionService(extensionId);
+    } catch (err: any) {
+      return { ok: false, error: err.message };
+    }
+  });
+
+  ipcMain.handle('extensions:runtime:serviceLogs', async (_event, extensionId: string, tail?: number) => {
+    try {
+      return { success: true, logs: await extensionLoader.getServiceLogs(extensionId, tail ?? 200) };
     } catch (err: any) {
       return { success: false, error: err.message };
     }
@@ -1192,6 +1220,31 @@ async function initServices() {
     }
   };
 
+  // Managed local services: when the user OPENS an extension that declares a
+  // `service` block, the loader boots its backend (docker compose) via this
+  // manager, then injects the resolved backendUrl into the extension's settings.
+  localServiceManager = new LocalServiceManager();
+  extensionLoader.setServiceManager(localServiceManager);
+  extensionLoader.onServiceLog = (extensionId, line) => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('extension:serviceLog', { extensionId, line });
+    }
+  };
+  extensionLoader.onServiceReady = (ext, result) => {
+    // Point the main-process Auto-Post client at the just-resolved backend so the
+    // izzi-agent path uses the same instance the extension does (e.g. non-3001 port).
+    if (result.injected?.backendUrl && autopostAuth) {
+      autopostAuth.setBackendUrl(result.injected.backendUrl);
+    }
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('extension:serviceStatus', {
+        extensionId: ext.id,
+        running: result.ok,
+        baseUrl: result.baseUrl,
+      });
+    }
+  };
+
   try {
     await extensionLoader.initialize();
   } catch (err: any) {
@@ -1293,6 +1346,15 @@ app.on('before-quit', async () => {
   if (extensionLoader) {
     try {
       extensionLoader.killAll();
+    } catch {
+      /* best-effort */
+    }
+  }
+  // Tear down managed local backends. Detached so `docker compose down` completes
+  // even though before-quit isn't awaited — matches the killAll() rationale above.
+  if (localServiceManager) {
+    try {
+      localServiceManager.stopAllDetached();
     } catch {
       /* best-effort */
     }

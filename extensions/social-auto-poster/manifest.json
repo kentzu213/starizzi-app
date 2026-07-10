@@ -1,6 +1,6 @@
 {
   "name": "social-auto-poster",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "displayName": "Social Auto Poster",
   "description": "Lên lịch và tự động đăng bài lên Facebook / YouTube / TikTok qua Auto-Post Tool (backend izzi thống nhất). Dùng chung tài khoản izzi — cài xong agent gọi trực tiếp để đăng/lên lịch.",
   "main": "dist/index.js",
@@ -50,6 +50,24 @@
   "pricing": {
     "model": "freemium",
     "price": { "monthly": 9.99, "currency": "USD" }
+  },
+  "service": {
+    "type": "docker-compose",
+    "projectName": "izzi-svc-social-auto-poster",
+    "compose": "service/docker-compose.izzi.yml",
+    "ports": [
+      { "name": "api", "container": 3001, "healthPath": "/health/ready", "bind": "127.0.0.1" }
+    ],
+    "secrets": [
+      { "key": "JWT_SECRET", "gen": "hex:64" },
+      { "key": "ENCRYPTION_KEY", "gen": "hex:64" },
+      { "key": "POSTGRES_PASSWORD", "gen": "hex:32" },
+      { "key": "MINIO_ROOT_PASSWORD", "gen": "hex:32" }
+    ],
+    "readyTimeoutMs": 300000,
+    "inject": { "backendUrl": "http://127.0.0.1:${port.api}" },
+    "requires": { "docker": true },
+    "fallback": { "remoteEnvVar": "AUTOPOST_BACKEND_URL" }
   },
   "license": "SEE LICENSE"
 }

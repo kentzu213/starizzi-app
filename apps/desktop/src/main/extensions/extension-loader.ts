@@ -19,6 +19,7 @@ import { OcxInstaller } from './ocx-installer';
 import type { OcxManifest } from './ocx-manifest';
 import { resolveGrantedPermissions } from './permissions';
 import { DatabaseManager } from '../db/database';
+import type { LocalServiceManager, ServiceUpResult } from './local-service-manager';
 
 export interface LoadedExtension {
   id: string;
@@ -35,14 +36,25 @@ export class ExtensionLoader {
   private db: DatabaseManager;
   private installer: OcxInstaller;
   private extensionsDir: string;
+  /** Boots an extension's declared local backend (set by main). Optional. */
+  private serviceManager?: LocalServiceManager;
 
   // Callbacks for UI/storage delegation
   onUIRequest?: (data: any) => void;
+  /** Streams a managed-service log line to the renderer (extensionId, line). */
+  onServiceLog?: (extensionId: string, line: string) => void;
+  /** Fired when a managed service is up + settings injected (for main to react). */
+  onServiceReady?: (ext: LoadedExtension, result: ServiceUpResult) => void;
 
   constructor(db: DatabaseManager) {
     this.db = db;
     this.installer = new OcxInstaller();
     this.extensionsDir = path.join(app.getPath('userData'), 'extensions');
+  }
+
+  /** Wire the local-service manager (used to auto-start extension backends). */
+  setServiceManager(mgr: LocalServiceManager): void {
+    this.serviceManager = mgr;
   }
 
   /**
@@ -105,11 +117,21 @@ export class ExtensionLoader {
   /**
    * Start an extension's host process.
    */
-  async startExtension(extensionId: string): Promise<void> {
+  async startExtension(extensionId: string, options: { withService?: boolean } = {}): Promise<void> {
     const ext = this.extensions.get(extensionId);
     if (!ext) throw new Error(`Extension "${extensionId}" not found`);
-    if (ext.state === 'running') return;  // Already running
     if (ext.state === 'disabled') throw new Error('Extension is disabled');
+
+    // Managed local backend — boot ONLY when the user opens the extension
+    // (withService), never on boot auto-start: spinning up Docker on every launch
+    // would be surprising and slow. Done BEFORE the "already running" short-circuit
+    // so opening an extension whose host auto-started (onStartup, no service) still
+    // boots its backend. Throws when there's no reachable backend + no fallback.
+    if (options.withService && ext.manifest.service && this.serviceManager) {
+      await this.ensureServiceUp(ext);
+    }
+
+    if (ext.state === 'running') return;  // host already running (service ensured above)
 
     const host = new ExtensionHost({
       extensionId: ext.id,
@@ -195,6 +217,87 @@ export class ExtensionLoader {
     const ext = this.extensions.get(extensionId);
     if (!ext?.host) throw new Error('Extension is not running');
     return ext.host.executeCommand(commandId, ...args);
+  }
+
+  // ── Managed local service ──
+
+  /**
+   * Boot the extension's declared backend and inject its resolved settings (e.g.
+   * `backendUrl`) into the extension's storage so its client targets the right
+   * localhost port. Falls back to a hosted backend (service.fallback.remoteEnvVar)
+   * when Docker is unavailable; throws when there's no reachable backend at all.
+   */
+  private async ensureServiceUp(ext: LoadedExtension): Promise<void> {
+    const service = ext.manifest.service!;
+    const mgr = this.serviceManager!;
+    const res = await mgr.up({
+      extensionId: ext.id,
+      extensionPath: ext.installPath,
+      service,
+      onLog: (line) => this.onServiceLog?.(ext.id, line),
+    });
+
+    if (res.ok) {
+      this.injectServiceSettings(ext.id, res.injected);
+      this.onServiceReady?.(ext, res);
+      return;
+    }
+
+    // No Docker → use the hosted fallback URL from env, if the manifest declares one.
+    if (res.reason === 'no-docker' && service.fallback?.remoteEnvVar) {
+      const hosted = (process.env[service.fallback.remoteEnvVar] || '').trim();
+      if (hosted) {
+        const injected: Record<string, string> = {};
+        for (const [k, tpl] of Object.entries(service.inject || {})) {
+          injected[k] = tpl.includes('${port.') ? hosted : tpl;
+        }
+        this.injectServiceSettings(ext.id, injected);
+        this.onServiceLog?.(ext.id, `⚠ Docker không sẵn sàng — dùng backend hosted: ${hosted}`);
+        this.onServiceReady?.(ext, { ok: true, baseUrl: hosted, injected });
+        return;
+      }
+    }
+
+    throw new Error(
+      res.error ||
+        (res.reason === 'no-docker'
+          ? 'Docker chưa sẵn sàng và không có backend hosted để dùng.'
+          : 'Không khởi động được backend cục bộ.'),
+    );
+  }
+
+  /** Write injected settings so BOTH the extension (ctx.storage.get(key)) and the
+   * settings form (`setting.<key>`) see the resolved value. */
+  private injectServiceSettings(extensionId: string, injected?: Record<string, string>): void {
+    if (!injected) return;
+    for (const [key, value] of Object.entries(injected)) {
+      this.setStoredExtensionValue(extensionId, key, value);
+      this.setStoredExtensionValue(extensionId, `setting.${key}`, value);
+    }
+  }
+
+  /** Explicitly tear down an extension's managed backend (panel Stop button). */
+  async stopExtensionService(extensionId: string): Promise<{ ok: boolean; error?: string }> {
+    const ext = this.extensions.get(extensionId);
+    if (!ext?.manifest.service || !this.serviceManager) return { ok: true };
+    return this.serviceManager.down({ extensionId, extensionPath: ext.installPath, service: ext.manifest.service });
+  }
+
+  /** Current status of an extension's managed backend (for the panel). */
+  async getServiceStatus(
+    extensionId: string,
+  ): Promise<{ hasService: boolean; running: boolean; healthy?: boolean; ports?: Record<string, number> }> {
+    const ext = this.extensions.get(extensionId);
+    if (!ext?.manifest.service || !this.serviceManager) return { hasService: false, running: false };
+    const s = await this.serviceManager.status({ extensionId, extensionPath: ext.installPath, service: ext.manifest.service });
+    return { hasService: true, ...s };
+  }
+
+  /** Tail the managed backend's logs (for the panel). */
+  async getServiceLogs(extensionId: string, tail = 200): Promise<string> {
+    const ext = this.extensions.get(extensionId);
+    if (!ext?.manifest.service || !this.serviceManager) return '';
+    return this.serviceManager.logs({ extensionId, extensionPath: ext.installPath, service: ext.manifest.service }, tail);
   }
 
   /**

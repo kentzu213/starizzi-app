@@ -60,14 +60,33 @@ export class AutopostAuth {
   private tokenExpMs = 0;
   private workspaceId: string | null = null;
 
+  private readonly auth: AuthManager;
+  private backendUrl: string;
+
   constructor(
-    private readonly auth: AuthManager,
-    private readonly backendUrl: string = DEFAULT_AUTOPOST_BACKEND,
-  ) {}
+    auth: AuthManager,
+    backendUrl: string = DEFAULT_AUTOPOST_BACKEND,
+  ) {
+    this.auth = auth;
+    this.backendUrl = backendUrl;
+  }
 
   /** Normalized backend base (no trailing slash). */
   get baseUrl(): string {
     return this.backendUrl.replace(/\/+$/, '');
+  }
+
+  /**
+   * Point the client at a different Auto-Post backend — e.g. the just-booted
+   * local instance on its allocated port (LocalServiceManager), or the hosted
+   * fallback. Clears any cached token, since a token minted against a different
+   * backend is not valid here. No-op when the URL is unchanged.
+   */
+  setBackendUrl(url: string): void {
+    const next = (url || '').trim();
+    if (!next || next === this.backendUrl) return;
+    this.backendUrl = next;
+    this.clear();
   }
 
   /** The Active_Workspace id for the minted token (from sync response / JWT claim). */

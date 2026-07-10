@@ -95,6 +95,25 @@ const electronAPI = {
     onUIRequest: (callback: (data: any) => void) => {
       ipcRenderer.on('extension:uiRequest', (_event, data) => callback(data));
     },
+    // Managed local backend (the extension's `service` block).
+    serviceStatus: (
+      extensionId: string,
+    ): Promise<{ success: boolean; hasService?: boolean; running?: boolean; healthy?: boolean; ports?: Record<string, number>; error?: string }> =>
+      ipcRenderer.invoke('extensions:runtime:serviceStatus', extensionId),
+    serviceStop: (extensionId: string): Promise<{ ok: boolean; error?: string }> =>
+      ipcRenderer.invoke('extensions:runtime:serviceStop', extensionId),
+    serviceLogs: (extensionId: string, tail?: number): Promise<{ success: boolean; logs?: string; error?: string }> =>
+      ipcRenderer.invoke('extensions:runtime:serviceLogs', extensionId, tail),
+    onServiceLog: (callback: (data: { extensionId: string; line: string }) => void) => {
+      const handler = (_event: Electron.IpcRendererEvent, data: { extensionId: string; line: string }) => callback(data);
+      ipcRenderer.on('extension:serviceLog', handler);
+      return () => { ipcRenderer.removeListener('extension:serviceLog', handler); };
+    },
+    onServiceStatus: (callback: (data: { extensionId: string; running: boolean; baseUrl?: string }) => void) => {
+      const handler = (_event: Electron.IpcRendererEvent, data: { extensionId: string; running: boolean; baseUrl?: string }) => callback(data);
+      ipcRenderer.on('extension:serviceStatus', handler);
+      return () => { ipcRenderer.removeListener('extension:serviceStatus', handler); };
+    },
   },
 
   extensionUpdates: {

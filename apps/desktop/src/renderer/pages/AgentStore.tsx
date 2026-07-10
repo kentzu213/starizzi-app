@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { AgentSetupPanel } from '../components/AgentSetupPanel';
 import { AgentHubIcon } from '../components/AppIcons';
 import { useAgentGatewayStore } from '../store/agentGateway';
+import { buildSelfInstallPrompt } from '../lib/agent-self-install-prompt';
 import type { ExternalAgent } from '../types/agent-registry';
 import '../styles/agent-store.css';
 import '../styles/agent-hub.css';
@@ -222,6 +223,41 @@ export function AgentStorePage({ onNavigateToChat }: AgentStorePageProps = {}) {
     setShowSetupWizard(true);
   }
 
+  /**
+   * "Loop Prompt": open the agent's chat and seed the composer with a self-install
+   * instruction so the agent installs/configures itself in-session. The user
+   * reviews the prompt and sends it (we don't auto-send — installing touches the
+   * system, so it stays a deliberate action).
+   */
+  function openLoopPrompt(agent: ExternalAgent) {
+    const gw = useAgentGatewayStore.getState();
+    gw.openAgentChat(agent.id);
+    gw.setComposerDraft(
+      buildSelfInstallPrompt({
+        kind: 'agent',
+        id: agent.id,
+        displayName: agent.displayName,
+        runtime: agent.runtime,
+        setupHint: agent.category ? `Loại: ${agent.category}` : undefined,
+      }),
+    );
+    onNavigateToChat?.();
+  }
+
+  /**
+   * Seed a self-install prompt for a target that ISN'T itself a chat agent
+   * (an izzi agent bundle or an already-installed agent) by opening a capable
+   * izzi persona's chat. The user reviews the prompt and sends it.
+   */
+  function seedLoopPromptViaIzzi(target: { kind: 'agent' | 'tool'; id: string; displayName: string; setupHint?: string }) {
+    const gw = useAgentGatewayStore.getState();
+    const installer = gw.agents.find((a) => a.runtime === 'izzi') ?? gw.agents[0];
+    if (!installer) return;
+    gw.openAgentChat(installer.id);
+    gw.setComposerDraft(buildSelfInstallPrompt(target));
+    onNavigateToChat?.();
+  }
+
   function formatInstalls(n: number): string {
     if (n >= 1000) return `${(n / 1000).toFixed(1)}k`;
     return n.toString();
@@ -351,6 +387,13 @@ export function AgentStorePage({ onNavigateToChat }: AgentStorePageProps = {}) {
                       ▶️ Khởi động lại
                     </button>
                   )}
+                  <button
+                    className="agent-hub__top-card-btn agent-hub__top-card-btn--loop"
+                    onClick={() => openLoopPrompt(agent)}
+                    title="Mở loop prompt để agent tự cài đặt trong phiên chat"
+                  >
+                    ⟳ Tự cài
+                  </button>
                 </div>
               </div>
             ))}
@@ -480,6 +523,21 @@ export function AgentStorePage({ onNavigateToChat }: AgentStorePageProps = {}) {
                 >
                   🚀 Cài đặt 1-Click
                 </button>
+                <button
+                  className="agent-card__loop-btn"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    seedLoopPromptViaIzzi({
+                      kind: 'agent',
+                      id: agent.id,
+                      displayName: agent.displayName,
+                      setupHint: `Bundle ${agent.skills.length} skills; nền tảng: ${agent.platforms.join(', ')}`,
+                    });
+                  }}
+                  title="Mở loop prompt để agent tự cài đặt trong phiên chat"
+                >
+                  ⟳ Tự cài đặt bằng chat
+                </button>
               </div>
             ))}
           </div>
@@ -501,6 +559,14 @@ export function AgentStorePage({ onNavigateToChat }: AgentStorePageProps = {}) {
         <InstalledAgentsPanel
           agents={installedAgents}
           onRefresh={loadInstalledAgents}
+          onLoopPrompt={(info) =>
+            seedLoopPromptViaIzzi({
+              kind: 'agent',
+              id: info.name,
+              displayName: info.displayName,
+              setupHint: `Đã cài; nền tảng: ${info.connectedPlatforms.join(', ') || 'chưa có'}`,
+            })
+          }
         />
       )}
 
@@ -960,9 +1026,10 @@ function AgentSetupWizardModal({ agent, onClose, onComplete }: {
 
 // ── Installed Agents Panel ──
 
-function InstalledAgentsPanel({ agents, onRefresh }: {
+function InstalledAgentsPanel({ agents, onRefresh, onLoopPrompt }: {
   agents: InstalledAgentInfo[];
   onRefresh: () => void;
+  onLoopPrompt: (agent: InstalledAgentInfo) => void;
 }) {
   if (agents.length === 0) {
     return (
@@ -1015,6 +1082,13 @@ function InstalledAgentsPanel({ agents, onRefresh }: {
                 <button className="installed-agent-card__btn">⚙️ Cấu hình</button>
                 <button className="installed-agent-card__btn">
                   {agent.status === 'active' ? '⏸️ Tạm dừng' : '▶️ Bật'}
+                </button>
+                <button
+                  className="installed-agent-card__btn"
+                  onClick={() => onLoopPrompt(agent)}
+                  title="Mở loop prompt để agent tự cấu hình/cài đặt trong phiên chat"
+                >
+                  ⟳ Tự cài
                 </button>
               </div>
             </div>

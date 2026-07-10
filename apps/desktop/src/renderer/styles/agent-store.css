@@ -1093,3 +1093,22 @@
   color: var(--color-text-secondary);
   line-height: 1.6;
 }
+
+/* Loop Prompt (self-install via chat) — secondary action under the primary
+   1-Click install on an izzi agent bundle card. Ghost so it stays subordinate. */
+.agent-card__loop-btn {
+  width: 100%;
+  margin-top: 8px;
+  padding: 8px 12px;
+  border-radius: var(--radius-full, 9999px);
+  font-size: var(--font-size-sm, 0.8125rem);
+  background: transparent;
+  border: 1px solid var(--color-border);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: border-color 0.15s ease, color 0.15s ease;
+}
+.agent-card__loop-btn:hover {
+  border-color: var(--color-border-hover);
+  color: var(--color-text-primary);
+}
