@@ -2,13 +2,16 @@
 
 ## 1.10.1
 
-Marketplace catalog — real izzi tools listed.
+Marketplace catalog — real izzi tools + best-in-class picks (quốc tế + Việt Nam).
 
-- Added the real izzi tools to the Marketplace catalog: **Chat Quality Agent
-  (CSKH)**, **Toonflow Studio**, **OmniVoice TTS**, **HTML to Video**, **FB Ads
-  Manager**, plus the installed desktop tools (**AI Video Studio**, **FaceFusion**,
-  **Quick Magic**). Added **Video** and **Voice** categories. `social-auto-poster`
-  bumped to 0.3.0 in the catalog to match the shipped manifest.
+- Listed the real izzi tools: **Chat Quality Agent (CSKH)**, **Toonflow Studio**,
+  **OmniVoice TTS**, **HTML to Video**, plus installed desktop tools (**AI Video
+  Studio**, **FaceFusion**, **Quick Magic**). Added **Video** + **Voice**
+  categories; `social-auto-poster` bumped to 0.3.0 to match the shipped manifest.
+- Curated the best-in-class options next to the existing ones: **Chatterbox Voice
+  (v3)** + **VieNeu-TTS (Việt)** for voice; **LTX-2 Video** + **MCAI (Việt)** for
+  video; **Postiz** for social scheduling. Replaced the weak FB Ads scripts with
+  **Meta Ads Autopilot** (Revealbot/Madgicx-class AI bidding + rule automation).
 
 ## 1.10.0
 
