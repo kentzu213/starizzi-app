@@ -127,6 +127,26 @@ export function ensureSqliteSchema(db: Database.Database): void {
       FOREIGN KEY (session_id) REFERENCES chat_sessions(id) ON DELETE SET NULL
     );
 
+    CREATE TABLE IF NOT EXISTS agent_runs (
+      id TEXT PRIMARY KEY,
+      goal TEXT NOT NULL,
+      stage TEXT NOT NULL DEFAULT 'idea',
+      status TEXT NOT NULL DEFAULT 'active',
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS agent_run_entries (
+      id TEXT PRIMARY KEY,
+      run_id TEXT NOT NULL,
+      kind TEXT NOT NULL,
+      stage TEXT,
+      agent_id TEXT,
+      content TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      FOREIGN KEY (run_id) REFERENCES agent_runs(id) ON DELETE CASCADE
+    );
+
     CREATE TABLE IF NOT EXISTS offline_queue (
       seq INTEGER PRIMARY KEY AUTOINCREMENT,
       op_type TEXT NOT NULL,
@@ -149,6 +169,8 @@ export function ensureSqliteSchema(db: Database.Database): void {
     CREATE INDEX IF NOT EXISTS idx_agent_memories_session_id ON agent_memories(session_id);
     CREATE INDEX IF NOT EXISTS idx_agent_memories_pinned ON agent_memories(pinned);
     CREATE INDEX IF NOT EXISTS idx_offline_queue_seq ON offline_queue(seq ASC);
+    CREATE INDEX IF NOT EXISTS idx_agent_runs_updated_at ON agent_runs(updated_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_agent_run_entries_run_id ON agent_run_entries(run_id, created_at ASC);
   `);
 
   ensureColumn(db, 'agent_tasks', 'summary', 'TEXT');

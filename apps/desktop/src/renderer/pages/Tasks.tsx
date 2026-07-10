@@ -1,6 +1,6 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useAgentWorkspaceStore } from '../store/agentWorkspace';
-import type { AgentTaskStatus } from '../../main/agent/types';
+import type { AgentRunEntry, AgentTaskStatus } from '../../main/agent/types';
 
 const TASK_COLUMNS: Array<{ status: AgentTaskStatus; label: string }> = [
   { status: 'todo', label: 'Todo' },
@@ -15,18 +15,103 @@ export function TasksPage() {
   const refreshTasks = useAgentWorkspaceStore((state) => state.refreshTasks);
   const updateTaskStatus = useAgentWorkspaceStore((state) => state.updateTaskStatus);
 
+  const runs = useAgentWorkspaceStore((state) => state.runs);
+  const refreshRuns = useAgentWorkspaceStore((state) => state.refreshRuns);
+  const createRun = useAgentWorkspaceStore((state) => state.createRun);
+
+  const [goal, setGoal] = useState('');
+  const [openRunId, setOpenRunId] = useState<string | null>(null);
+  const [entries, setEntries] = useState<AgentRunEntry[]>([]);
+
   useEffect(() => {
     void refreshTasks();
-  }, [refreshTasks]);
+    void refreshRuns();
+  }, [refreshTasks, refreshRuns]);
+
+  const openRun = async (id: string) => {
+    if (openRunId === id) {
+      setOpenRunId(null);
+      return;
+    }
+    setOpenRunId(id);
+    const res = await window.electronAPI?.run?.get(id);
+    setEntries(res?.entries ?? []);
+  };
+
+  const submitRun = async () => {
+    const g = goal.trim();
+    if (!g) return;
+    await createRun(g);
+    setGoal('');
+  };
 
   return (
     <div>
       <div className="page-header">
         <h1 className="page-header__title">Tasks</h1>
         <p className="page-header__subtitle">
-          Agent tự lập và cập nhật kế hoạch ở đây khi làm việc — mỗi bước chạy qua Todo → In Progress → Done. Bạn theo dõi tiến độ, hoặc tự đổi trạng thái.
+          Dự án AI (Run) là "bảng công việc" bền của công ty — mục tiêu, giai đoạn, và các mốc do agent ghi lại (kèm nguồn). Bên dưới là các task theo trạng thái.
         </p>
       </div>
+
+      {/* AI-company Runs — the durable blackboard (agent-company Phase 1). */}
+      <section className="glass-panel" style={{ padding: 16, marginBottom: 16 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+          <h3 className="task-column__title" style={{ marginRight: 'auto' }}>Dự án AI (Runs)</h3>
+          <input
+            className="task-card__select"
+            style={{ flex: '1 1 320px', minWidth: 220 }}
+            placeholder="Mục tiêu dự án mới…"
+            value={goal}
+            onChange={(e) => setGoal(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') void submitRun();
+            }}
+          />
+          <button type="button" className="btn btn--primary btn--sm" onClick={() => void submitRun()} disabled={!goal.trim()}>
+            Tạo Run
+          </button>
+        </div>
+
+        {runs.length === 0 ? (
+          <div className="task-column__empty">Chưa có dự án nào. Tạo một Run để agent bắt đầu ghi lại công việc.</div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {runs.map((run) => (
+              <article key={run.id} className="glass-card" style={{ padding: 12 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <strong style={{ marginRight: 'auto' }}>{run.goal}</strong>
+                  <span className="task-column__count">{run.stage}</span>
+                  <span className="task-column__count">{run.status}</span>
+                  <button type="button" className="btn btn--ghost btn--sm" onClick={() => void openRun(run.id)}>
+                    {openRunId === run.id ? 'Ẩn' : 'Xem'}
+                  </button>
+                </div>
+                <div className="task-card__meta">
+                  <span>Cập nhật: {new Date(run.updatedAt).toLocaleString('vi-VN')}</span>
+                </div>
+                {openRunId === run.id && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 8 }}>
+                    {entries.length === 0 ? (
+                      <div className="task-column__empty">Chưa có mốc nào trong dự án này.</div>
+                    ) : (
+                      entries.map((entry) => (
+                        <div key={entry.id} className="glass-card" style={{ padding: 8 }}>
+                          <div className="task-card__meta">
+                            <span>{entry.kind}{entry.stage ? ` · ${entry.stage}` : ''}</span>
+                            <span>{entry.agentId ?? 'agent'} · {new Date(entry.createdAt).toLocaleString('vi-VN')}</span>
+                          </div>
+                          <div className="task-card__summary">{entry.content}</div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                )}
+              </article>
+            ))}
+          </div>
+        )}
+      </section>
 
       <div className="task-board">
         {TASK_COLUMNS.map((column) => {

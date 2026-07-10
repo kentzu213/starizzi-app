@@ -39,7 +39,8 @@ import { AUTOPOST_TOOLS, classifyAutopostRisk, executeAutopostTool, isAutopostTo
 import type { LoadedExtension } from './extensions/extension-loader';
 import { IntegrationsService } from './integrations/integrations-service';
 import { OnboardingService } from './onboarding/onboarding-service';
-import type { AgentTask, AgentTaskStatus, IntegrationProvider } from './agent/types';
+import type { AgentRunStatus, AgentTask, AgentTaskStatus, IntegrationProvider } from './agent/types';
+import { isRunStatus, sanitizeGoal, sanitizeRunEntry, type RunEntryInput } from './agent/run-helpers';
 import { UpdaterService } from './updater/updater-service';
 import { SetupWizardService } from './setup/setup-wizard-service';
 import { registerAgentIpcHandlers, shutdownAgents } from './agents';
@@ -635,6 +636,30 @@ function setupIPC() {
 
   ipcMain.handle('agent:deleteMemory', async (_event, memoryId: string) => {
     return agentService.deleteMemory(memoryId);
+  });
+
+  // ── AI-company Run store (agent-company spec, Phase 1) — durable blackboard ──
+  ipcMain.handle('run:list', () => dbManager.listRuns());
+  ipcMain.handle('run:get', (_event, id: string) => {
+    const run = typeof id === 'string' ? dbManager.getRun(id) : null;
+    return run ? { run, entries: dbManager.listRunEntries(run.id) } : { run: null, entries: [] };
+  });
+  ipcMain.handle('run:create', (_event, goal: string, stage?: string) => {
+    const g = sanitizeGoal(goal);
+    if (!g) return null;
+    return dbManager.createRun(g, typeof stage === 'string' && stage ? stage.slice(0, 120) : undefined);
+  });
+  ipcMain.handle('run:appendEntry', (_event, input: RunEntryInput) => {
+    const clean = sanitizeRunEntry(input);
+    return clean ? dbManager.appendRunEntry(clean) : null;
+  });
+  ipcMain.handle('run:update', (_event, id: string, patch: { goal?: string; stage?: string; status?: string }) => {
+    if (typeof id !== 'string') return null;
+    const p: { goal?: string; stage?: string; status?: AgentRunStatus } = {};
+    if (typeof patch?.goal === 'string') p.goal = sanitizeGoal(patch.goal);
+    if (typeof patch?.stage === 'string' && patch.stage) p.stage = patch.stage.slice(0, 120);
+    if (isRunStatus(patch?.status)) p.status = patch.status;
+    return dbManager.updateRun(id, p);
   });
 
   ipcMain.handle('agent:getDiagnostics', async (_event, limit?: number) => {

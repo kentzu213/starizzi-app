@@ -54,6 +54,37 @@ export interface AgentMemory {
   updatedAt: string;
 }
 
+// ── AI-company "Run" storage (agent-company spec, Phase 1) ──
+// A Run is a durable work record (the blackboard): a goal + current lifecycle stage,
+// with timestamped, agent-attributed entries (artifacts / notes / handoffs) carrying
+// provenance. This is the storage backbone the company operates on.
+
+export type AgentRunStatus = 'active' | 'done' | 'blocked' | 'archived';
+
+export interface AgentRun {
+  id: string;
+  goal: string;
+  /** Lifecycle stage: idea | prototype | build | polish | operate | gtm (free-form allowed). */
+  stage: string;
+  status: AgentRunStatus;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type AgentRunEntryKind = 'artifact' | 'note' | 'handoff' | 'event';
+
+export interface AgentRunEntry {
+  id: string;
+  runId: string;
+  kind: AgentRunEntryKind;
+  /** Lifecycle stage that produced this entry. */
+  stage?: string;
+  /** Provenance: which agent/mission produced it. */
+  agentId?: string;
+  content: string;
+  createdAt: string;
+}
+
 export interface IntegrationConnection {
   provider: IntegrationProvider;
   status: IntegrationConnectionStatus;

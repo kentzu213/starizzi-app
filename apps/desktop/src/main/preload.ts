@@ -2,6 +2,8 @@ import { contextBridge, ipcRenderer } from 'electron';
 import type {
   AgentBootstrapPayload,
   AgentMemory,
+  AgentRun,
+  AgentRunEntry,
   AgentRuntimeState,
   AgentSendMessageResult,
   AgentStreamEvent,
@@ -389,6 +391,22 @@ const electronAPI = {
   memory: {
     list: (agentId: string, limit?: number): Promise<MemoryItemDTO[]> =>
       ipcRenderer.invoke('memory:list', agentId, limit),
+  },
+  run: {
+    list: (): Promise<AgentRun[]> => ipcRenderer.invoke('run:list'),
+    get: (id: string): Promise<{ run: AgentRun | null; entries: AgentRunEntry[] }> =>
+      ipcRenderer.invoke('run:get', id),
+    create: (goal: string, stage?: string): Promise<AgentRun | null> =>
+      ipcRenderer.invoke('run:create', goal, stage),
+    appendEntry: (input: {
+      runId: string;
+      kind?: string;
+      stage?: string;
+      agentId?: string;
+      content: string;
+    }): Promise<AgentRunEntry | null> => ipcRenderer.invoke('run:appendEntry', input),
+    update: (id: string, patch: { goal?: string; stage?: string; status?: string }): Promise<AgentRun | null> =>
+      ipcRenderer.invoke('run:update', id, patch),
   },
 
   graphAgent: {

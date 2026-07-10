@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import type {
   AgentMemory,
+  AgentRun,
   AgentRuntimeState,
   AgentStreamEvent,
   AgentTask,
@@ -83,6 +84,8 @@ interface AgentWorkspaceState {
   /** izzi shared-brain memory (read-only mirror of /aibase/memory). */
   izziMemories: MemoryItemDTO[];
   izziMemoryState: 'idle' | 'loading' | 'ready' | 'signed-out' | 'error';
+  /** AI-company Runs (durable blackboard; agent-company Phase 1). */
+  runs: AgentRun[];
   runtimeState: AgentRuntimeState;
   diagnostics: DiagnosticEvent[];
   updaterState: DesktopUpdaterState;
@@ -104,6 +107,9 @@ interface AgentWorkspaceState {
   refreshMemories: (sessionId?: string) => Promise<void>;
   /** Load the izzi shared-brain memory (Phase 1: read-only). */
   refreshIzziMemories: () => Promise<void>;
+  /** AI-company Runs (durable blackboard). */
+  refreshRuns: () => Promise<void>;
+  createRun: (goal: string) => Promise<AgentRun | null>;
   refreshDiagnostics: (limit?: number) => Promise<void>;
   refreshUpdaterState: () => Promise<void>;
   checkForUpdates: () => Promise<void>;
@@ -135,6 +141,7 @@ export const useAgentWorkspaceStore = create<AgentWorkspaceState>((set, get) => 
   memories: [],
   izziMemories: [],
   izziMemoryState: 'idle',
+  runs: [],
   runtimeState: createIdleState(),
   diagnostics: [],
   updaterState: createUpdaterState(),
@@ -497,6 +504,22 @@ export const useAgentWorkspaceStore = create<AgentWorkspaceState>((set, get) => 
     } catch {
       set({ izziMemoryState: 'error' });
     }
+  },
+  refreshRuns: async () => {
+    if (!window.electronAPI?.run?.list) return;
+    try {
+      const runs = await window.electronAPI.run.list();
+      set({ runs: Array.isArray(runs) ? runs : [] });
+    } catch {
+      /* best-effort */
+    }
+  },
+  createRun: async (goal: string) => {
+    const api = window.electronAPI?.run;
+    if (!api?.create || !goal.trim()) return null;
+    const run = await api.create(goal.trim());
+    await get().refreshRuns();
+    return run;
   },
 
   refreshDiagnostics: async (limit = 50) => {

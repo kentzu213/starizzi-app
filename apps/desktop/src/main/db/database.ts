@@ -6,6 +6,10 @@ import { randomUUID } from 'crypto';
 import type {
   AgentMemory,
   AgentMemoryKind,
+  AgentRun,
+  AgentRunEntry,
+  AgentRunEntryKind,
+  AgentRunStatus,
   AgentRuntimeState,
   AgentTask,
   AgentTaskStatus,
@@ -67,6 +71,25 @@ interface AgentTaskRow {
   source_message_id: string | null;
   created_at: string;
   updated_at: string;
+}
+
+interface AgentRunRow {
+  id: string;
+  goal: string;
+  stage: string;
+  status: AgentRunStatus;
+  created_at: string;
+  updated_at: string;
+}
+
+interface AgentRunEntryRow {
+  id: string;
+  run_id: string;
+  kind: AgentRunEntryKind;
+  stage: string | null;
+  agent_id: string | null;
+  content: string;
+  created_at: string;
 }
 
 interface AgentMemoryRow {
@@ -573,6 +596,95 @@ export class DatabaseManager {
       .get(taskId);
 
     return row ? this.mapAgentTask(row) : null;
+  }
+
+  // ── AI-company Run store (agent-company spec, Phase 1) ──
+
+  createRun(goal: string, stage = 'idea'): AgentRun {
+    const now = new Date().toISOString();
+    const run: AgentRun = { id: `run-${randomUUID()}`, goal, stage, status: 'active', createdAt: now, updatedAt: now };
+    this.db
+      .prepare('INSERT INTO agent_runs (id, goal, stage, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)')
+      .run(run.id, run.goal, run.stage, run.status, run.createdAt, run.updatedAt);
+    return run;
+  }
+
+  listRuns(): AgentRun[] {
+    const rows = this.db
+      .prepare<[], AgentRunRow>(
+        'SELECT id, goal, stage, status, created_at, updated_at FROM agent_runs ORDER BY updated_at DESC',
+      )
+      .all();
+    return rows.map((r) => this.mapAgentRun(r));
+  }
+
+  getRun(id: string): AgentRun | null {
+    const row = this.db
+      .prepare<[string], AgentRunRow>(
+        'SELECT id, goal, stage, status, created_at, updated_at FROM agent_runs WHERE id = ?',
+      )
+      .get(id);
+    return row ? this.mapAgentRun(row) : null;
+  }
+
+  updateRun(id: string, patch: { goal?: string; stage?: string; status?: AgentRunStatus }): AgentRun | null {
+    const existing = this.getRun(id);
+    if (!existing) return null;
+    const updatedAt = new Date().toISOString();
+    const goal = patch.goal ?? existing.goal;
+    const stage = patch.stage ?? existing.stage;
+    const status = patch.status ?? existing.status;
+    this.db
+      .prepare('UPDATE agent_runs SET goal = ?, stage = ?, status = ?, updated_at = ? WHERE id = ?')
+      .run(goal, stage, status, updatedAt, id);
+    return { ...existing, goal, stage, status, updatedAt };
+  }
+
+  /** Append a blackboard entry. Returns null if the run does not exist (no orphan entries). */
+  appendRunEntry(entry: Omit<AgentRunEntry, 'id' | 'createdAt'>): AgentRunEntry | null {
+    if (!this.getRun(entry.runId)) return null;
+    const createdAt = new Date().toISOString();
+    const full: AgentRunEntry = { ...entry, id: `rune-${randomUUID()}`, createdAt };
+    this.db
+      .prepare(
+        'INSERT INTO agent_run_entries (id, run_id, kind, stage, agent_id, content, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      )
+      .run(full.id, full.runId, full.kind, full.stage ?? null, full.agentId ?? null, full.content, createdAt);
+    // Touch the run so it reflects activity + sorts to the top.
+    this.db.prepare('UPDATE agent_runs SET updated_at = ? WHERE id = ?').run(createdAt, entry.runId);
+    return full;
+  }
+
+  listRunEntries(runId: string): AgentRunEntry[] {
+    const rows = this.db
+      .prepare<[string], AgentRunEntryRow>(
+        'SELECT id, run_id, kind, stage, agent_id, content, created_at FROM agent_run_entries WHERE run_id = ? ORDER BY created_at ASC',
+      )
+      .all(runId);
+    return rows.map((r) => this.mapAgentRunEntry(r));
+  }
+
+  private mapAgentRun(row: AgentRunRow): AgentRun {
+    return {
+      id: row.id,
+      goal: row.goal,
+      stage: row.stage,
+      status: row.status,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    };
+  }
+
+  private mapAgentRunEntry(row: AgentRunEntryRow): AgentRunEntry {
+    return {
+      id: row.id,
+      runId: row.run_id,
+      kind: row.kind,
+      stage: row.stage ?? undefined,
+      agentId: row.agent_id ?? undefined,
+      content: row.content,
+      createdAt: row.created_at,
+    };
   }
 
   listAgentMemories(sessionId?: string): AgentMemory[] {
