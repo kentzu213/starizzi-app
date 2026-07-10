@@ -5,6 +5,7 @@ import { ChatComposer, type ComposerMenuAction } from '../components/ChatCompose
 import { ChatEmptyState } from '../components/ChatEmptyState';
 import { ChatMessageList } from '../components/ChatMessageList';
 import { ModelSelector } from '../components/ModelSelector';
+import { GatewayModelPicker } from '../components/GatewayModelPicker';
 import { AgentRail } from '../components/AgentRail';
 import { ContextPanel } from '../components/ContextPanel';
 import { LoopDock } from '../components/LoopDock';
@@ -341,24 +342,12 @@ export function ChatPage({ user, onBuyApi, onNavigateToDashboard, onNavigateToAg
                 className="gw-tab__dot"
               />
             </div>
-            {activeGwSession.agentId === 'hermes' ? (
-              <div className="gw-effort" title="GPT-5.6 qua codex router — chọn độ sâu suy luận (như codex)">
-                <span className="gw-effort__label">⚡ GPT-5.6 · Reasoning</span>
-                <select
-                  className="gw-effort__select"
-                  value={activeGwSession.reasoningEffort ?? 'xhigh'}
-                  disabled={isReconfiguring}
-                  onChange={(e) => void gwSetReasoningEffort(e.target.value)}
-                >
-                  <option value="low">Low · nhanh</option>
-                  <option value="medium">Medium</option>
-                  <option value="high">High</option>
-                  <option value="xhigh">xHigh · sâu nhất</option>
-                </select>
-                {isReconfiguring && (
-                  <span className="gw-effort__applying">Đang áp dụng… (~30s)</span>
-                )}
-              </div>
+            {activeAgentRuntime !== 'izzi' ? (
+              <GatewayModelPicker
+                reasoningEffort={activeGwSession.reasoningEffort}
+                onSetReasoningEffort={(effort) => void gwSetReasoningEffort(effort)}
+                isReconfiguring={isReconfiguring}
+              />
             ) : (
               <ModelSelector
                 currentModel={activeGwSession.model}

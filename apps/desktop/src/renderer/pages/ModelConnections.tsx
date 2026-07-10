@@ -293,10 +293,21 @@ export function ModelConnectionsPage() {
           <span>Model</span>
           <input
             className="input"
+            list="codexlb-model-list"
             value={model}
             onChange={(e) => setModel(e.target.value)}
             placeholder="gpt-5.6-sol"
           />
+          {/* Quick-pick of codex-lb models (verified against /v1/models). Free text
+              stays allowed so 9router / custom endpoints can use any model id. */}
+          <datalist id="codexlb-model-list">
+            <option value="gpt-5.6-sol">GPT-5.6 Sol — flagship (mạnh nhất)</option>
+            <option value="gpt-5.6-terra">GPT-5.6 Terra</option>
+            <option value="gpt-5.6-luna">GPT-5.6 Luna</option>
+            <option value="gpt-5.5">GPT-5.5</option>
+            <option value="gpt-5.4">GPT-5.4</option>
+            <option value="gpt-5.4-mini">GPT-5.4 mini</option>
+          </datalist>
         </label>
         <label className="model-conn__field">
           <span>
