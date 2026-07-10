@@ -208,6 +208,8 @@ const electronAPI = {
       ipcRenderer.invoke('customProvider:autoConnectLocal'),
     testConnection: (input?: { apiKey?: string }) =>
       ipcRenderer.invoke('customProvider:testConnection', input),
+    listModels: (): Promise<{ ok: boolean; models?: string[]; error?: string }> =>
+      ipcRenderer.invoke('customProvider:listModels'),
     chat: (payload: {
       message: string;
       history?: { role: 'system' | 'user' | 'assistant'; content: string }[];

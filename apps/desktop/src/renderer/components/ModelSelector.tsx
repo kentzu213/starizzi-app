@@ -1,14 +1,17 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { MODEL_PROVIDERS } from '../types/agent-registry';
-import type { AIProvider } from '../types/agent-registry';
+import type { AIProvider, ModelProviderConfig } from '../types/agent-registry';
 
 interface ModelSelectorProps {
   currentModel: string;
   currentProvider: AIProvider;
   onSelect: (model: string, provider: AIProvider) => void;
+  /** Override the model groups shown (e.g. izzi + live-discovered local models). */
+  groups?: ModelProviderConfig[];
 }
 
-export function ModelSelector({ currentModel, currentProvider, onSelect }: ModelSelectorProps) {
+export function ModelSelector({ currentModel, currentProvider, onSelect, groups }: ModelSelectorProps) {
+  const providers = groups ?? MODEL_PROVIDERS;
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -22,7 +25,7 @@ export function ModelSelector({ currentModel, currentProvider, onSelect }: Model
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const currentProviderData = MODEL_PROVIDERS.find((p) => p.id === currentProvider);
+  const currentProviderData = providers.find((p) => p.id === currentProvider);
   const currentModelName =
     currentProviderData?.models.find((m) => m.id === currentModel)?.name ?? currentModel;
 
@@ -45,7 +48,7 @@ export function ModelSelector({ currentModel, currentProvider, onSelect }: Model
 
       {isOpen && (
         <div className="model-selector__dropdown">
-          {MODEL_PROVIDERS.map((provider) => (
+          {providers.map((provider) => (
             <div key={provider.id} className="model-selector__group">
               <div className="model-selector__group-header">
                 <span className="model-selector__group-name">

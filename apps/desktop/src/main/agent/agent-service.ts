@@ -229,6 +229,25 @@ export class AgentService extends EventEmitter {
     return provider.testConnection();
   }
 
+  /**
+   * List models the configured custom endpoint exposes (GET /models). Powers the
+   * dynamic model group in the picker — models added to the local router later
+   * appear automatically. Uses the stored config + key; errors are redacted.
+   */
+  async listProviderModels(): Promise<{ ok: boolean; models?: string[]; error?: string }> {
+    const config = this.settingsStore.getConfig();
+    const validation = validateCustomConfig(config);
+    if (!validation.ok || !config) {
+      return { ok: false, error: validation.errors.join('; ') || 'Chưa cấu hình kết nối' };
+    }
+    const key = this.secrets.getKey();
+    if (!key) {
+      return { ok: false, error: 'Chưa có API key' };
+    }
+    const provider = new CustomOpenAIProvider(config, key, (text) => this.secrets.redact(text));
+    return provider.listModels();
+  }
+
   async sendMessage(sessionId: string, text: string): Promise<AgentSendMessageResult> {
     const content = text.trim();
     if (!content) {

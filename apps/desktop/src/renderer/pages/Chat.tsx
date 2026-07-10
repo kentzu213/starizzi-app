@@ -5,7 +5,6 @@ import { ChatComposer, type ComposerMenuAction } from '../components/ChatCompose
 import { ChatEmptyState } from '../components/ChatEmptyState';
 import { ChatMessageList } from '../components/ChatMessageList';
 import { ModelSelector } from '../components/ModelSelector';
-import { GatewayModelPicker } from '../components/GatewayModelPicker';
 import { AgentRail } from '../components/AgentRail';
 import { ContextPanel } from '../components/ContextPanel';
 import { LoopDock } from '../components/LoopDock';
@@ -13,7 +12,9 @@ import { BusinessStrip } from '../components/BusinessStrip';
 import { ShuffleIcon } from '../components/AppIcons';
 import { useAgentGatewayStore } from '../store/agentGateway';
 import { useAgentWorkspaceStore } from '../store/agentWorkspace';
-import type { AIProvider } from '../types/agent-registry';
+import { MODEL_PROVIDERS } from '../types/agent-registry';
+import type { AIProvider, ModelProviderConfig } from '../types/agent-registry';
+import { buildLocalModelGroup } from '../types/model-catalog';
 import { AGENT_LOOPS, loopStarterDraft, planLoopApplication, type AgentLoop, type LoopTask } from '../types/agent-loops';
 import '../styles/agent-gateway.css';
 import '../styles/agent-workspace.css';
@@ -74,8 +75,11 @@ export function ChatPage({ user, onBuyApi, onNavigateToDashboard, onNavigateToAg
   const gwActiveSession = useAgentGatewayStore((state) => state.activeSession);
   const gwRefreshStatuses = useAgentGatewayStore((state) => state.refreshAgentStatuses);
   const gwReconfiguringId = useAgentGatewayStore((state) => state.reconfiguringSessionId);
-  const gwSetReasoningEffort = useAgentGatewayStore((state) => state.setReasoningEffort);
   const gwHydrate = useAgentGatewayStore((state) => state.hydrateFromDisk);
+  const gwAvailableModels = useAgentGatewayStore((state) => state.availableModels);
+  const gwAvailableModelsLabel = useAgentGatewayStore((state) => state.availableModelsLabel);
+  const gwRefreshAvailableModels = useAgentGatewayStore((state) => state.refreshAvailableModels);
+  const gwSetActiveModel = useAgentGatewayStore((state) => state.setActiveModel);
 
   // Reflect real Docker running-state in the agent rail + picker on the Chat
   // surface. The gateway store resets every launch with all agents
@@ -84,7 +88,8 @@ export function ChatPage({ user, onBuyApi, onNavigateToDashboard, onNavigateToAg
   useEffect(() => {
     void gwHydrate(); // restore persisted chat history (survives app restart)
     void gwRefreshStatuses();
-  }, [gwHydrate, gwRefreshStatuses]);
+    void gwRefreshAvailableModels(); // live model list from the enabled connection
+  }, [gwHydrate, gwRefreshStatuses, gwRefreshAvailableModels]);
 
   // Re-sync when the agent picker opens, in case a container started/stopped
   // after the page mounted.
@@ -102,6 +107,18 @@ export function ChatPage({ user, onBuyApi, onNavigateToDashboard, onNavigateToAg
   // gateway agents. izzi persona turns run server-side and aren't abortable here.
   const activeAgentRuntime = gwAgents.find((a) => a.id === activeGwSession?.agentId)?.runtime;
   const canInterrupt = isGatewayMode && !!activeGwSession && activeAgentRuntime !== 'izzi';
+
+  // Unified model groups (the model-selection standard): izzi persona agents keep
+  // the full izzi catalog; generic agents get live-discovered local models
+  // (codex-lb, from /v1/models) first, then Izzi Smart Router. Picking one
+  // switches the active connection (see store.setActiveModel).
+  const modelGroups: ModelProviderConfig[] =
+    activeAgentRuntime === 'izzi'
+      ? MODEL_PROVIDERS
+      : [
+          buildLocalModelGroup(gwAvailableModels, gwAvailableModelsLabel),
+          MODEL_PROVIDERS.find((p) => p.id === 'izzi'),
+        ].filter((g): g is ModelProviderConfig => Boolean(g));
 
   async function handleSubmit() {
     const text = draft.trim();
@@ -129,9 +146,9 @@ export function ChatPage({ user, onBuyApi, onNavigateToDashboard, onNavigateToAg
   }
 
   function handleModelChange(model: string, provider: AIProvider) {
-    if (activeGwSession) {
-      gwSetModel(activeGwSession.id, model, provider);
-    }
+    // Picking a model also switches the active connection (codex-lb vs izzi);
+    // setActiveModel reflects the choice on the session too.
+    void gwSetActiveModel(model, provider);
   }
 
   function handleSelectAgentFromRail(agentId: string) {
@@ -355,19 +372,12 @@ export function ChatPage({ user, onBuyApi, onNavigateToDashboard, onNavigateToAg
                 className="gw-tab__dot"
               />
             </div>
-            {activeAgentRuntime !== 'izzi' ? (
-              <GatewayModelPicker
-                reasoningEffort={activeGwSession.reasoningEffort}
-                onSetReasoningEffort={(effort) => void gwSetReasoningEffort(effort)}
-                isReconfiguring={isReconfiguring}
-              />
-            ) : (
-              <ModelSelector
-                currentModel={activeGwSession.model}
-                currentProvider={activeGwSession.provider}
-                onSelect={handleModelChange}
-              />
-            )}
+            <ModelSelector
+              currentModel={activeGwSession.model}
+              currentProvider={activeGwSession.provider}
+              onSelect={handleModelChange}
+              groups={modelGroups}
+            />
           </div>
         )}
 

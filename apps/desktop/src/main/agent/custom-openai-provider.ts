@@ -42,6 +42,14 @@ export function buildAuthHeaders(authType: 'bearer' | 'x-api-key', apiKey: strin
   return authType === 'bearer' ? { Authorization: `Bearer ${apiKey}` } : { 'x-api-key': apiKey };
 }
 
+/** Resolve the models-list URL from a base URL, mirroring the chat URL rules. */
+export function resolveModelsUrl(baseUrl: string): string {
+  const base = baseUrl.replace(/\/$/, '');
+  if (/\/models$/.test(base)) return base;
+  if (/\/v1$/.test(base)) return `${base}/models`;
+  return `${base}/v1/models`;
+}
+
 /**
  * Map an HTTP/error condition into a concise, key-free message (R6).
  * `redact` is supplied by the caller (SecretStore.redact) so any key in the
@@ -170,6 +178,40 @@ export class CustomOpenAIProvider implements ChatProvider {
       };
     } catch (error) {
       return { ok: false, message: describeNetworkError(error, this.redact) };
+    }
+  }
+
+  /**
+   * List the models the endpoint exposes via `GET {baseUrl}/models` (OpenAI
+   * format: `{ data: [{ id }] }`). Powers dynamic model discovery — whatever the
+   * local router serves (codex-lb gpt-5.6-*, or any model added later) shows up
+   * automatically. Errors are redacted of the key.
+   */
+  async listModels(): Promise<{ ok: boolean; models?: string[]; error?: string }> {
+    try {
+      const response = await axios.request<unknown>({
+        method: 'GET',
+        url: resolveModelsUrl(this.config.baseUrl),
+        validateStatus: () => true,
+        headers: { ...buildAuthHeaders(this.config.authType, this.apiKey), Accept: 'application/json' },
+        timeout: 15000,
+      });
+
+      if (response.status < 200 || response.status >= 300) {
+        const rawBody =
+          typeof response.data === 'string' ? response.data : JSON.stringify(response.data ?? '');
+        return { ok: false, error: describeHttpError(response.status, rawBody, this.redact) };
+      }
+
+      const data = response.data as { data?: Array<{ id?: unknown }> };
+      const models = Array.isArray(data?.data)
+        ? data.data
+            .map((m) => (typeof m?.id === 'string' ? m.id : ''))
+            .filter((id): id is string => id.length > 0)
+        : [];
+      return { ok: true, models };
+    } catch (error) {
+      return { ok: false, error: describeNetworkError(error, this.redact) };
     }
   }
 

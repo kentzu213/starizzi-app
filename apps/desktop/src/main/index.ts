@@ -693,6 +693,12 @@ function setupIPC() {
     return agentService.testProviderConnection(input);
   });
 
+  // Dynamic model discovery: list what the configured custom endpoint serves
+  // (codex-lb /v1/models, etc.) so the picker stays in sync with the router.
+  ipcMain.handle('customProvider:listModels', async () => {
+    return agentService.listProviderModels();
+  });
+
   // One-click local connection ("Kết nối nhanh codex-lb"): read the codex-lb key
   // from the environment (CODEX_LB_API_KEY) in the MAIN process and wire the app
   // to the local codex-lb router (127.0.0.1:2455, gpt-5.6-sol) + enable it. Explicit

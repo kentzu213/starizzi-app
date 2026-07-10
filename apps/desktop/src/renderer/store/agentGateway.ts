@@ -13,6 +13,7 @@ import type {
   GatewayChatMessage,
 } from '../types/agent-registry';
 import { TOP_AGENTS } from '../types/agent-registry';
+import { connectionActionForProvider, deriveEndpointLabel } from '../types/model-catalog';
 import type { AgentTurnEvent } from '../../shared/agent-turn-events';
 import { sanitizeStoredSessions, capForPersist, pickActiveId } from './gatewayPersist';
 
@@ -58,6 +59,12 @@ interface AgentGatewayState {
   /** True once chat history has been restored from disk (guards a double-load). */
   hydrated: boolean;
 
+  /** Models discovered live from the enabled custom connection (codex-lb /v1/models). */
+  availableModels: string[];
+  availableModelsState: 'idle' | 'loading' | 'ok' | 'error';
+  /** Human label for the local model group, derived from the connection base URL. */
+  availableModelsLabel: string;
+
   // Actions — Agent management
   updateAgentStatus: (agentId: string, status: ExternalAgentStatus, version?: string) => void;
   refreshAgentStatuses: () => Promise<void>;
@@ -82,6 +89,15 @@ interface AgentGatewayState {
   setComposerImages: (value: string[] | ((prev: string[]) => string[])) => void;
   newGatewaySession: (agentId: string) => void;
   setSessionModel: (sessionId: string, model: string, provider: AIProvider) => void;
+  /** Refresh the live model list from the enabled custom connection (/v1/models). */
+  refreshAvailableModels: () => Promise<void>;
+  /**
+   * Pick the active model: a 'custom' (codex-lb/local) model points+enables the
+   * custom connection at it; an 'izzi' model disables it so generic agents use
+   * izzi. Also reflects the pick on the active session. izzi persona agents route
+   * izzi regardless (handled by sendGatewayMessage).
+   */
+  setActiveModel: (model: string, provider: AIProvider) => Promise<void>;
   /** Change a Docker agent's reasoning effort (rewrites config + restarts container). */
   setReasoningEffort: (effort: string) => Promise<boolean>;
 
@@ -101,6 +117,9 @@ export const useAgentGatewayStore = create<AgentGatewayState>((set, get) => ({
   errorMessage: null,
   reconfiguringSessionId: null,
   hydrated: false,
+  availableModels: [],
+  availableModelsState: 'idle',
+  availableModelsLabel: 'codex-lb (local)',
 
   hydrateFromDisk: async () => {
     if (get().hydrated) return;
@@ -764,6 +783,61 @@ export const useAgentGatewayStore = create<AgentGatewayState>((set, get) => ({
         s.id === sessionId ? { ...s, model, provider } : s,
       ),
     }));
+  },
+
+  refreshAvailableModels: async () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const api = (window as any).electronAPI?.customProvider;
+    if (!api?.listModels) {
+      set({ availableModels: [], availableModelsState: 'error' });
+      return;
+    }
+    set({ availableModelsState: 'loading' });
+    try {
+      const [r, c] = await Promise.all([
+        api.listModels(),
+        api.getConfig ? api.getConfig() : Promise.resolve(null),
+      ]);
+      const label = deriveEndpointLabel(c?.config?.baseUrl);
+      if (r?.ok && Array.isArray(r.models)) {
+        set({ availableModels: r.models as string[], availableModelsLabel: label, availableModelsState: 'ok' });
+      } else {
+        set({ availableModels: [], availableModelsLabel: label, availableModelsState: 'error' });
+      }
+    } catch {
+      set({ availableModels: [], availableModelsState: 'error' });
+    }
+  },
+
+  setActiveModel: async (model, provider) => {
+    const session = get().activeSession();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const api = (window as any).electronAPI?.customProvider;
+    const action = connectionActionForProvider(provider);
+    try {
+      if (action === 'enable-custom' && api?.getConfig && api?.saveConfig) {
+        // Point the single custom connection at this model + enable it, so generic
+        // agents call exactly it (config.selectedModel is what the endpoint receives).
+        const c = await api.getConfig();
+        const baseUrl = c?.config?.baseUrl || 'http://127.0.0.1:2455/v1';
+        const authType = c?.config?.authType || 'bearer';
+        await api.saveConfig({ baseUrl, authType, selectedModel: model });
+        await api.setEnabled?.(true);
+      } else if (action === 'disable-custom' && api?.setEnabled) {
+        // izzi Smart Router picked: turn the custom connection off → generic agents
+        // fall back to izzi. izzi persona agents already route izzi regardless.
+        await api.setEnabled(false);
+      }
+    } catch {
+      /* best-effort: still reflect the pick on the session below */
+    }
+    if (session) {
+      set((state) => ({
+        sessions: state.sessions.map((s) =>
+          s.id === session.id ? { ...s, model, provider } : s,
+        ),
+      }));
+    }
   },
 
   setReasoningEffort: async (effort) => {
