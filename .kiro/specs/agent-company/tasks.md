@@ -21,6 +21,9 @@
 - [ ] 4.1 "Hội đồng": 4 lăng kính → 1 kết luận; Socrates chủ tọa; cho ngã rẽ 🔴/khó đảo ngược.
 - [ ] 4.2 Chặn council/agent tự duyệt deploy prod/destructive. Verify + Socrates gate.
 
-## Trạng thái
-- Sẵn sàng P1 (tái dùng tasks board + memory-sync). P3 phụ thuộc endpoint memory-write Bearer (izzi-backend).
-- Grower chạy song song xuyên các pha. Chờ user chốt hướng v2 trước khi code.
+## Trạng thái (v1.8.0)
+- **P1 DONE** (v1.7.9): agent_runs + agent_run_entries + provenance + no-orphan + helpers pure-tested + IPC/preload/store + UI Runs.
+- **P2 DONE (reachable)**: run-pipeline (stages→phòng/agent/mission, pure-tested) + Company view (pipeline strip, phụ trách) + "🧭 Lập kế hoạch" (Orchestrator tự chia việc qua izzi-agent → Run entry).
+- **P3 DONE (reachable)**: "Chuyển giai đoạn →" gate theo rủi ro (🟢 tự, 🔴 confirm) + handoff entry có provenance. *(Đồng bộ shared lên izzi kb_memory_nodes: HOÃN — cần endpoint memory-write Bearer ở izzi-backend.)*
+- **P4 DONE (reachable)**: "🏛️ Hội đồng" (izzi-agent 4 lăng kính → 1 kết luận, chỉ cố vấn, không tự deploy).
+- **HOÃN có chủ đích**: (a) đồng bộ Run/memory lên izzi cloud (chờ backend Bearer); (b) auto-execution KHÔNG người (Red-team: chống chạy loạn) — bản này dùng advance có người gác là hình thức an toàn.
