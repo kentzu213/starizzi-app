@@ -39,7 +39,7 @@ export interface ModelOption {
 // ── External Agent Types ──
 
 export type AgentSetupMethod = 'docker' | 'npm' | 'pip' | 'native' | 'izzi';
-export type AgentCategory = 'autonomous' | 'platform' | 'orchestration' | 'workflow' | 'reasoning' | 'design';
+export type AgentCategory = 'autonomous' | 'platform' | 'orchestration' | 'workflow' | 'reasoning' | 'design' | 'pipeline';
 export type ExternalAgentStatus = 'not-installed' | 'installing' | 'running' | 'stopped' | 'error';
 
 export interface ExternalAgent {
@@ -235,6 +235,53 @@ const DESIGNER_SYSTEM_PROMPT = [
   'Trả lời súc tích, kèm lý do thiết kế, bằng ngôn ngữ của người dùng.',
 ].join('\n');
 
+// ── Pipeline role personas (vòng đời sản phẩm) — distilled from ~/.kiro/agents/*.md (public). ──
+
+const PROTOTYPER_SYSTEM_PROMPT = [
+  'Bạn là Prototyper — mở đầu vòng đời sản phẩm: giai đoạn Ý tưởng → MVP.',
+  '1) Dựng prototype CHẠY ĐƯỢC nhanh nhất để validate giả thuyết cốt lõi — tốc độ và học hỏi trước, hoàn thiện sau.',
+  '2) Chấp nhận chỗ tạm bợ có chủ đích, nhưng GHI LẠI thành danh sách gap để bước làm-thật xử lý.',
+  '3) Không over-engineer: giải pháp tối giản đủ chạy, không thêm tính năng/abstraction thừa.',
+  '4) Kiểm chứng "prototype chạy được" trước khi bàn giao; nêu rõ cái gì đã validate, cái gì còn tạm.',
+  'Trả lời súc tích, bằng ngôn ngữ của người dùng.',
+].join('\n');
+
+const BUILDER_SYSTEM_PROMPT = [
+  'Bạn là Builder — giai đoạn MVP → sản phẩm thật.',
+  '1) Nâng prototype thành sản phẩm chạy thật, ĐÚNG SPEC: lấp gap, thay code tạm bợ bằng triển khai đúng.',
+  '2) Mọi tính năng feature-complete theo acceptance criteria; nêu giả định thay vì đoán, thay đổi đúng phạm vi.',
+  '3) Chất lượng trước khi "xong": build/test/typecheck/lint pass (verification-loop).',
+  '4) Ghi chú điểm cần polish để bước sau xử lý — không tự ôm việc trau chuốt.',
+  'Trả lời súc tích, bằng ngôn ngữ của người dùng.',
+].join('\n');
+
+const SWEEPER_SYSTEM_PROMPT = [
+  'Bạn là Sweeper — giai đoạn Polish.',
+  '1) Trau chuốt UI/UX (layout, typography, spacing, tương tác) và nâng sự nhất quán thị giác toàn sản phẩm.',
+  '2) Đơn giản hóa code/system: gỡ phức tạp thừa, gom abstraction lặp, giảm bề mặt bảo trì.',
+  '3) Tối ưu có chủ đích — chỉ chạm cái cần polish, không refactor lan man ngoài phạm vi.',
+  '4) Verify (build/test/lint) trước khi gọi "bản polish đã xong".',
+  'Trả lời súc tích, bằng ngôn ngữ của người dùng.',
+].join('\n');
+
+const MAINTAINER_SYSTEM_PROMPT = [
+  'Bạn là Maintainer — giai đoạn Vận hành/Tăng trưởng; áp bảo mật ở mức CHẶT vì chạm production.',
+  '1) Ổn định & scale theo nhu cầu thực tế (không tối ưu sớm vô căn cứ); theo dõi sức khỏe các đường critical (auth/billing/data).',
+  '2) Ứng phó sự cố: gốc rễ trước, vá sau; nghi ngờ sau deploy → ưu tiên rollback rồi điều tra. Luôn giữ đường lùi.',
+  '3) Deploy an toàn: build sạch + full test + secret smoke + review diff trước; smoke production sau.',
+  '4) Fail-closed: điều kiện không xác minh được → từ chối. Hành động prod/phá hủy → nêu rủi ro và chờ duyệt, không tự thực thi. Không lộ secret, log sạch PII.',
+  'Trả lời súc tích, bằng ngôn ngữ của người dùng.',
+].join('\n');
+
+const GROWER_SYSTEM_PROMPT = [
+  'Bạn là Grower — giai đoạn Go-to-market; tập trung thị trường/chiến lược, KHÔNG làm kỹ thuật (không sửa code).',
+  '1) Định hình go-to-market: phân khúc, định vị, value proposition, kênh phân phối.',
+  '2) Đọc cảm quan thị trường (nhu cầu khách, đối thủ, thời điểm) — không suy diễn vô căn cứ; ưu tiên theo "job" khách thuê sản phẩm để làm.',
+  '3) Chuyển nhu cầu/tải dự kiến từ thị trường thành thứ tự ưu tiên cho vận hành/scale.',
+  '4) Cần thay đổi kỹ thuật → định tuyến sang nhánh kỹ thuật, không tự đụng code.',
+  'Trả lời súc tích, bằng ngôn ngữ của người dùng.',
+].join('\n');
+
 export const TOP_AGENTS: ExternalAgent[] = [
   {
     id: 'socrates',
@@ -319,6 +366,146 @@ export const TOP_AGENTS: ExternalAgent[] = [
     ],
     features: ['Reference-first', 'Token-first (:root)', 'Brand izzi', 'Anti-slop', 'Verify thật (desktop + mobile)', 'Chạy qua Izzi API'],
     tags: ['design', 'ui', 'ux', 'brand', 'izzi'],
+  },
+  {
+    id: 'prototyper',
+    name: 'prototyper',
+    displayName: 'Prototyper',
+    description: 'Ý tưởng → MVP. Dựng prototype chạy được nhanh để validate giả thuyết cốt lõi — tốc độ trước, polish sau.',
+    longDescription: 'Prototyper mở đầu vòng đời sản phẩm izzi: biến ý tưởng thành proof-of-concept chạy được nhanh nhất, ưu tiên học hỏi hơn hoàn thiện, và ghi lại các chỗ tạm bợ để bước làm-thật xử lý. Chạy trực tiếp qua Izzi API — không cần Docker.',
+    icon: '🧪',
+    githubUrl: 'https://izziapi.com',
+    githubStars: 'Izzi',
+    category: 'pipeline',
+    setupMethod: 'izzi',
+    runtime: 'izzi',
+    systemPrompt: PROTOTYPER_SYSTEM_PROMPT,
+    model: 'izzi/auto',
+    defaultPort: 0,
+    chatEndpoint: '',
+    healthEndpoint: '',
+    status: 'not-installed',
+    version: '1.0.0',
+    supportedProviders: ['izzi'],
+    setupSteps: [
+      'Bấm "Cài đặt" — agent chạy ngay qua Izzi API (không cần Docker)',
+      'Đảm bảo đã đăng nhập Izzi để dùng API key của bạn',
+      'Bấm "Chat Now" và mô tả ý tưởng cần dựng prototype',
+    ],
+    features: ['Validate ý tưởng nhanh', 'Vibe coding', 'Ghi lại gap', 'Không over-engineer', 'Chạy qua Izzi API'],
+    tags: ['pipeline', 'mvp', 'prototype', 'izzi'],
+  },
+  {
+    id: 'builder',
+    name: 'builder',
+    displayName: 'Builder',
+    description: 'MVP → sản phẩm thật. Lấp gap, thay code tạm bợ, đúng spec, build/test pass trước khi gọi là xong.',
+    longDescription: 'Builder nâng prototype đã validate thành sản phẩm chạy thật đúng spec: feature-complete theo acceptance criteria, thay code tạm bợ bằng triển khai đúng, và chốt chất lượng qua verification-loop. Chạy trực tiếp qua Izzi API — không cần Docker.',
+    icon: '🔨',
+    githubUrl: 'https://izziapi.com',
+    githubStars: 'Izzi',
+    category: 'pipeline',
+    setupMethod: 'izzi',
+    runtime: 'izzi',
+    systemPrompt: BUILDER_SYSTEM_PROMPT,
+    model: 'izzi/auto',
+    defaultPort: 0,
+    chatEndpoint: '',
+    healthEndpoint: '',
+    status: 'not-installed',
+    version: '1.0.0',
+    supportedProviders: ['izzi'],
+    setupSteps: [
+      'Bấm "Cài đặt" — agent chạy ngay qua Izzi API (không cần Docker)',
+      'Đảm bảo đã đăng nhập Izzi để dùng API key của bạn',
+      'Bấm "Chat Now" và giao prototype/spec cần nâng thành sản phẩm',
+    ],
+    features: ['Đúng spec', 'Lấp gap', 'Thay code tạm bợ', 'build/test/lint pass', 'Chạy qua Izzi API'],
+    tags: ['pipeline', 'product', 'build', 'izzi'],
+  },
+  {
+    id: 'sweeper',
+    name: 'sweeper',
+    displayName: 'Sweeper',
+    description: 'Polish. Trau chuốt UI/UX, đơn giản hóa code/system và tối ưu để sản phẩm đạt độ hoàn thiện cao.',
+    longDescription: 'Sweeper nâng sản phẩm đã đúng spec lên độ hoàn thiện cao: tinh chỉnh UI/UX, thống nhất ngôn ngữ thiết kế, gỡ phức tạp thừa và tối ưu có chủ đích — chỉ chạm cái cần polish. Chạy trực tiếp qua Izzi API — không cần Docker.',
+    icon: '🧹',
+    githubUrl: 'https://izziapi.com',
+    githubStars: 'Izzi',
+    category: 'pipeline',
+    setupMethod: 'izzi',
+    runtime: 'izzi',
+    systemPrompt: SWEEPER_SYSTEM_PROMPT,
+    model: 'izzi/auto',
+    defaultPort: 0,
+    chatEndpoint: '',
+    healthEndpoint: '',
+    status: 'not-installed',
+    version: '1.0.0',
+    supportedProviders: ['izzi'],
+    setupSteps: [
+      'Bấm "Cài đặt" — agent chạy ngay qua Izzi API (không cần Docker)',
+      'Đảm bảo đã đăng nhập Izzi để dùng API key của bạn',
+      'Bấm "Chat Now" và chỉ ra phần cần trau chuốt/đơn giản hóa',
+    ],
+    features: ['Trau chuốt UI/UX', 'Nhất quán thị giác', 'Đơn giản hóa code', 'Tối ưu có chủ đích', 'Chạy qua Izzi API'],
+    tags: ['pipeline', 'polish', 'ui', 'izzi'],
+  },
+  {
+    id: 'maintainer',
+    name: 'maintainer',
+    displayName: 'Maintainer',
+    description: 'Vận hành/tăng trưởng. Ổn định, bảo mật, scale, monitoring, ứng phó sự cố, deploy an toàn — fail-closed.',
+    longDescription: 'Maintainer là điểm hội tụ cuối: giữ hệ thống ổn định, bảo mật và scale được khi tăng trưởng. Áp bảo mật ở mức chặt (chạm prod), ưu tiên rollback khi nghi ngờ, và không gọi việc là "xong" khi chưa qua verification. Chạy trực tiếp qua Izzi API — không cần Docker.',
+    icon: '🛡️',
+    githubUrl: 'https://izziapi.com',
+    githubStars: 'Izzi',
+    category: 'pipeline',
+    setupMethod: 'izzi',
+    runtime: 'izzi',
+    systemPrompt: MAINTAINER_SYSTEM_PROMPT,
+    model: 'izzi/auto',
+    defaultPort: 0,
+    chatEndpoint: '',
+    healthEndpoint: '',
+    status: 'not-installed',
+    version: '1.0.0',
+    supportedProviders: ['izzi'],
+    setupSteps: [
+      'Bấm "Cài đặt" — agent chạy ngay qua Izzi API (không cần Docker)',
+      'Đảm bảo đã đăng nhập Izzi để dùng API key của bạn',
+      'Bấm "Chat Now" và mô tả nhu cầu vận hành/sự cố/scale',
+    ],
+    features: ['Ổn định & scale', 'Monitoring', 'Ứng phó sự cố + rollback', 'Deploy an toàn', 'Fail-closed', 'Chạy qua Izzi API'],
+    tags: ['pipeline', 'ops', 'security', 'scale', 'izzi'],
+  },
+  {
+    id: 'grower',
+    name: 'grower',
+    displayName: 'Grower',
+    description: 'Go-to-market (chạy song song). Chiến lược phát triển, cảm quan thị trường, đưa sản phẩm ra thị trường — không kỹ thuật.',
+    longDescription: 'Grower là nhánh go-to-market chạy song song nhánh kỹ thuật: định hình phân khúc/định vị/value proposition/kênh, đọc cảm quan thị trường và chuyển nhu cầu thị trường thành ưu tiên vận hành. Tập trung thị trường/chiến lược — không đụng code. Chạy trực tiếp qua Izzi API — không cần Docker.',
+    icon: '📈',
+    githubUrl: 'https://izziapi.com',
+    githubStars: 'Izzi',
+    category: 'pipeline',
+    setupMethod: 'izzi',
+    runtime: 'izzi',
+    systemPrompt: GROWER_SYSTEM_PROMPT,
+    model: 'izzi/auto',
+    defaultPort: 0,
+    chatEndpoint: '',
+    healthEndpoint: '',
+    status: 'not-installed',
+    version: '1.0.0',
+    supportedProviders: ['izzi'],
+    setupSteps: [
+      'Bấm "Cài đặt" — agent chạy ngay qua Izzi API (không cần Docker)',
+      'Đảm bảo đã đăng nhập Izzi để dùng API key của bạn',
+      'Bấm "Chat Now" và mô tả sản phẩm + mục tiêu thị trường',
+    ],
+    features: ['Chiến lược GTM', 'Cảm quan thị trường', 'Jobs-to-be-done', 'Ưu tiên theo thị trường', 'Chạy qua Izzi API'],
+    tags: ['pipeline', 'go-to-market', 'strategy', 'izzi'],
   },
   {
     id: 'openclaw',

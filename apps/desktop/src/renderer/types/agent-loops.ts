@@ -26,7 +26,12 @@ export type LoopTask =
   | 'orchestration'
   | 'design'
   | 'review'
-  | 'planning';
+  | 'planning'
+  | 'prototype'
+  | 'build'
+  | 'polish'
+  | 'operate'
+  | 'gtm';
 
 export interface AgentLoop {
   id: string;
@@ -78,6 +83,61 @@ export const AGENT_LOOPS: AgentLoop[] = [
     suggestedModel: 'izzi/auto',
     suggestedProvider: 'izzi',
     starterPrompt: 'Lập kế hoạch theo bước (mỗi bước kèm cách kiểm chứng) cho mục tiêu: ',
+  },
+  {
+    id: 'loop-prototype',
+    label: 'Ý tưởng → MVP',
+    task: 'prototype',
+    description: 'Dựng prototype chạy được nhanh để validate ý tưởng cốt lõi.',
+    icon: '🧪',
+    suggestedAgentId: 'prototyper',
+    suggestedModel: 'izzi/auto',
+    suggestedProvider: 'izzi',
+    starterPrompt: 'Dựng nhanh prototype để validate ý tưởng sau (tốc độ trước, ghi lại chỗ tạm bợ): ',
+  },
+  {
+    id: 'loop-build',
+    label: 'MVP → Sản phẩm',
+    task: 'build',
+    description: 'Nâng prototype thành sản phẩm chạy thật, đúng spec, test pass.',
+    icon: '🔨',
+    suggestedAgentId: 'builder',
+    suggestedModel: 'claude-4-sonnet',
+    suggestedProvider: 'izzi',
+    starterPrompt: 'Nâng prototype/tính năng sau thành sản phẩm thật đúng spec (build/test pass): ',
+  },
+  {
+    id: 'loop-polish',
+    label: 'Polish',
+    task: 'polish',
+    description: 'Trau chuốt UI/UX, đơn giản hóa code và tối ưu có chủ đích.',
+    icon: '🧹',
+    suggestedAgentId: 'sweeper',
+    suggestedModel: 'izzi/auto',
+    suggestedProvider: 'izzi',
+    starterPrompt: 'Trau chuốt & đơn giản hóa phần sau (UI/UX + code), chỉ chạm cái cần polish: ',
+  },
+  {
+    id: 'loop-operate',
+    label: 'Vận hành',
+    task: 'operate',
+    description: 'Ổn định, bảo mật, scale, monitoring và deploy an toàn.',
+    icon: '🛡️',
+    suggestedAgentId: 'maintainer',
+    suggestedModel: 'izzi/auto',
+    suggestedProvider: 'izzi',
+    starterPrompt: 'Lo vận hành/ổn định/scale/bảo mật cho phần sau (fail-closed, giữ đường lùi): ',
+  },
+  {
+    id: 'loop-gtm',
+    label: 'Go-to-market',
+    task: 'gtm',
+    description: 'Chiến lược đưa sản phẩm ra thị trường — chạy song song nhánh kỹ thuật.',
+    icon: '📈',
+    suggestedAgentId: 'grower',
+    suggestedModel: 'izzi/auto',
+    suggestedProvider: 'izzi',
+    starterPrompt: 'Định hình go-to-market cho sản phẩm sau (phân khúc, định vị, kênh, jobs-to-be-done): ',
   },
   {
     id: 'loop-research',
@@ -153,6 +213,7 @@ export const AGENT_LOOPS: AgentLoop[] = [
 export const CATEGORY_LABELS: Record<AgentCategory, string> = {
   reasoning: 'Lý luận',
   design: 'Thiết kế',
+  pipeline: 'Vòng đời sản phẩm',
   autonomous: 'Tự chủ',
   platform: 'Nền tảng',
   orchestration: 'Điều phối',
@@ -163,6 +224,7 @@ export const CATEGORY_LABELS: Record<AgentCategory, string> = {
 export const CATEGORY_ORDER: AgentCategory[] = [
   'reasoning',
   'design',
+  'pipeline',
   'autonomous',
   'platform',
   'orchestration',
