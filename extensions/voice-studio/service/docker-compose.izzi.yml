@@ -1,0 +1,40 @@
+# Izzi OpenClaw — Voice Studio local backend (VieNeu-TTS).
+#
+# Booted by LocalServiceManager when the user opens the extension. Runs fully
+# on-device (CPU/ONNX) — no cloud, no secrets. Only the API port is published,
+# bound to loopback. The model is downloaded on first run into a named volume so
+# subsequent starts are fast.
+
+name: izzi-svc-voice-studio
+
+services:
+  tts:
+    # Prebuilt image published by CI (.github/workflows/publish-voice-image.yml).
+    # Override with VOICE_TTS_IMAGE; pin by @sha256 digest in production.
+    image: ${VOICE_TTS_IMAGE:-ghcr.io/kentzu213/izzi-voice-tts:latest}
+    restart: unless-stopped
+    ports:
+      - '${IZZI_BIND:-127.0.0.1}:${IZZI_PORT_API:-5111}:5111'
+    environment:
+      PORT: '5111'
+      # Cache dir for the downloaded model (mounted volume — see below).
+      HF_HOME: /models
+      VIENEU_CACHE: /models
+    volumes:
+      - vieneu_models:/models
+    healthcheck:
+      # Liveness only (process up). Readiness (model loaded) is /health/ready,
+      # which the host polls before declaring the service ready.
+      test: ['CMD', 'python', '-c', "import urllib.request,sys; sys.exit(0) if urllib.request.urlopen('http://localhost:5111/health').status==200 else sys.exit(1)"]
+      interval: 15s
+      timeout: 5s
+      retries: 20
+      start_period: 60s
+    networks: [voice]
+
+volumes:
+  vieneu_models:
+
+networks:
+  voice:
+    driver: bridge

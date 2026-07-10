@@ -13,6 +13,7 @@ import { execFile } from 'child_process';
  */
 const BUNDLED_OCX: Record<string, string> = {
   'ext-social-auto-poster': 'social-auto-poster-0.3.0.ocx',
+  'ext-voice-studio': 'voice-studio-0.1.0.ocx',
 };
 import { AuthManager } from './auth/auth-manager';
 import { DatabaseManager } from './db/database';

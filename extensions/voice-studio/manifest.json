@@ -1,0 +1,55 @@
+{
+  "name": "voice-studio",
+  "version": "0.1.0",
+  "displayName": "Voice Studio (VieNeu-TTS)",
+  "description": "Text-to-speech + clone giọng tiếng Việt/Anh, chạy CỤC BỘ trên máy (VieNeu-TTS, CPU/ONNX, offline sau khi tải model). Mở tiện ích là tự khởi động backend localhost. Nâng cấp cho OmniVoice.",
+  "main": "dist/index.js",
+  "engine": ">=0.1.0",
+  "author": {
+    "name": "Starizzi Team",
+    "url": "https://izziapi.com"
+  },
+  "permissions": [
+    "storage.local",
+    "ui.notification",
+    "ui.panel",
+    "net.http"
+  ],
+  "activationEvents": [
+    "onStartup",
+    "onCommand:voice-studio.status",
+    "onCommand:voice-studio.listVoices",
+    "onCommand:voice-studio.tts"
+  ],
+  "contributes": {
+    "commands": [
+      { "id": "voice-studio.status", "title": "Kiểm tra kết nối", "category": "Voice", "icon": "🔌" },
+      { "id": "voice-studio.listVoices", "title": "Danh sách giọng", "category": "Voice", "icon": "🗣️" },
+      { "id": "voice-studio.tts", "title": "Đọc văn bản (TTS)", "category": "Voice", "icon": "🔊" }
+    ],
+    "panels": [
+      { "id": "voice-studio.dashboard", "title": "Voice Studio", "entry": "panel" }
+    ],
+    "settings": [
+      { "id": "backendUrl", "title": "Backend URL", "description": "API VieNeu-TTS cục bộ (Starizzi tự điền khi mở; mặc định http://127.0.0.1:5111).", "type": "string", "default": "http://127.0.0.1:5111" },
+      { "id": "defaultVoice", "title": "Giọng mặc định", "description": "Giọng mặc định khi không chỉ định (chạy listVoices để xem).", "type": "string", "default": "" }
+    ]
+  },
+  "categories": ["Voice", "Content"],
+  "tags": ["tts", "voice-clone", "vietnamese", "on-device", "voice", "offline"],
+  "homepage": "https://izziapi.com",
+  "pricing": { "model": "free" },
+  "service": {
+    "type": "docker-compose",
+    "projectName": "izzi-svc-voice-studio",
+    "compose": "service/docker-compose.izzi.yml",
+    "ports": [
+      { "name": "api", "container": 5111, "healthPath": "/health/ready", "bind": "127.0.0.1" }
+    ],
+    "readyTimeoutMs": 600000,
+    "inject": { "backendUrl": "http://127.0.0.1:${port.api}" },
+    "requires": { "docker": true },
+    "fallback": { "remoteEnvVar": "VOICE_BACKEND_URL" }
+  },
+  "license": "SEE LICENSE"
+}

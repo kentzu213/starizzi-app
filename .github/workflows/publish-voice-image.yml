@@ -1,0 +1,58 @@
+name: Publish Voice TTS Image
+
+# On-demand publisher for the image the Voice Studio extension's local backend
+# profile pulls — izzi-voice-tts (FastAPI + VieNeu-TTS). Manual trigger so it
+# never races the desktop release pipeline.
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Image tag to publish (in addition to sha-<commit>)'
+        required: false
+        default: 'latest'
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    name: Build & push izzi-voice-tts
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Lowercase registry owner
+        id: owner
+        run: echo "lc=$(printf '%s' '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_OUTPUT"
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Multi-arch so it runs on Windows (amd64) and Apple Silicon (arm64) machines.
+      # provenance:false keeps a plain manifest list that `docker compose pull` on
+      # user machines handles most reliably.
+      - name: Build & push (linux/amd64, linux/arm64)
+        uses: docker/build-push-action@v6
+        with:
+          context: extensions/voice-studio/service/backend
+          file: extensions/voice-studio/service/backend/Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          provenance: false
+          tags: |
+            ghcr.io/${{ steps.owner.outputs.lc }}/izzi-voice-tts:${{ inputs.tag }}
+            ghcr.io/${{ steps.owner.outputs.lc }}/izzi-voice-tts:sha-${{ github.sha }}

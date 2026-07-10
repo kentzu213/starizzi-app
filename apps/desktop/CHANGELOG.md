@@ -1,5 +1,20 @@
 # Changelog — Izzi OpenClaw Desktop
 
+## 1.11.0
+
+Voice Studio — first fully on-device managed-service extension.
+
+- New **Voice Studio (VieNeu-TTS)** extension: text-to-speech + zero-shot voice
+  cloning for Vietnamese & English, running **fully on-device** (CPU/ONNX, offline
+  after the model downloads). Opening it boots a local FastAPI backend through the
+  managed-service pipeline (docker compose, health-gated on `/health/ready`,
+  loopback-only, no secrets) — reusing `LocalServiceManager` +
+  `ExtensionServicePanel`. Falls back to `VOICE_BACKEND_URL` when Docker is absent.
+  Voice cloning requires consent (enforced by policy + model license).
+- CI: `publish-voice-image.yml` builds/pushes the `izzi-voice-tts` image (multi-arch).
+- `before-pack` now bundles **every** extension under `extensions/*` (not just one).
+- Marketplace: the Vietnamese voice entry now maps to the installable Voice Studio.
+
 ## 1.10.1
 
 Marketplace catalog — real izzi tools + best-in-class picks (quốc tế + Việt Nam).
