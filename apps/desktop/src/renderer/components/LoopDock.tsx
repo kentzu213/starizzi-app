@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import type { AgentLoop, LoopTask } from '../types/agent-loops';
+import { LoopTaskIcon } from './AppIcons';
 
 interface LoopDockProps {
   loops: AgentLoop[];
@@ -27,7 +28,9 @@ export function LoopDock({ loops, activeTask, onSelectLoop }: LoopDockProps) {
               onClick={() => onSelectLoop(loop)}
               title={loop.description}
             >
-              <span className="aw-loop__icon" aria-hidden="true">{loop.icon}</span>
+              <span className="aw-loop__icon" aria-hidden="true">
+                <LoopTaskIcon task={loop.task} className="aw-loop__icon-svg" />
+              </span>
               <span className="aw-loop__text">
                 <span className="aw-loop__label">{loop.label}</span>
                 <span className="aw-loop__desc">{loop.description}</span>

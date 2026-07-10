@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { AgentSetupPanel } from '../components/AgentSetupPanel';
+import { AgentHubIcon } from '../components/AppIcons';
 import { useAgentGatewayStore } from '../store/agentGateway';
 import type { ExternalAgent } from '../types/agent-registry';
 import '../styles/agent-store.css';
@@ -138,6 +139,15 @@ const CATEGORIES = [
   { id: 'marketing', label: '📣 Marketing', icon: '📣' },
 ];
 
+/** Editorial monogram from a display name (e.g. "Auto Facebook Agent" -> "AF", "Dify" -> "DI"). */
+function mono(name: string): string {
+  const cleaned = (name || '').trim();
+  if (!cleaned) return '??';
+  const words = cleaned.split(/\s+/).filter(Boolean);
+  if (words.length >= 2) return (words[0][0] + words[1][0]).toUpperCase();
+  return cleaned.slice(0, 2).toUpperCase();
+}
+
 // ── Main Component ──
 
 interface AgentStorePageProps {
@@ -232,7 +242,7 @@ export function AgentStorePage({ onNavigateToChat }: AgentStorePageProps = {}) {
       <header className="agent-store__header">
         <div className="agent-store__header-content">
           <h1 className="agent-store__title">
-            <span className="agent-store__title-icon">🤖</span>
+            <span className="agent-store__title-icon"><AgentHubIcon className="agent-store__title-icon-svg" /></span>
             Agent Hub
           </h1>
           <p className="agent-store__subtitle">
@@ -283,7 +293,7 @@ export function AgentStorePage({ onNavigateToChat }: AgentStorePageProps = {}) {
                    '⚪ Not Installed'}
                 </span>
                 <div className="agent-hub__top-card-header">
-                  <span className="agent-hub__top-card-icon">{agent.icon}</span>
+                  <span className="agent-hub__top-card-icon">{mono(agent.displayName)}</span>
                   <div className="agent-hub__top-card-info">
                     <h3 className="agent-hub__top-card-name">{agent.displayName}</h3>
                     <div className="agent-hub__top-card-stars">
@@ -415,7 +425,7 @@ export function AgentStorePage({ onNavigateToChat }: AgentStorePageProps = {}) {
               >
                 {/* Card Header */}
                 <div className="agent-card__header">
-                  <span className="agent-card__icon">{agent.icon}</span>
+                  <span className="agent-card__icon">{mono(agent.displayName)}</span>
                   <div className="agent-card__meta">
                     <h3 className="agent-card__title">{agent.displayName}</h3>
                     <div className="agent-card__author">
@@ -532,7 +542,7 @@ function AgentDetailModal({ agent, onClose, onInstall }: {
         <button className="agent-modal__close" onClick={onClose}>✕</button>
 
         <div className="agent-modal__header">
-          <span className="agent-modal__icon">{agent.icon}</span>
+          <span className="agent-modal__icon">{mono(agent.displayName)}</span>
           <div>
             <h2 className="agent-modal__title">{agent.displayName}</h2>
             <div className="agent-modal__author">
@@ -655,7 +665,7 @@ function AgentSetupWizardModal({ agent, onClose, onComplete }: {
     if (step.type === 'info') {
       return (
         <div className="setup-wizard__step-content">
-          <span className="setup-wizard__big-icon">{agent.icon}</span>
+          <span className="setup-wizard__big-icon">{mono(agent.displayName)}</span>
           <h3>Cài đặt {agent.displayName}</h3>
           <p>Agent này sẽ được cài đặt với {agent.skills.length} skills và {agent.cronJobs} automation jobs.</p>
           <div className="setup-wizard__time">⏱️ Ước tính: 2–3 phút</div>
@@ -859,7 +869,7 @@ function AgentSetupWizardModal({ agent, onClose, onComplete }: {
           <div className="setup-wizard__summary">
             <div className="setup-wizard__summary-row">
               <span>Agent:</span>
-              <span>{agent.icon} {agent.displayName}</span>
+              <span>{agent.displayName}</span>
             </div>
             <div className="setup-wizard__summary-row">
               <span>Skills:</span>
@@ -980,7 +990,7 @@ function InstalledAgentsPanel({ agents, onRefresh }: {
           return (
             <div key={agent.name} className="installed-agent-card">
               <div className="installed-agent-card__header">
-                <span className="installed-agent-card__icon">{agent.icon}</span>
+                <span className="installed-agent-card__icon">{mono(agent.displayName)}</span>
                 <div className="installed-agent-card__info">
                   <h3>{agent.displayName}</h3>
                   <span className="installed-agent-card__version">v{agent.version}</span>

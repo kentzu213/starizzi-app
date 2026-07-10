@@ -1,6 +1,14 @@
 import React, { useEffect, useRef, useState } from 'react';
 import type { ExternalAgent } from '../types/agent-registry';
 
+/** Editorial monogram from a display name (e.g. "Hermes Agent" -> "HA"). */
+function monogram(name: string): string {
+  const c = (name || '').trim();
+  if (!c) return '??';
+  const w = c.split(/\s+/).filter(Boolean);
+  return (w.length >= 2 ? (w[0][0] + w[1][0]) : c.slice(0, 2)).toUpperCase();
+}
+
 interface AgentSetupPanelProps {
   agent: ExternalAgent;
   onClose: () => void;
@@ -242,7 +250,7 @@ export function AgentSetupPanel({ agent, onClose, onInstallComplete }: AgentSetu
       return (
         <div className="agent-setup__info">
           <div className="agent-setup__hero">
-            <span className="agent-setup__hero-icon">{agent.icon}</span>
+            <span className="agent-setup__hero-icon">{monogram(agent.displayName)}</span>
             <div>
               <h3 className="agent-setup__hero-name">{agent.displayName}</h3>
               <div className="agent-setup__hero-stars">
@@ -354,7 +362,7 @@ export function AgentSetupPanel({ agent, onClose, onInstallComplete }: AgentSetu
           <div className="agent-setup__install-summary">
             <div className="agent-setup__install-row">
               <span>Agent:</span>
-              <span>{agent.icon} {agent.displayName}</span>
+              <span>{agent.displayName}</span>
             </div>
             <div className="agent-setup__install-row">
               <span>Model:</span>

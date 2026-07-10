@@ -18,6 +18,17 @@ const STATUS_LABEL: Record<ExternalAgentStatus, string> = {
   installing: 'Đang cài',
 };
 
+/** Editorial monogram from a display name (e.g. "Hermes Agent" -> "HA", "n8n" -> "N8"). */
+function agentMonogram(name: string): string {
+  const cleaned = (name || '').trim();
+  if (!cleaned) return '??';
+  const words = cleaned.split(/\s+/);
+  if (words.length >= 2) {
+    return (words[0][0] + words[1][0]).toUpperCase();
+  }
+  return cleaned.slice(0, 2).toUpperCase();
+}
+
 export function AgentRail({
   agents,
   activeAgentId,
@@ -55,7 +66,7 @@ export function AgentRail({
                 title={`${agent.displayName} · ${STATUS_LABEL[agent.status]}`}
               >
                 <span className={`aw-agent__dot aw-agent__dot--${agent.status}`} aria-hidden="true" />
-                <span className="aw-agent__icon" aria-hidden="true">{agent.icon}</span>
+                <span className="aw-agent__icon" aria-hidden="true">{agentMonogram(agent.displayName)}</span>
                 <span className="aw-agent__name">{agent.displayName}</span>
                 <span className="aw-agent__status">{STATUS_LABEL[agent.status]}</span>
               </button>

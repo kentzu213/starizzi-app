@@ -1,0 +1,335 @@
+/* ══════════════════════════════════════════════════════════════════════════
+   IZZI OPTIMIZED  —  tuned 1:1 to the live izziapi.com homepage
+   ──────────────────────────────────────────────────────────────────────────
+   Refines the tool toward the homepage's premium editorial language:
+   • dark teal-tinted cosmos backdrop with restrained cyan + amber glow
+   • near-white, SENTENCE-CASE headlines (kills the cyan gradient-text slop)
+   • CREAM rounded-pill primary CTAs (the homepage signature)
+   • cyan primary + multi-hue categorical accents (violet / amber / green / blue)
+   • izzi-surface glass, rounded corners, warm hairlines
+   • clean cyan-tinted line icons + monogram tiles (no emoji)
+   Loaded LAST = authoritative. Component rules only; no structural changes.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+:root {
+  /* homepage palette (sampled from izziapi.com) */
+  --izzo-bg:        #080d0b;
+  --izzo-ink:       #f3f1ea;                    /* warm off-white — never pure white */
+  --izzo-ink-strong: #f7f5ef;
+  --izzo-muted:     rgba(243, 241, 234, 0.62);
+  --izzo-faint:     rgba(243, 241, 234, 0.40);
+  --izzo-cyan:      #22dcc2;
+  --izzo-cyan-soft: #46ecd5;
+  --izzo-amber:     #ff9a54;
+  --izzo-gold:      #ffcb53;
+  --izzo-violet:    #8e5cff;
+  --izzo-blue:      #7ecfff;
+  --izzo-green:     #45d982;
+  --izzo-line:      rgba(244, 239, 229, 0.11);
+  --izzo-line-2:    rgba(244, 239, 229, 0.20);
+  --izzo-surface:   rgba(9, 14, 12, 0.72);
+  --izzo-surface-2: rgba(14, 20, 18, 0.82);
+  --izzo-cream:     #f4efe5;
+
+  /* remap legacy tokens toward the homepage */
+  --color-bg-primary:    var(--izzo-bg);
+  --color-text-primary:  rgba(243, 241, 234, 0.96);
+  --color-text-secondary: var(--izzo-muted);
+  --color-text-tertiary: var(--izzo-faint);
+  --color-text-accent:   var(--izzo-cyan);
+  --color-accent-primary: var(--izzo-cyan);
+  --color-accent-cyan:   var(--izzo-cyan);
+  --color-border:        var(--izzo-line);
+  --color-border-hover:  var(--izzo-line-2);
+  --izzi-ink:    var(--izzo-bg);
+  --izzi-paper:  var(--izzo-ink);
+  --izzi-muted:  var(--izzo-muted);
+  --izzi-faint:  var(--izzo-faint);
+  --izzi-cyan:   var(--izzo-cyan);
+  --izzi-cyan-rgb: 34, 220, 194;
+  --izzi-warm:   var(--izzo-amber);
+  --izzi-gold:   var(--izzo-gold);
+  --izzi-violet: var(--izzo-violet);
+  --izzi-blue:   var(--izzo-blue);
+  --izzi-line:   var(--izzo-line);
+  --izzi-line-strong: var(--izzo-line-2);
+  --font-display: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-family:  'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+html, body, #root, button, input, textarea, select {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+/* ── 1. Backdrop: dark teal cosmos, restrained cyan + amber glow ──────────*/
+body {
+  background:
+    radial-gradient(1100px 640px at 82% -8%, rgba(34, 220, 194, 0.10), transparent 60%),
+    radial-gradient(920px 560px at 3% 106%, rgba(255, 154, 84, 0.06), transparent 58%),
+    linear-gradient(180deg, #0a100e 0%, #080c0a 48%, #050807 100%) !important;
+  background-attachment: fixed !important;
+  color: var(--izzo-ink);
+}
+body::before {
+  background:
+    radial-gradient(70% 46% at 84% 0%, rgba(34, 220, 194, 0.07), transparent 60%),
+    linear-gradient(180deg, rgba(244, 239, 229, 0.02), transparent 22%) !important;
+}
+body::after { opacity: 0.02 !important; }
+::selection { background: rgba(34, 220, 194, 0.28); color: #06100e; }
+
+/* ── 2. Headlines: near-white, SOLID (no gradient clip), sentence-case ────*/
+.page-header__title, .chat-page__title, .agent-store__title, .affiliate__title,
+.cost-dash__title, .agent-hub__top-title, .agent-hub__top-title, .izzi-setup__title,
+.login-card__title, .chat-empty-state__title, h1, h2, h3 {
+  background: none !important;
+  background-image: none !important;
+  -webkit-background-clip: border-box !important;
+  background-clip: border-box !important;
+  -webkit-text-fill-color: var(--izzo-ink) !important;
+  color: var(--izzo-ink) !important;
+  text-transform: none !important;
+  font-variation-settings: normal !important;
+  font-stretch: normal !important;
+  font-weight: 680 !important;
+  letter-spacing: -0.02em !important;
+  line-height: 1.04 !important;
+  text-shadow: none !important;
+}
+.chat-page__title, .agent-store__title { font-size: clamp(30px, 3.1vw, 44px) !important; }
+/* Big stat numbers: solid cream-white, tabular (kill gradient clip) */
+.cost-dash__stat-value, .stat-card__value {
+  background: none !important;
+  background-image: none !important;
+  -webkit-background-clip: border-box !important;
+  background-clip: border-box !important;
+  -webkit-text-fill-color: var(--izzo-ink-strong) !important;
+  color: var(--izzo-ink-strong) !important;
+  font-variant-numeric: tabular-nums !important;
+  font-weight: 680 !important;
+}
+/* Body copy */
+p, .chat-page__subtitle, .page-header__subtitle, .agent-hub__top-desc,
+.installed-agent-card__desc, .ext-card__desc, .chat-empty-state__desc {
+  color: var(--izzo-muted) !important;
+}
+
+/* ── 3. Eyebrows / kickers: cyan uppercase letter-spaced ──────────────────*/
+.page-header__eyebrow, .chat-page__eyebrow, .chat-empty-state__eyebrow,
+.affiliate__kicker, .agent-store__eyebrow, .cost-dash__subtitle,
+.sidebar__brand-kicker, .card__eyebrow, .meta-caption, .gw-header__eyebrow {
+  color: var(--izzo-cyan) !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.16em !important;
+  font-weight: 700 !important;
+}
+
+/* ── 4. CREAM rounded-pill primary CTAs (homepage signature) ──────────────*/
+.btn--primary, .btn--accent, .aw-business__cta, .agent-hub__top-card-btn--setup,
+.agent-setup__install-btn, .affiliate__copybtn, .affiliate__submit,
+.agent-card__install-btn, .agent-modal__install-btn, .agent-store__featured-cta,
+.setup-wizard__btn--install, .izzi-setup__cta, .login-card__submit {
+  background: var(--izzo-cream) !important;
+  background-image: none !important;
+  color: #0a0f0d !important;
+  border: 1px solid rgba(244, 239, 229, 0.26) !important;
+  border-radius: 999px !important;
+  font-weight: 640 !important;
+  letter-spacing: 0.01em !important;
+  text-transform: none !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45), 0 10px 30px rgba(0, 0, 0, 0.32) !important;
+}
+.btn--primary:hover, .btn--accent:hover, .aw-business__cta:hover,
+.agent-hub__top-card-btn--setup:hover, .agent-setup__install-btn:hover,
+.affiliate__copybtn:hover, .affiliate__submit:hover, .agent-card__install-btn:hover,
+.agent-modal__install-btn:hover, .agent-store__featured-cta:hover,
+.setup-wizard__btn--install:hover {
+  background: #ffffff !important;
+  transform: translateY(-1px) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6), 0 14px 38px rgba(0, 0, 0, 0.4) !important;
+}
+/* Cyan "tool" pills stay cyan (in-app actions like Send) */
+.chat-composer__send, .btn--tool {
+  border-radius: 999px !important;
+  background: rgba(34, 220, 194, 0.16) !important;
+  background-image: none !important;
+  color: var(--izzo-cyan-soft) !important;
+  border: 1px solid rgba(34, 220, 194, 0.4) !important;
+}
+.chat-composer__send:hover, .btn--tool:hover { background: rgba(34, 220, 194, 0.24) !important; }
+/* Ghost / secondary pills */
+.btn--secondary, .btn--ghost, .btn--outline, .agent-hub__top-card-btn--chat {
+  border-radius: 999px !important;
+  background: transparent !important;
+  background-image: none !important;
+  border: 1px solid var(--izzo-line-2) !important;
+  color: var(--izzo-ink) !important;
+}
+.btn--secondary:hover, .btn--ghost:hover { border-color: rgba(34, 220, 194, 0.5) !important; background: rgba(34, 220, 194, 0.08) !important; }
+
+/* ── 5. Sidebar active: cyan-tinted, warm hairline chrome ─────────────────*/
+.sidebar__item--active {
+  background: rgba(34, 220, 194, 0.10) !important;
+  box-shadow: inset 2px 0 0 0 var(--izzo-cyan) !important;
+  color: var(--izzo-ink) !important;
+}
+.sidebar__item--active .sidebar__icon-svg,
+.sidebar__item--active .sidebar__item-icon { color: var(--izzo-cyan) !important; }
+
+/* ── 6. Icon tiles — cyan-tinted rounded (kept SVG line icons) ────────────*/
+.aw-loop__icon {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 30px; height: 30px; flex: 0 0 auto;
+  border-radius: 9px !important;
+  background: rgba(34, 220, 194, 0.08) !important;
+  border: 1px solid var(--izzo-line) !important;
+  color: var(--izzo-cyan) !important;
+}
+.aw-loop__icon-svg { width: 16px; height: 16px; }
+.aw-loop:hover .aw-loop__icon, .aw-loop--active .aw-loop__icon {
+  background: rgba(34, 220, 194, 0.16) !important;
+  border-color: rgba(34, 220, 194, 0.45) !important;
+  color: var(--izzo-cyan-soft) !important;
+}
+.aw-loop--active { background: rgba(34, 220, 194, 0.08) !important; box-shadow: inset 2px 0 0 0 var(--izzo-cyan) !important; }
+
+/* ── 7. Monogram avatars — rounded izzi tiles (no emoji) ──────────────────*/
+.aw-agent__icon, .agent-hub__top-card-icon, .agent-card__icon, .agent-modal__icon,
+.setup-wizard__big-icon, .installed-agent-card__icon {
+  display: inline-flex !important; align-items: center; justify-content: center;
+  flex: 0 0 auto;
+  border-radius: 10px !important;
+  background: linear-gradient(140deg, rgba(34, 220, 194, 0.16), rgba(126, 207, 255, 0.10)) !important;
+  border: 1px solid rgba(34, 220, 194, 0.28) !important;
+  color: var(--izzo-cyan-soft) !important;
+  -webkit-text-fill-color: var(--izzo-cyan-soft) !important;
+  font-family: 'JetBrains Mono', 'SF Mono', monospace !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.01em !important;
+  line-height: 1 !important;
+}
+.aw-agent__icon { width: 26px; height: 26px; font-size: 10.5px !important; border-radius: 8px !important; }
+.agent-hub__top-card-icon { width: 44px; height: 44px; font-size: 15px !important; }
+.agent-card__icon { width: 46px; height: 46px; font-size: 16px !important; }
+.agent-modal__icon { width: 56px; height: 56px; font-size: 20px !important; }
+.setup-wizard__big-icon { width: 64px; height: 64px; font-size: 22px !important; }
+.installed-agent-card__icon { width: 40px; height: 40px; font-size: 14px !important; }
+.aw-agent:hover .aw-agent__icon, .aw-agent--active .aw-agent__icon {
+  border-color: rgba(34, 220, 194, 0.5) !important;
+}
+.aw-agent--active { background: rgba(34, 220, 194, 0.08) !important; box-shadow: inset 2px 0 0 0 var(--izzo-cyan) !important; }
+
+/* Hero title icon: cyan-tinted rounded tile */
+.chat-page__title-icon {
+  display: inline-flex !important; align-items: center; justify-content: center;
+  width: 50px !important; height: 50px !important; min-width: 0 !important; flex: 0 0 auto !important;
+  vertical-align: middle;
+  border-radius: 13px !important;
+  background: linear-gradient(140deg, rgba(34, 220, 194, 0.18), rgba(142, 92, 255, 0.12)) !important;
+  border: 1px solid rgba(34, 220, 194, 0.3) !important;
+  color: var(--izzo-cyan-soft) !important;
+  -webkit-text-fill-color: var(--izzo-cyan-soft) !important;
+  font-size: 0 !important;
+  box-shadow: none !important;
+}
+.chat-page__title-icon-svg { width: 26px !important; height: 26px !important; color: var(--izzo-cyan-soft); }
+/* Agent hub page title icon */
+.agent-store__title-icon {
+  display: inline-flex !important; align-items: center; justify-content: center;
+  width: 52px !important; height: 52px !important; flex: 0 0 auto !important;
+  border-radius: 13px !important;
+  background: linear-gradient(140deg, rgba(34, 220, 194, 0.18), rgba(142, 92, 255, 0.12)) !important;
+  border: 1px solid rgba(34, 220, 194, 0.3) !important;
+  color: var(--izzo-cyan-soft) !important; font-size: 0 !important;
+}
+.agent-store__title-icon-svg { width: 28px; height: 28px; color: var(--izzo-cyan-soft); }
+
+/* ── 8. Panels/cards: izzi-surface, warm hairline, rounded (calm) ─────────*/
+.card, .stat-card, .agent-hub__top-card, .installed-agent-card, .ext-card,
+.cost-dash__section, .cost-dash__stat-box, .cost-dash__card, .affiliate__tile,
+.quick-action-card, .agent-card, .chat-empty-state, .context-panel {
+  background: var(--izzo-surface) !important;
+  border: 1px solid var(--izzo-line) !important;
+  border-radius: 14px !important;
+  box-shadow: inset 0 1px 0 rgba(244, 239, 229, 0.04), 0 18px 54px rgba(0, 0, 0, 0.34) !important;
+}
+.card:hover, .stat-card:hover, .agent-hub__top-card:hover, .installed-agent-card:hover,
+.ext-card:hover, .quick-action-card:hover, .agent-card:hover, .affiliate__tile:hover {
+  transform: translateY(-2px) !important;
+  border-color: rgba(34, 220, 194, 0.28) !important;
+  box-shadow: inset 0 1px 0 rgba(244, 239, 229, 0.06), 0 24px 64px rgba(0, 0, 0, 0.42), 0 0 0 1px rgba(34, 220, 194, 0.06) !important;
+}
+
+/* ── 9. Tags / chips: categorical, rounded, hairline ──────────────────────*/
+.agent-hub__top-card-tag, .agent-card__skills-label, .agent-modal__skill-tag,
+.chat-page__route-strip span, .cost-dash__tag {
+  border-radius: 999px !important;
+  border: 1px solid var(--izzo-line) !important;
+  background: rgba(244, 239, 229, 0.03) !important;
+  color: var(--izzo-muted) !important;
+}
+
+/* honor reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  * { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+}
+
+
+/* ── 17. Agent monogram tiles across chat gateway (tab bar, empty, footer, picker) ── */
+.gw-tab__icon, .gw-empty__agent-icon, .gw-footer__agent-mono, .agent-picker__card-icon {
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  border-radius: 7px !important;
+  background: linear-gradient(140deg, rgba(34, 220, 194, 0.16), rgba(126, 207, 255, 0.10)) !important;
+  border: 1px solid rgba(34, 220, 194, 0.28) !important;
+  color: var(--izzo-cyan-soft) !important;
+  -webkit-text-fill-color: var(--izzo-cyan-soft) !important;
+  font-family: 'JetBrains Mono', 'SF Mono', monospace !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.01em !important;
+  line-height: 1 !important;
+}
+.gw-tab__icon { width: 20px; height: 20px; font-size: 9px !important; border-radius: 6px !important; }
+.gw-footer__agent-mono { width: 22px; height: 22px; font-size: 9.5px !important; }
+.gw-empty__agent-icon { width: 34px; height: 34px; font-size: 12.5px !important; border-radius: 9px !important; }
+.agent-picker__card-icon { width: 42px; height: 42px; font-size: 15px !important; border-radius: 10px !important; }
+
+/* Empty-state hero mark: cyan-tinted rounded tile (holds monogram or shuffle svg) */
+.gw-empty__icon {
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  width: 56px !important;
+  height: 56px !important;
+  border-radius: 14px !important;
+  background: linear-gradient(140deg, rgba(34, 220, 194, 0.16), rgba(142, 92, 255, 0.10)) !important;
+  border: 1px solid rgba(34, 220, 194, 0.28) !important;
+  color: var(--izzo-cyan-soft) !important;
+  -webkit-text-fill-color: var(--izzo-cyan-soft) !important;
+  font-family: 'JetBrains Mono', monospace !important;
+  font-weight: 700 !important;
+  font-size: 20px !important;
+}
+.gw-empty__icon-svg { width: 28px; height: 28px; }
+
+
+/* ── 18. Agent setup panel hero: monogram tile ───────────────────────────*/
+.agent-setup__hero-icon {
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  width: 52px;
+  height: 52px;
+  flex: 0 0 auto;
+  border-radius: 12px !important;
+  background: linear-gradient(140deg, rgba(34, 220, 194, 0.16), rgba(126, 207, 255, 0.10)) !important;
+  border: 1px solid rgba(34, 220, 194, 0.28) !important;
+  color: var(--izzo-cyan-soft) !important;
+  -webkit-text-fill-color: var(--izzo-cyan-soft) !important;
+  font-family: 'JetBrains Mono', monospace !important;
+  font-weight: 700 !important;
+  font-size: 18px !important;
+  line-height: 1 !important;
+}

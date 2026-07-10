@@ -16,8 +16,8 @@
   --color-accent-cyan: #22dcc2;
   --color-accent-emerald: #00d294;
   --color-accent-glow: rgba(34, 220, 194, 0.16);
-  --color-accent-gradient: linear-gradient(135deg, #22dcc2 0%, #7ecfff 58%, #8e5cff 100%);
-  --color-accent-gradient-hover: linear-gradient(135deg, #46ecd5 0%, #a2f4fd 58%, #a78bfa 100%);
+  --color-accent-gradient: linear-gradient(135deg, #22dcc2 0%, #7ecfff 54%, #ff9a54 100%);
+  --color-accent-gradient-hover: linear-gradient(135deg, #46ecd5 0%, #a2f4fd 58%, #ff9a54 100%);
   --color-accent-primary: #22dcc2;
   --color-accent-purple: #8e5cff;
   --color-accent-purple-soft: #7ecfff;
@@ -1985,7 +1985,7 @@ a:hover { color: var(--color-accent-primary); }
 
 .dev-upload__progress-fill {
   height: 100%;
-  background: linear-gradient(90deg, #67e8f9, #a78bfa);
+  background: linear-gradient(90deg, #67e8f9, #ff9a54);
   border-radius: var(--radius-full);
   transition: width 0.3s ease-out;
 }
@@ -2166,7 +2166,7 @@ a:hover { color: var(--color-accent-primary); }
   width: 32px;
   height: 32px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #67e8f9, #a78bfa);
+  background: linear-gradient(135deg, #67e8f9, #ff9a54);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -4234,7 +4234,7 @@ body {
 }
 
 .izzi-setup__hero-gradient {
-  background: linear-gradient(135deg, #67e8f9 0%, #a78bfa 50%, #f472b6 100%);
+  background: linear-gradient(135deg, #67e8f9 0%, #ff9a54 50%, #ffcb53 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -4781,7 +4781,7 @@ body {
   font-size: 15px;
   font-weight: 800;
   color: #0f172a;
-  background: linear-gradient(135deg, #67e8f9, #a78bfa);
+  background: linear-gradient(135deg, #67e8f9, #ff9a54);
   border: none;
   border-radius: var(--radius-lg);
   cursor: pointer;
@@ -5157,7 +5157,7 @@ body {
 
 .izzi-setup__progress-fill {
   height: 100%;
-  background: linear-gradient(90deg, #67e8f9, #a78bfa);
+  background: linear-gradient(90deg, #67e8f9, #ff9a54);
   border-radius: var(--radius-full);
   transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
   box-shadow: 0 0 8px rgba(103, 232, 249, 0.4);
@@ -5748,7 +5748,7 @@ body {
 .cost-dash__model-bar-fill {
   height: 100%;
   border-radius: 3px;
-  background: linear-gradient(90deg, var(--color-accent-purple-soft), var(--color-accent-purple));
+  background: linear-gradient(90deg, var(--color-accent-cyan), var(--izzi-warm));
   transition: width 0.5s ease;
 }
 .cost-dash__model-cost {
@@ -5921,7 +5921,7 @@ body {
 
 /* Restore the izzi cyan→purple display gradient on the setup hero word */
 .izzi-setup__hero-gradient {
-  background: linear-gradient(135deg, #67e8f9 0%, #a78bfa 100%);
+  background: linear-gradient(135deg, #67e8f9 0%, #ff9a54 100%);
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
@@ -7719,7 +7719,7 @@ body {
 
 .izzi-setup__hero-gradient,
 .cost-dash__model-bar-fill {
-  background: linear-gradient(135deg, #67e8f9 0%, #a78bfa 100%);
+  background: linear-gradient(135deg, #67e8f9 0%, #ff9a54 100%);
 }
 
 .izzi-setup__mode-card:hover,
@@ -8654,4 +8654,175 @@ body {
 @media (max-width: 900px) {
   .affiliate__stats { grid-template-columns: repeat(2, 1fr); }
   .affiliate__grid { grid-template-columns: 1fr; }
+}
+
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   IZZI PREMIUM ELEVATION  (visible upgrade - starizzi-demo design language)
+   High-leverage: lifts the shared primitives (backdrop, glass, type, spacing,
+   CTAs, chrome) so every screen reads more premium at once. Component rules
+   only - no :root/token redefinition. Cyan brand kept; warm+violet used as
+   accretion glow accents. Cascade-final on purpose.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* 1. Cosmic accretion backdrop (cyan + warm + violet glow over deep ink) */
+body {
+  background:
+    radial-gradient(circle at 80% 2%, rgba(34, 220, 194, 0.11), transparent 42%),
+    radial-gradient(circle at 98% 32%, rgba(255, 154, 84, 0.055), transparent 34%),
+    radial-gradient(circle at 2% 98%, rgba(142, 92, 255, 0.07), transparent 44%),
+    linear-gradient(180deg, #05080d 0%, #03060b 46%, #010306 100%) !important;
+  background-attachment: fixed !important;
+}
+
+/* Subtle film grain for a physical, expensive surface (over everything, non-blocking) */
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  pointer-events: none;
+  opacity: 0.026;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* 2. Deeper, more expensive glass on every panel/card (multi-layer shadow + inset highlight) */
+.glass-card, .glass-panel, .glass-surface, .card, .stat-card,
+.chat-session-card, .chat-empty-state, .chat-message-list, .chat-composer,
+.agent-hub__top-card, .installed-agent-card, .ext-card, .ext-detail__header,
+.cost-dash__section, .cost-dash__stat-box, .cost-dash__card, .cost-dash__advice-box,
+.affiliate__panel, .affiliate__tile, .task-column, .agent-picker, .agent-setup,
+.model-selector__dropdown, .quick-action-card, .izzi-setup__mode-card, .login-card {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.055),
+    0 2px 6px rgba(0, 0, 0, 0.34),
+    0 28px 80px rgba(0, 0, 0, 0.42) !important;
+}
+
+/* 3. Premium hover: lift + cyan accretion glow */
+.card, .stat-card, .agent-hub__top-card, .installed-agent-card, .ext-card,
+.quick-action-card, .cost-dash__stat-box, .affiliate__tile, .izzi-setup__mode-card {
+  transition:
+    transform 0.5s cubic-bezier(0.16, 1, 0.3, 1),
+    border-color 0.4s cubic-bezier(0.16, 1, 0.3, 1),
+    box-shadow 0.5s cubic-bezier(0.16, 1, 0.3, 1),
+    background 0.4s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+.card:hover, .stat-card:hover, .agent-hub__top-card:hover, .installed-agent-card:hover,
+.ext-card:hover, .quick-action-card:hover, .cost-dash__stat-box:hover,
+.affiliate__tile:hover, .izzi-setup__mode-card:hover {
+  transform: translateY(-3px) !important;
+  border-color: rgba(34, 220, 194, 0.30) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.07),
+    0 30px 84px rgba(0, 0, 0, 0.5),
+    0 22px 60px rgba(34, 220, 194, 0.10) !important;
+}
+
+/* 4. Confident display type (bigger, tighter, soft depth shadow) */
+.page-header__title, .chat-page__title, .agent-store__title,
+.affiliate__title, .cost-dash__title, .agent-hub__top-title {
+  font-size: clamp(28px, 3.2vw, 42px) !important;
+  font-weight: 640 !important;
+  letter-spacing: -0.03em !important;
+  line-height: 1.03 !important;
+  text-shadow: 0 18px 56px rgba(0, 0, 0, 0.5);
+}
+
+/* Kickers / eyebrows pop in cyan */
+.page-header__eyebrow, .chat-page__eyebrow, .chat-empty-state__eyebrow,
+.affiliate__kicker, .agent-store__eyebrow, .cost-dash__subtitle {
+  color: var(--color-accent-cyan) !important;
+}
+
+/* 5. Macro whitespace in the working canvas */
+.main-content { padding: 34px 42px !important; }
+.chat-page { gap: 22px !important; }
+
+/* 6. Titlebar accretion sweep line (cyan to warm) */
+.titlebar { position: relative; }
+.titlebar::after {
+  content: "";
+  position: absolute;
+  inset: auto 0 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(34, 220, 194, 0.62), rgba(255, 154, 84, 0.42), transparent);
+  opacity: 0.7;
+  pointer-events: none;
+}
+
+/* 7. Primary CTAs: accretion depth + magnetic lift */
+.btn--primary, .btn--accent, .aw-business__cta,
+.agent-hub__top-card-btn--setup, .agent-setup__install-btn, .affiliate__copybtn, .affiliate__submit {
+  box-shadow: 0 14px 34px rgba(34, 220, 194, 0.16) !important;
+  transition: transform 0.45s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.45s cubic-bezier(0.16, 1, 0.3, 1), filter 0.3s !important;
+}
+.btn--primary:hover, .btn--accent:hover, .aw-business__cta:hover,
+.agent-hub__top-card-btn--setup:hover, .agent-setup__install-btn:hover,
+.affiliate__copybtn:hover, .affiliate__submit:hover {
+  transform: translateY(-2px) !important;
+  box-shadow: 0 20px 50px rgba(34, 220, 194, 0.28) !important;
+}
+
+/* 8. Sidebar active: crisp cyan edge block */
+.sidebar__item--active { box-shadow: inset 2px 0 0 0 var(--color-accent-cyan); }
+
+/* 9. Big stat numbers get the accretion gradient (Chi phi + Affiliate + stat cards) */
+.cost-dash__stat-value, .stat-card__value {
+  background: linear-gradient(120deg, var(--color-text-primary), var(--color-accent-cyan)) !important;
+  -webkit-background-clip: text !important;
+  background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+  color: transparent !important;
+}
+
+/* Respect reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  body::after { display: none; }
+  .card, .stat-card, .agent-hub__top-card, .ext-card, .btn--primary, .btn--accent { transition: none !important; }
+}
+
+/* 10. Izzi signature gradient headline (cream -> cyan -> warm), synced to izziapi.com hero.
+   Applies the 4599 standard's display treatment across the tool's main titles. */
+.page-header__title, .chat-page__title, .agent-store__title,
+.affiliate__title, .cost-dash__title, .agent-hub__top-title, .izzi-setup__hero-title {
+  background: linear-gradient(96deg, var(--izzi-paper) 0%, var(--color-accent-cyan) 46%, var(--izzi-warm) 100%) !important;
+  -webkit-background-clip: text !important;
+  background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+  color: transparent !important;
+  text-shadow: none !important;
+}
+
+/* Headline icon: opt out of the text-clip so the emoji keeps its glyph, not a blob */
+.chat-page__title-icon {
+  display: inline-block;
+  margin-right: 0.34em;
+  background: none !important;
+  -webkit-background-clip: border-box !important;
+  background-clip: border-box !important;
+  -webkit-text-fill-color: initial !important;
+  color: var(--color-accent-cyan);
+  vertical-align: baseline;
+}
+
+/* 11. MyGraph (graphview-scope): align the graph's accent + glow to izzi's own violet (#8e5cff),
+   replacing the generic AI lavender. The categorical tag/node colors are functional data-viz and
+   are intentionally kept so distinct categories stay distinguishable. */
+.graphview-scope {
+  --color-accent-violet: #8e5cff !important;
+  --color-glow-violet: rgba(142, 92, 255, 0.16) !important;
+}
+
+/* 12. MyGraph "Build Path" (.toolbar-btn.synth): retone the last violet chrome to izzi cyan->warm. */
+.graphview-scope .toolbar-btn.synth {
+  background:
+    linear-gradient(135deg, rgba(34, 220, 194, 0.14), rgba(255, 154, 84, 0.20)),
+    rgba(10, 16, 24, 0.82) !important;
+  border-color: rgba(34, 220, 194, 0.30) !important;
+  color: rgba(238, 245, 240, 0.90) !important;
+}
+.graphview-scope .toolbar-btn.synth:hover {
+  background: linear-gradient(135deg, rgba(34, 220, 194, 0.28), rgba(255, 154, 84, 0.22)) !important;
+  color: #ffffff !important;
 }

@@ -10,6 +10,7 @@ import { AgentRail } from '../components/AgentRail';
 import { ContextPanel } from '../components/ContextPanel';
 import { LoopDock } from '../components/LoopDock';
 import { BusinessStrip } from '../components/BusinessStrip';
+import { ShuffleIcon } from '../components/AppIcons';
 import { useAgentGatewayStore } from '../store/agentGateway';
 import { useAgentWorkspaceStore } from '../store/agentWorkspace';
 import type { AIProvider } from '../types/agent-registry';
@@ -23,6 +24,15 @@ interface ChatPageProps {
   onNavigateToDashboard?: () => void;
   onNavigateToAgentHub?: () => void;
   onNavigateToExtensions?: () => void;
+}
+
+/** Editorial monogram from a display name (e.g. "Hermes Agent" -> "HA"). */
+function monogram(name: string): string {
+  const cleaned = (name || '').trim();
+  if (!cleaned) return '??';
+  const words = cleaned.split(/\s+/).filter(Boolean);
+  if (words.length >= 2) return (words[0][0] + words[1][0]).toUpperCase();
+  return cleaned.slice(0, 2).toUpperCase();
 }
 
 export function ChatPage({ user, onBuyApi, onNavigateToDashboard, onNavigateToAgentHub, onNavigateToExtensions }: ChatPageProps) {
@@ -190,8 +200,11 @@ export function ChatPage({ user, onBuyApi, onNavigateToDashboard, onNavigateToAg
         <div>
           <div className="chat-page__eyebrow">Memory relay</div>
           <h1 className="chat-page__title">
-            🔀 {isGatewayMode && activeGwSession
-              ? `${activeGwSession.agentIcon} ${activeGwSession.agentName}`
+            <span className="chat-page__title-icon" aria-hidden="true">
+              <ShuffleIcon className="chat-page__title-icon-svg" />
+            </span>
+            {isGatewayMode && activeGwSession
+              ? activeGwSession.agentName
               : 'Turn memory into actions that run again'}
           </h1>
           <p className="chat-page__subtitle">
@@ -282,7 +295,7 @@ export function ChatPage({ user, onBuyApi, onNavigateToDashboard, onNavigateToAg
           isGatewayMode ? (
             <div className="gw-empty">
               <span className="gw-empty__icon">
-                {activeGwSession?.agentIcon ?? '🔀'}
+                {activeGwSession ? monogram(activeGwSession.agentName) : <ShuffleIcon className="gw-empty__icon-svg" />}
               </span>
               <h2 className="gw-empty__title">
                 {activeGwSession
@@ -303,7 +316,7 @@ export function ChatPage({ user, onBuyApi, onNavigateToDashboard, onNavigateToAg
                       onClick={() => handleSelectAgent(agent.id)}
                       type="button"
                     >
-                      <span className="gw-empty__agent-icon">{agent.icon}</span>
+                      <span className="gw-empty__agent-icon">{monogram(agent.displayName)}</span>
                       <span className="gw-empty__agent-name">{agent.displayName}</span>
                       <span className="gw-empty__agent-stars">⭐ {agent.githubStars}</span>
                     </button>
@@ -336,7 +349,7 @@ export function ChatPage({ user, onBuyApi, onNavigateToDashboard, onNavigateToAg
         {isGatewayMode && activeGwSession && (
           <div className="gw-footer__bar">
             <div className="gw-footer__agent-info">
-              <span>{activeGwSession.agentIcon}</span>
+              <span className="gw-footer__agent-mono">{monogram(activeGwSession.agentName)}</span>
               <span>{activeGwSession.agentName}</span>
               <span
                 className="gw-tab__dot"
@@ -376,7 +389,7 @@ export function ChatPage({ user, onBuyApi, onNavigateToDashboard, onNavigateToAg
       {showAgentPicker && (
         <div className="agent-picker-overlay" onClick={() => setShowAgentPicker(false)}>
           <div className="agent-picker" onClick={(e) => e.stopPropagation()}>
-            <h2 className="agent-picker__title">🤖 Chọn Agent</h2>
+            <h2 className="agent-picker__title">Chọn Agent</h2>
             <p className="agent-picker__subtitle">
               Chọn AI Agent để mở tab chat mới
             </p>
@@ -389,7 +402,7 @@ export function ChatPage({ user, onBuyApi, onNavigateToDashboard, onNavigateToAg
                   type="button"
                 >
                   <div className="agent-picker__card-header">
-                    <span className="agent-picker__card-icon">{agent.icon}</span>
+                    <span className="agent-picker__card-icon">{monogram(agent.displayName)}</span>
                     <div className="agent-picker__card-info">
                       <div className="agent-picker__card-name">{agent.displayName}</div>
                       <div className="agent-picker__card-stars">⭐ {agent.githubStars}</div>
