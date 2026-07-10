@@ -342,8 +342,8 @@ export function ChatPage({ user, onBuyApi, onNavigateToDashboard, onNavigateToAg
               />
             </div>
             {activeGwSession.agentId === 'hermes' ? (
-              <div className="gw-effort" title="GPT-5.5 qua codex router — chọn độ sâu suy luận (như codex)">
-                <span className="gw-effort__label">⚡ GPT-5.5 · Reasoning</span>
+              <div className="gw-effort" title="GPT-5.6 qua codex router — chọn độ sâu suy luận (như codex)">
+                <span className="gw-effort__label">⚡ GPT-5.6 · Reasoning</span>
                 <select
                   className="gw-effort__select"
                   value={activeGwSession.reasoningEffort ?? 'xhigh'}

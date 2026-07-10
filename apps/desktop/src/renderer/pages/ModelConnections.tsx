@@ -19,7 +19,7 @@ const PRESETS: Preset[] = [
     label: 'codex-lb (local)',
     icon: '🖥️',
     baseUrl: 'http://127.0.0.1:2455/v1',
-    model: 'gpt-5.5',
+    model: 'gpt-5.6-sol',
     authType: 'bearer',
     hint: 'codex-lb chạy bằng Docker ở cổng 2455. Mở http://127.0.0.1:2455 để lấy API key (sk-...), rồi dán vào ô API key bên dưới.',
   },
@@ -165,7 +165,7 @@ export function ModelConnectionsPage() {
       if (r?.ok) {
         setPresetId('codex-lb');
         setBaseUrl('http://127.0.0.1:2455/v1');
-        setModel('gpt-5.5');
+        setModel('gpt-5.6-sol');
         setAuthType('bearer');
         setEnabled(true);
         await refreshKeyState();
@@ -295,7 +295,7 @@ export function ModelConnectionsPage() {
             className="input"
             value={model}
             onChange={(e) => setModel(e.target.value)}
-            placeholder="gpt-5.5"
+            placeholder="gpt-5.6-sol"
           />
         </label>
         <label className="model-conn__field">

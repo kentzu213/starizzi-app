@@ -1,6 +1,15 @@
 import { DatabaseManager } from '../db/database';
 
-export const ALLOWED_MODELS = ['gpt-5.5', 'gpt-5.4', 'gpt-5.4-mini', 'gpt-5.3-codex'] as const;
+// codex-lb model suggestions (validated loosely; the endpoint decides what exists).
+// Verified against codex-lb /v1/models — GPT-5.6 (Sol/Terra/Luna) are the new flagships.
+export const ALLOWED_MODELS = [
+  'gpt-5.6-sol',
+  'gpt-5.6-terra',
+  'gpt-5.6-luna',
+  'gpt-5.5',
+  'gpt-5.4',
+  'gpt-5.4-mini',
+] as const;
 export type AllowedModel = (typeof ALLOWED_MODELS)[number];
 
 export type AuthType = 'bearer' | 'x-api-key';

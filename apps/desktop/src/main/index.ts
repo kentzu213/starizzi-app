@@ -695,7 +695,7 @@ function setupIPC() {
 
   // One-click local connection ("Kết nối nhanh codex-lb"): read the codex-lb key
   // from the environment (CODEX_LB_API_KEY) in the MAIN process and wire the app
-  // to the local codex-lb router (127.0.0.1:2455, gpt-5.5) + enable it. Explicit
+  // to the local codex-lb router (127.0.0.1:2455, gpt-5.6-sol) + enable it. Explicit
   // user action from the "Kết nối Model" tab; the key stays in main, never returned.
   ipcMain.handle(
     'customProvider:autoConnectLocal',
@@ -708,7 +708,7 @@ function setupIPC() {
         settings.saveConfig({
           baseUrl: 'http://127.0.0.1:2455/v1',
           authType: 'bearer',
-          selectedModel: 'gpt-5.5',
+          selectedModel: 'gpt-5.6-sol',
         });
         secrets.setKey(envKey);
         settings.setEnabled(true);
@@ -1061,7 +1061,7 @@ function setupIPC() {
  * Zero-config local model connection. If the machine exposes a codex-lb key in
  * the environment (CODEX_LB_API_KEY — the same var the Codex CLI uses) AND no
  * model connection is currently enabled, wire the app's custom provider to the
- * local codex-lb router (127.0.0.1:2455, gpt-5.5) and enable it, so the gateway's
+ * local codex-lb router (127.0.0.1:2455, gpt-5.6-sol) and enable it, so the gateway's
  * non-izzi agents chat through it out of the box — no manual setup.
  *
  * Fires whenever nothing is enabled (not just first run) so it also repairs a
@@ -1084,7 +1084,7 @@ function autoConnectCodexLb(db: DatabaseManager): void {
     settings.saveConfig({
       baseUrl: 'http://127.0.0.1:2455/v1',
       authType: 'bearer',
-      selectedModel: 'gpt-5.5',
+      selectedModel: 'gpt-5.6-sol',
     });
     secrets.setKey(envKey);
     settings.setEnabled(true);
