@@ -222,6 +222,52 @@ async function streamChatTurn(
   return { content, toolCalls };
 }
 
+/**
+ * Non-streaming variant — POST with `stream:false`, parse the single JSON reply
+ * into the same `{ content, toolCalls }` shape. Fallback for backends that reject
+ * streaming+function-calling for some models (e.g. codex-lb on a ChatGPT/Codex
+ * account with gpt-5.6-*, which errors 400 on stream+tools but works non-streamed).
+ * The whole answer is surfaced via `onDelta` at once (no live token stream).
+ */
+async function nonStreamChatTurn(
+  url: string,
+  headers: Record<string, string>,
+  body: unknown,
+  onDelta: (text: string) => void,
+  signal?: AbortSignal,
+): Promise<{ content: string; toolCalls: StreamedToolCall[] }> {
+  const res = await fetch(url, { method: 'POST', headers, body: JSON.stringify(body), signal });
+  if (!res.ok) {
+    const errBody = await res.text().catch(() => '');
+    throw new Error(`http ${res.status}${errBody ? ': ' + errBody.slice(0, 200) : ''}`);
+  }
+  const data = (await res.json().catch(() => ({}))) as {
+    choices?: Array<{
+      message?: {
+        content?: unknown;
+        tool_calls?: Array<{ id?: string; function?: { name?: string; arguments?: string } }>;
+      };
+    }>;
+  };
+  const msg = data?.choices?.[0]?.message ?? {};
+  const content = typeof msg.content === 'string' ? msg.content : '';
+  const toolCalls: StreamedToolCall[] = Array.isArray(msg.tool_calls)
+    ? msg.tool_calls.map((t, i) => ({
+        id: typeof t?.id === 'string' && t.id ? t.id : `call_${i}`,
+        name: t?.function?.name ?? '',
+        args: typeof t?.function?.arguments === 'string' ? t.function.arguments : '',
+      }))
+    : [];
+  if (content) onDelta(content);
+  return { content, toolCalls };
+}
+
+/** True for the "streaming+tools not supported for this model" 400 (Codex/ChatGPT account). */
+export function isStreamingUnsupportedError(err: unknown): boolean {
+  const m = err instanceof Error ? err.message : String(err);
+  return /http 400/.test(m) && /not supported/i.test(m);
+}
+
 /** Run one agent turn (may span several model round-trips + tool executions). */
 export async function runHostAgentTurn(opts: HostAgentTurnOptions): Promise<{ reply: string; error?: string }> {
   const { config, apiKey, message, history, images, mode, turnId, requestApproval, emit } = opts;
@@ -247,6 +293,10 @@ export async function runHostAgentTurn(opts: HostAgentTurnOptions): Promise<{ re
 
   // Once the user picks "allow all for this turn", stop prompting for the rest of it.
   let allowAllThisTurn = false;
+  // Some codex-lb / Codex(ChatGPT-account) models reject streaming+tools with a 400
+  // (e.g. gpt-5.6-sol). Flip to non-streaming for the rest of the turn once we hit
+  // it, so the same request succeeds instead of dead-ending.
+  let streamingSupported = true;
 
   try {
     for (let iter = 0; iter < MAX_TOOL_ITERATIONS; iter++) {
@@ -267,13 +317,32 @@ export async function runHostAgentTurn(opts: HostAgentTurnOptions): Promise<{ re
         });
       }
 
-      const { content, toolCalls } = await streamChatTurn(
-        url,
-        headers,
-        { model, messages, tools, tool_choice: 'auto', stream: true },
-        (text) => emit?.({ turnId, kind: 'delta', text }),
-        opts.signal,
-      );
+      const onDelta = (text: string) => emit?.({ turnId, kind: 'delta', text });
+      const buildBody = (stream: boolean) => ({ model, messages, tools, tool_choice: 'auto', stream });
+      let content: string;
+      let toolCalls: StreamedToolCall[];
+      try {
+        ({ content, toolCalls } = streamingSupported
+          ? await streamChatTurn(url, headers, buildBody(true), onDelta, opts.signal)
+          : await nonStreamChatTurn(url, headers, buildBody(false), onDelta, opts.signal));
+      } catch (err) {
+        if (streamingSupported && isStreamingUnsupportedError(err)) {
+          streamingSupported = false;
+          emit?.({
+            turnId,
+            kind: 'step',
+            step: {
+              id: `nostream-${Math.random().toString(36).slice(2, 8)}`,
+              kind: 'progress',
+              label: `${model}: không hỗ trợ streaming+tools — chuyển chế độ không streaming`,
+              status: 'done',
+            },
+          });
+          ({ content, toolCalls } = await nonStreamChatTurn(url, headers, buildBody(false), onDelta, opts.signal));
+        } else {
+          throw err;
+        }
+      }
 
       // No tool calls → the model gave its final answer (already streamed live).
       if (toolCalls.length === 0) {
