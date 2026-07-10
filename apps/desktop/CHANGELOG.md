@@ -1,5 +1,15 @@
 # Changelog — Izzi OpenClaw Desktop
 
+## 1.10.1
+
+Marketplace catalog — real izzi tools listed.
+
+- Added the real izzi tools to the Marketplace catalog: **Chat Quality Agent
+  (CSKH)**, **Toonflow Studio**, **OmniVoice TTS**, **HTML to Video**, **FB Ads
+  Manager**, plus the installed desktop tools (**AI Video Studio**, **FaceFusion**,
+  **Quick Magic**). Added **Video** and **Voice** categories. `social-auto-poster`
+  bumped to 0.3.0 in the catalog to match the shipped manifest.
+
 ## 1.10.0
 
 Managed local backends for extensions + "Loop Prompt" self-install.
