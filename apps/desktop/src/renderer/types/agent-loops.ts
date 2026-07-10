@@ -23,7 +23,10 @@ export type LoopTask =
   | 'coding'
   | 'content'
   | 'data-rag'
-  | 'orchestration';
+  | 'orchestration'
+  | 'design'
+  | 'review'
+  | 'planning';
 
 export interface AgentLoop {
   id: string;
@@ -43,6 +46,39 @@ export interface AgentLoop {
 // ── Static presets (Req 3.5: data-only, no execution) ──
 
 export const AGENT_LOOPS: AgentLoop[] = [
+  {
+    id: 'loop-design',
+    label: 'Thiết kế cao cấp',
+    task: 'design',
+    description: 'Dựng UI/UX & brand có gu theo chuẩn izzi — reference-first, token-first, chống generic.',
+    icon: '🎨',
+    suggestedAgentId: 'designer',
+    suggestedModel: 'claude-4-sonnet',
+    suggestedProvider: 'izzi',
+    starterPrompt: 'Thiết kế màn hình/trang sau theo chuẩn izzi (reference-first, token-first, anti-slop), yêu cầu: ',
+  },
+  {
+    id: 'loop-review',
+    label: 'Duyệt & kiểm chứng',
+    task: 'review',
+    description: 'Chất vấn kiểu Socratic, đối chiếu bằng chứng, phán quyết kèm việc cần sửa.',
+    icon: '🏛️',
+    suggestedAgentId: 'socrates',
+    suggestedModel: 'izzi/auto',
+    suggestedProvider: 'izzi',
+    starterPrompt: 'Duyệt và kiểm chứng nội dung/quyết định sau (nêu rủi ro, độ tin cậy, việc cần sửa): ',
+  },
+  {
+    id: 'loop-planning',
+    label: 'Lập kế hoạch',
+    task: 'planning',
+    description: 'Phân loại độ khó, chia bước kèm cách kiểm chứng, cân rigor theo rủi ro.',
+    icon: '🧭',
+    suggestedAgentId: 'orchestrator',
+    suggestedModel: 'izzi/auto',
+    suggestedProvider: 'izzi',
+    starterPrompt: 'Lập kế hoạch theo bước (mỗi bước kèm cách kiểm chứng) cho mục tiêu: ',
+  },
   {
     id: 'loop-research',
     label: 'Nghiên cứu',
@@ -116,6 +152,7 @@ export const AGENT_LOOPS: AgentLoop[] = [
 /** Vietnamese labels for agent categories shown as group titles in the Agent Rail. */
 export const CATEGORY_LABELS: Record<AgentCategory, string> = {
   reasoning: 'Lý luận',
+  design: 'Thiết kế',
   autonomous: 'Tự chủ',
   platform: 'Nền tảng',
   orchestration: 'Điều phối',
@@ -125,6 +162,7 @@ export const CATEGORY_LABELS: Record<AgentCategory, string> = {
 /** Stable display order of categories in the rail. */
 export const CATEGORY_ORDER: AgentCategory[] = [
   'reasoning',
+  'design',
   'autonomous',
   'platform',
   'orchestration',
