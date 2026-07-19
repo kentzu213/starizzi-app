@@ -11,7 +11,9 @@
  *
  * @module main/agent/host-agent
  */
+import { randomUUID } from 'crypto';
 import { buildAuthHeaders, resolveChatCompletionsUrl } from './custom-openai-provider';
+import { buildIzziRequestHeaders, isOfficialIzziApiUrl, modelSupportsTools } from './izzi-request-headers';
 import type { CustomProviderConfig } from './provider-settings-store';
 import { HOST_TOOLS, classifyToolRisk, executeHostTool, summarizeToolCall, type OpenAiTool, type ToolRisk } from './agent-tools';
 import { needsApproval, type PermissionMode } from './agent-permissions';
@@ -265,7 +267,7 @@ async function nonStreamChatTurn(
 /** True for the "streaming+tools not supported for this model" 400 (Codex/ChatGPT account). */
 export function isStreamingUnsupportedError(err: unknown): boolean {
   const m = err instanceof Error ? err.message : String(err);
-  return /http 400/.test(m) && /not supported/i.test(m);
+  return /http 400/.test(m) && (/not supported/i.test(m) || (/stream(?:ing)?/i.test(m) && /temporarily unavailable/i.test(m)));
 }
 
 /** Run one agent turn (may span several model round-trips + tool executions). */
@@ -279,6 +281,9 @@ export async function runHostAgentTurn(opts: HostAgentTurnOptions): Promise<{ re
     ...buildAuthHeaders(config.authType, apiKey),
   };
   const model = config.selectedModel;
+  // The production Izzi route currently cannot serve direct Sol tool calls.
+  // Keep tools intact for local/custom Codex-LB endpoints that do support them.
+  const supportsTools = !isOfficialIzziApiUrl(url) || modelSupportsTools(model);
   const tools = [...HOST_TOOLS, UPDATE_PLAN_TOOL, ...(opts.extraTools && opts.extraTools.length ? opts.extraTools : [])];
 
   const systemContent = workingDir
@@ -318,13 +323,22 @@ export async function runHostAgentTurn(opts: HostAgentTurnOptions): Promise<{ re
       }
 
       const onDelta = (text: string) => emit?.({ turnId, kind: 'delta', text });
-      const buildBody = (stream: boolean) => ({ model, messages, tools, tool_choice: 'auto', stream });
+      const buildBody = (stream: boolean) => ({
+        model,
+        messages,
+        ...(supportsTools ? { tools, tool_choice: 'auto' } : {}),
+        stream,
+      });
+      const roundHeaders = {
+        ...headers,
+        ...buildIzziRequestHeaders(url, isOfficialIzziApiUrl(url) ? randomUUID() : undefined),
+      };
       let content: string;
       let toolCalls: StreamedToolCall[];
       try {
         ({ content, toolCalls } = streamingSupported
-          ? await streamChatTurn(url, headers, buildBody(true), onDelta, opts.signal)
-          : await nonStreamChatTurn(url, headers, buildBody(false), onDelta, opts.signal));
+          ? await streamChatTurn(url, roundHeaders, buildBody(true), onDelta, opts.signal)
+          : await nonStreamChatTurn(url, roundHeaders, buildBody(false), onDelta, opts.signal));
       } catch (err) {
         if (streamingSupported && isStreamingUnsupportedError(err)) {
           streamingSupported = false;
@@ -338,7 +352,7 @@ export async function runHostAgentTurn(opts: HostAgentTurnOptions): Promise<{ re
               status: 'done',
             },
           });
-          ({ content, toolCalls } = await nonStreamChatTurn(url, headers, buildBody(false), onDelta, opts.signal));
+          ({ content, toolCalls } = await nonStreamChatTurn(url, roundHeaders, buildBody(false), onDelta, opts.signal));
         } else {
           throw err;
         }

@@ -41,6 +41,9 @@ jobs:
       - name: Build desktop app
         run: pnpm build
 
+      - name: Run desktop tests
+        run: pnpm test
+
       - name: Package and Publish
         run: npx electron-builder --win --config electron-builder.json --publish always
         env:

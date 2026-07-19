@@ -16,6 +16,7 @@
  */
 import { ipcMain } from 'electron';
 import type { AuthManager } from '../auth/auth-manager';
+import { buildIzziSourceHeaders, isOfficialIzziApiUrl, modelSupportsTools } from '../agent/izzi-request-headers';
 import {
   buildExtensionTools,
   executeExtensionTool,
@@ -24,7 +25,7 @@ import {
 import { createStreamCollector, type AgentTurnEvent } from '../../shared/agent-turn-events';
 import type { SessionRecorder } from './agent-session-recorder';
 
-const IZZI_LLM_BASE = process.env.OPENAI_BASE_URL || 'https://api.izziapi.com/v1';
+const IZZI_LLM_BASE = 'https://api.izziapi.com/v1';
 const MAX_TOOL_ITERATIONS = 20;
 
 /** Canonicalize legacy SmartRouter aliases; preserve explicit model routes. */
@@ -89,10 +90,20 @@ export class IzziAgent {
     private readonly toolHost?: ExtensionToolHost,
   ) {}
 
-  /** Resolve the Izzi key: env first, else the signed-in user's API key. Never logged. */
-  private resolveKey(): string | null {
+  /** Resolve a credential without ever exposing it outside the main process. */
+  private async resolveKey(): Promise<string | null> {
     const envKey = process.env.OPENAI_API_KEY;
     if (typeof envKey === 'string' && envKey.trim().length > 0) return envKey.trim();
+    const chatUrl = `${IZZI_LLM_BASE}/chat/completions`;
+    if (!isOfficialIzziApiUrl(chatUrl)) return null;
+    if (typeof this.auth.ensureDesktopApiKey === 'function') {
+      try {
+        const desktopKey = await this.auth.ensureDesktopApiKey();
+        if (typeof desktopKey === 'string' && desktopKey.trim().length > 0) return desktopKey.trim();
+      } catch {
+        // Fall through to a profile key; never log credential acquisition failures here.
+      }
+    }
     const userKey = typeof this.auth.getApiKey === 'function' ? this.auth.getApiKey() : null;
     return typeof userKey === 'string' && userKey.trim().length > 0 ? userKey.trim() : null;
   }
@@ -107,7 +118,7 @@ export class IzziAgent {
     const turnId = typeof payload.turnId === 'string' ? payload.turnId : '';
     const emit = onEvent && turnId ? onEvent : undefined;
 
-    const key = this.resolveKey();
+    const key = await this.resolveKey();
     if (!key) return { reply: '', error: 'no-key' };
 
     const system = typeof payload.systemPrompt === 'string' ? payload.systemPrompt : '';
@@ -136,7 +147,7 @@ export class IzziAgent {
 
     // Opt-in tool exposure: only when requested AND a bridge is present.
     const toolIndex = payload.enableTools && this.toolHost ? buildExtensionTools(this.toolHost) : null;
-    const tools = toolIndex && toolIndex.tools.length > 0 ? toolIndex.tools : null;
+    const tools = toolIndex && toolIndex.tools.length > 0 && modelSupportsTools(model) ? toolIndex.tools : null;
 
     try {
       for (let iter = 0; iter < MAX_TOOL_ITERATIONS; iter++) {
@@ -147,7 +158,11 @@ export class IzziAgent {
         }
         const res = await fetch(`${IZZI_LLM_BASE}/chat/completions`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` },
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${key}`,
+            ...buildIzziSourceHeaders(`${IZZI_LLM_BASE}/chat/completions`),
+          },
           body: JSON.stringify(body),
         });
         if (!res.ok) return { reply: '', error: `http ${res.status}` };
@@ -198,7 +213,11 @@ export class IzziAgent {
       try {
         const res = await fetch(`${IZZI_LLM_BASE}/chat/completions`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` },
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${key}`,
+            ...buildIzziSourceHeaders(`${IZZI_LLM_BASE}/chat/completions`),
+          },
           body: JSON.stringify({
             model,
             messages: [

@@ -1,7 +1,9 @@
 import axios from 'axios';
+import { randomUUID } from 'crypto';
 import type { ChatProvider, ProviderTestResult } from './chat-provider';
 import { readStreamBody, streamOpenAISse } from './openai-sse';
 import type { CustomProviderConfig } from './provider-settings-store';
+import { buildIzziRequestHeaders } from './izzi-request-headers';
 import type {
   ManagedAgentStatus,
   ManagedAgentStreamRequest,
@@ -74,6 +76,11 @@ function describeNetworkError(error: unknown, redact: (text: string) => string):
   return redact(message) || 'Không kết nối được tới endpoint';
 }
 
+function isStreamingFallbackError(status: number, rawBody: string): boolean {
+  if (status !== 400) return false;
+  return /not supported/i.test(rawBody) || (/stream(?:ing)?/i.test(rawBody) && /temporarily unavailable/i.test(rawBody));
+}
+
 /**
  * CustomOpenAIProvider — streams chat from a user-supplied OpenAI-compatible
  * endpoint. The API key is received as a transient constructor argument from the
@@ -105,10 +112,15 @@ export class CustomOpenAIProvider implements ChatProvider {
     return resolveChatCompletionsUrl(this.config.baseUrl);
   }
 
-  private buildHeaders(): Record<string, string> {
+  private buildHeaders(
+    accept = 'text/event-stream',
+    url = this.getChatUrl(),
+    idempotencyKey?: string,
+  ): Record<string, string> {
     return {
       'Content-Type': 'application/json',
-      Accept: 'text/event-stream',
+      Accept: accept,
+      ...buildIzziRequestHeaders(url, idempotencyKey),
       ...buildAuthHeaders(this.config.authType, this.apiKey),
     };
   }
@@ -122,15 +134,17 @@ export class CustomOpenAIProvider implements ChatProvider {
       { role: 'user', content: buildUserContent(request.message, images) },
     ];
 
+    const chatUrl = this.getChatUrl();
+    const idempotencyKey = Object.keys(buildIzziRequestHeaders(chatUrl)).length > 0 ? randomUUID() : undefined;
     let response;
     try {
       response = await axios.request<NodeJS.ReadableStream>({
         method: 'POST',
-        url: this.getChatUrl(),
+        url: chatUrl,
         data: { model: this.config.selectedModel, messages, stream: true },
         responseType: 'stream',
         validateStatus: () => true,
-        headers: this.buildHeaders(),
+        headers: this.buildHeaders('text/event-stream', chatUrl, idempotencyKey),
         timeout: REQUEST_TIMEOUT_MS,
       });
     } catch (error) {
@@ -139,6 +153,38 @@ export class CustomOpenAIProvider implements ChatProvider {
 
     if (response.status >= 400) {
       const body = await readStreamBody(response.data);
+      if (isStreamingFallbackError(response.status, body)) {
+        let fallback;
+        try {
+          fallback = await axios.request({
+            method: 'POST',
+            url: chatUrl,
+            data: { model: this.config.selectedModel, messages, stream: false },
+            validateStatus: () => true,
+            headers: this.buildHeaders('application/json', chatUrl, idempotencyKey),
+            timeout: REQUEST_TIMEOUT_MS,
+          });
+        } catch (error) {
+          throw new Error(describeNetworkError(error, this.redact));
+        }
+
+        if (fallback.status >= 400) {
+          const rawBody =
+            typeof fallback.data === 'string'
+              ? fallback.data
+              : JSON.stringify(fallback.data ?? '');
+          throw new Error(describeHttpError(fallback.status, rawBody, this.redact));
+        }
+
+        const content = fallback.data?.choices?.[0]?.message?.content;
+        yield { type: 'status', state: 'running' };
+        yield { type: 'assistant_start' };
+        if (typeof content === 'string' && content.length > 0) {
+          yield { type: 'assistant_delta', delta: content };
+        }
+        yield { type: 'assistant_done' };
+        return;
+      }
       throw new Error(describeHttpError(response.status, body, this.redact));
     }
 
@@ -160,7 +206,7 @@ export class CustomOpenAIProvider implements ChatProvider {
           stream: false,
         },
         validateStatus: () => true,
-        headers: { ...this.buildHeaders(), Accept: 'application/json' },
+        headers: this.buildHeaders('application/json'),
         timeout: REQUEST_TIMEOUT_MS,
       });
 
@@ -193,7 +239,11 @@ export class CustomOpenAIProvider implements ChatProvider {
         method: 'GET',
         url: resolveModelsUrl(this.config.baseUrl),
         validateStatus: () => true,
-        headers: { ...buildAuthHeaders(this.config.authType, this.apiKey), Accept: 'application/json' },
+        headers: {
+          Accept: 'application/json',
+          ...buildIzziRequestHeaders(resolveModelsUrl(this.config.baseUrl)),
+          ...buildAuthHeaders(this.config.authType, this.apiKey),
+        },
         timeout: 15000,
       });
 

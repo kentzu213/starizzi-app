@@ -24,6 +24,15 @@ const PRESETS: Preset[] = [
     hint: 'codex-lb chạy bằng Docker ở cổng 2455. Mở http://127.0.0.1:2455 để lấy API key (sk-...), rồi dán vào ô API key bên dưới.',
   },
   {
+    id: 'izzi-direct',
+    label: 'Izzi API (hosted)',
+    icon: '☁️',
+    baseUrl: 'https://api.izziapi.com/v1',
+    model: 'izzi-smart',
+    authType: 'x-api-key',
+    hint: 'Dùng trực tiếp Izzi API không cần router local. Chọn izzi-smart để SmartRouter tự route, hoặc đổi sang grok-4.5-high / gpt-5.6-sol để gọi thẳng.',
+  },
+  {
     id: '9router',
     label: '9router / LiteLLM (local)',
     icon: '🔀',
@@ -236,8 +245,8 @@ export function ModelConnectionsPage() {
         <div className="page-header__eyebrow">Model connections</div>
         <h1 className="page-header__title">Kết nối Model</h1>
         <p className="page-header__subtitle">
-          Nối app tới một endpoint OpenAI-compatible chạy trên máy (codex-lb, 9router) hoặc endpoint tùy
-          chỉnh. Khi bật, mọi cuộc chat agent sẽ đi qua endpoint này (không cần container).
+          Nối app tới endpoint OpenAI-compatible local hoặc hosted (codex-lb, 9router, Izzi API direct). Khi bật,
+          mọi cuộc chat agent sẽ đi qua endpoint này thay vì phụ thuộc container.
         </p>
       </header>
 
@@ -361,6 +370,10 @@ export function ModelConnectionsPage() {
             <b>codex-lb</b>: đảm bảo container codex-lb đang chạy (Docker) ở <code>127.0.0.1:2455</code>. Mở{' '}
             <code>http://127.0.0.1:2455</code> lấy API key, chọn preset codex-lb, dán key rồi bấm{' '}
             <b>Lưu &amp; Bật</b>.
+          </li>
+          <li>
+            <b>Izzi API direct</b>: chọn preset Izzi API, dán Izzi API key, rồi đổi model giữa <code>izzi-smart</code>,
+            <code>grok-4.5-high</code>, hoặc <code>gpt-5.6-sol</code> tùy cách route bạn muốn.
           </li>
           <li>
             <b>9router</b>: chạy 9router/LiteLLM, lấy master key; sửa Base URL đúng cổng (mặc định 4000).

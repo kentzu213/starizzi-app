@@ -100,6 +100,7 @@ const AGENT_OPTIONS: SetupAgentOption[] = [
 const IZZI_MODELS = [
   { id: 'izzi-smart', name: 'Izzi Smart Router', checked: true },
   { id: 'grok-4.5-high', name: 'Grok 4.5 High', checked: true },
+  { id: 'gpt-5.6-sol', name: 'GPT-5.6 Sol', checked: true },
   { id: 'gpt-5.5', name: 'GPT-5.5', checked: true },
   { id: 'gpt-5.4', name: 'GPT-5.4', checked: true },
   { id: 'gpt-5.2', name: 'GPT-5.2', checked: false },
@@ -187,7 +188,7 @@ export function SetupWizardPage({ onComplete }: SetupWizardPageProps) {
       // Verify key by calling the real OpenAI-compatible endpoint
       const res = await fetch('https://izziapi.com/v1/models', {
         method: 'GET',
-        headers: { 'Authorization': `Bearer ${key}` },
+        headers: { Authorization: `Bearer ${key}`, 'X-Source-Platform': 'starizzi' },
       });
       if (res.ok) {
         setExpressVerified(true);

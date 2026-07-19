@@ -16,6 +16,7 @@ import { TOP_AGENTS } from '../types/agent-registry';
 import { connectionActionForProvider, deriveEndpointLabel } from '../types/model-catalog';
 import type { AgentTurnEvent } from '../../shared/agent-turn-events';
 import { sanitizeStoredSessions, capForPersist, pickActiveId } from './gatewayPersist';
+import { shouldUseIzziApiRoute } from './agentGateway-routing';
 
 interface GatewayPersistApi {
   list?: () => Promise<unknown[]>;
@@ -385,9 +386,11 @@ export const useAgentGatewayStore = create<AgentGatewayState>((set, get) => ({
 
     // Try to call agent's chat API
     try {
-      // Izzi-native persona agents (Socrates, Orchestrator) run through the Izzi
-      // API in the MAIN process — the key stays in main, never in the renderer.
-      if (agent.runtime === 'izzi') {
+      // Izzi-native personas and any agent whose selected model belongs to Izzi
+      // run through the MAIN-process Izzi API bridge. This makes SmartRouter plus
+      // direct Grok/Sol selection work consistently while the credential stays
+      // out of the renderer.
+      if (shouldUseIzziApiRoute(agent.runtime, session.provider)) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const izziApi = (window as any).electronAPI?.izziAgent;
         if (izziApi?.chat) {
@@ -827,8 +830,9 @@ export const useAgentGatewayStore = create<AgentGatewayState>((set, get) => ({
         await api.saveConfig({ baseUrl, authType, selectedModel: model });
         await api.setEnabled?.(true);
       } else if (action === 'disable-custom' && api?.setEnabled) {
-        // izzi Smart Router picked: turn the custom connection off → generic agents
-        // fall back to izzi. izzi persona agents already route izzi regardless.
+        // An Izzi-hosted model was picked (SmartRouter, Grok, or Sol): turn the
+        // custom connection off. sendGatewayMessage then uses the authenticated
+        // main-process Izzi bridge for both native and generic agents.
         await api.setEnabled(false);
       }
     } catch {

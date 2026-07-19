@@ -1,7 +1,9 @@
 import axios from 'axios';
+import { randomUUID } from 'crypto';
 import { parseManagedAgentStream } from './stream-parser';
 import { readStreamBody, streamOpenAISse } from './openai-sse';
 import type { ChatProvider } from './chat-provider';
+import { buildIzziRequestHeaders, isOfficialIzziApiUrl } from './izzi-request-headers';
 import type {
   ManagedAgentStatus,
   ManagedAgentStreamRequest,
@@ -79,7 +81,7 @@ function getLocalConfig(): { apiKey: string | null; baseUrl: string | null; mode
     const config = JSON.parse(raw);
 
     const ninerouter = config?.models?.providers?.ninerouter;
-    const apiKey = ninerouter?.apiKey || config?.apiKey || config?.gateway?.auth?.token || null;
+    const apiKey = ninerouter?.apiKey || config?.apiKey || null;
     const baseUrl = ninerouter?.baseUrl || null; // e.g. "https://api.izziapi.com/v1"
     
     // Get the primary model from agents config
@@ -101,7 +103,7 @@ function getLocalConfig(): { apiKey: string | null; baseUrl: string | null; mode
  * Auth: x-api-key header (NOT Authorization: Bearer)
  * Model: uses configured model or falls back to DEFAULT_MODEL
  */
-function buildOpenAIPayload(request: ManagedAgentStreamRequest, model: string) {
+function buildOpenAIPayload(request: ManagedAgentStreamRequest, model: string, stream: boolean) {
   const messages = [
     ...request.history.map((msg) => ({
       role: msg.role,
@@ -116,7 +118,7 @@ function buildOpenAIPayload(request: ManagedAgentStreamRequest, model: string) {
   return {
     model,
     messages,
-    stream: true,
+    stream,
   };
 }
 
@@ -194,8 +196,10 @@ export class ManagedAgentProvider implements ChatProvider {
     const config = getLocalConfig();
     const localApiKey = config.apiKey;
     const accessToken = await this.getAccessToken();
+    const chatUrl = this.getChatUrl();
+    const officialIzziOrigin = isOfficialIzziApiUrl(chatUrl);
 
-    if (!localApiKey && !accessToken) {
+    if (!localApiKey && (!accessToken || !officialIzziOrigin)) {
       throw new Error('Missing IzziAPI API key. Run the izzi-openclaw installer first.');
     }
 
@@ -205,9 +209,11 @@ export class ManagedAgentProvider implements ChatProvider {
 
     // Build auth headers
     // CRITICAL: izziapi.com uses `x-api-key` header, NOT `Authorization: Bearer`
+    const idempotencyKey = officialIzziOrigin ? randomUUID() : undefined;
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
       Accept: 'text/event-stream',
+      ...buildIzziRequestHeaders(chatUrl, idempotencyKey),
     };
 
     if (localApiKey) {
@@ -217,13 +223,12 @@ export class ManagedAgentProvider implements ChatProvider {
       headers['Authorization'] = `Bearer ${accessToken}`;
     }
 
-    const chatUrl = this.getChatUrl();
     console.log(`[ManagedAgentProvider] POST ${chatUrl} model=${model}`);
 
     const response = await axios.request<NodeJS.ReadableStream>({
       method: 'POST',
       url: chatUrl,
-      data: buildOpenAIPayload(request, model),
+      data: buildOpenAIPayload(request, model, true),
       responseType: 'stream',
       validateStatus: () => true,
       headers,
@@ -232,7 +237,34 @@ export class ManagedAgentProvider implements ChatProvider {
 
     if (response.status >= 400) {
       const body = await readStreamBody(response.data);
-      throw new Error(body || `Chat completions endpoint returned HTTP ${response.status}`);
+      const shouldRetryNonStreaming =
+        response.status === 400 &&
+        (/not supported/i.test(body) || (/stream(?:ing)?/i.test(body) && /temporarily unavailable/i.test(body)));
+      if (!shouldRetryNonStreaming) {
+        throw new Error(body || `Chat completions endpoint returned HTTP ${response.status}`);
+      }
+
+      const fallback = await axios.request({
+        method: 'POST',
+        url: chatUrl,
+        data: buildOpenAIPayload(request, model, false),
+        validateStatus: () => true,
+        headers: { ...headers, Accept: 'application/json' },
+        timeout: 120000,
+      });
+      if (fallback.status >= 400) {
+        const rawBody =
+          typeof fallback.data === 'string' ? fallback.data : JSON.stringify(fallback.data ?? '');
+        throw new Error(rawBody || `Chat completions endpoint returned HTTP ${fallback.status}`);
+      }
+      const content = fallback.data?.choices?.[0]?.message?.content;
+      yield { type: 'status', state: 'running' };
+      yield { type: 'assistant_start' };
+      if (typeof content === 'string' && content.length > 0) {
+        yield { type: 'assistant_delta', delta: content };
+      }
+      yield { type: 'assistant_done' };
+      return;
     }
 
     const contentType = String(response.headers['content-type'] ?? '');

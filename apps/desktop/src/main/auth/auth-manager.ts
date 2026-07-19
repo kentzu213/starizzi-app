@@ -335,18 +335,15 @@ export class AuthManager {
 
       // Intercept navigation to detect the callback URL with tokens
       popup.webContents.on('will-redirect', async (_event, url) => {
-        console.log('[Auth] OAuth redirect URL:', url);
         await this.tryExtractOAuthTokens(url, finish);
       });
 
       popup.webContents.on('will-navigate', async (_event, url) => {
-        console.log('[Auth] OAuth navigate URL:', url);
         await this.tryExtractOAuthTokens(url, finish);
       });
 
       // Also handle page title changes (some OAuth flows land on a page with tokens in the URL)
       popup.webContents.on('did-navigate', async (_event, url) => {
-        console.log('[Auth] OAuth did-navigate URL:', url);
         await this.tryExtractOAuthTokens(url, finish);
       });
 

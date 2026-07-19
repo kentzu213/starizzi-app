@@ -78,13 +78,13 @@ afterEach(() => {
 
 // 1. Auth-header builder ──────────────────────────────────────────────────────
 describe('CustomOpenAIProvider.buildHeaders (via streamChat)', () => {
-  async function captureHeaders(authType: 'bearer' | 'x-api-key') {
+  async function captureHeaders(authType: 'bearer' | 'x-api-key', baseUrl = VALID_CONFIG.baseUrl) {
     axiosRequest.mockResolvedValue({
       status: 200,
       headers: { 'content-type': 'text/event-stream' },
       data: fakeStream(['data: [DONE]\n']),
     });
-    const provider = new CustomOpenAIProvider({ ...VALID_CONFIG, authType }, FAKE_KEY);
+    const provider = new CustomOpenAIProvider({ ...VALID_CONFIG, authType, baseUrl }, FAKE_KEY);
     await collect(provider.streamChat({ sessionId: 's', message: 'hi', history: [] }));
     return axiosRequest.mock.calls[0][0].headers as Record<string, string>;
   }
@@ -93,12 +93,23 @@ describe('CustomOpenAIProvider.buildHeaders (via streamChat)', () => {
     const headers = await captureHeaders('bearer');
     expect(headers['Authorization']).toBe(`Bearer ${FAKE_KEY}`);
     expect(headers['x-api-key']).toBeUndefined();
+    expect(headers['X-Source-Platform']).toBeUndefined();
   });
 
   it('x-api-key ⇒ x-api-key only, no Authorization', async () => {
     const headers = await captureHeaders('x-api-key');
     expect(headers['x-api-key']).toBe(FAKE_KEY);
     expect(headers['Authorization']).toBeUndefined();
+    expect(headers['X-Source-Platform']).toBeUndefined();
+  });
+
+  it('adds X-Source-Platform only for an official Izzi API origin', async () => {
+    const headers = await captureHeaders('x-api-key', 'https://api.izziapi.com/v1');
+    expect(headers['X-Source-Platform']).toBe('starizzi');
+
+    axiosRequest.mockReset();
+    const lookalike = await captureHeaders('bearer', 'https://api.izziapi.com.evil.test/v1');
+    expect(lookalike['X-Source-Platform']).toBeUndefined();
   });
 });
 
@@ -281,6 +292,41 @@ describe('SecretStore redaction + masking', () => {
 });
 
 // 7. Error mapping (HTTP 401) ───────────────────────────────────────────────────
+describe('CustomOpenAIProvider streaming fallback', () => {
+  it('retries the exact production 400 in non-stream mode with one idempotency key', async () => {
+    axiosRequest
+      .mockResolvedValueOnce({
+        status: 400,
+        headers: { 'content-type': 'application/json' },
+        data: fakeStream([
+          '{"error":{"message":"Streaming is temporarily unavailable for fixed-price models; retry with stream=false."}}',
+        ]),
+      })
+      .mockResolvedValueOnce({
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+        data: { choices: [{ message: { content: 'fallback ok' } }] },
+      });
+
+    const provider = new CustomOpenAIProvider(
+      { ...VALID_CONFIG, baseUrl: 'https://api.izziapi.com/v1', selectedModel: 'gpt-5.6-sol' },
+      FAKE_KEY,
+    );
+    const events = await collect(provider.streamChat({ sessionId: 's', message: 'hi', history: [] }));
+
+    expect(axiosRequest).toHaveBeenCalledTimes(2);
+    expect(axiosRequest.mock.calls.map(([request]) => request.data.stream)).toEqual([true, false]);
+    expect(axiosRequest.mock.calls.map(([request]) => request.data.model)).toEqual(['gpt-5.6-sol', 'gpt-5.6-sol']);
+    const firstHeaders = axiosRequest.mock.calls[0][0].headers;
+    const retryHeaders = axiosRequest.mock.calls[1][0].headers;
+    expect(firstHeaders['X-Source-Platform']).toBe('starizzi');
+    expect(firstHeaders['Idempotency-Key']).toBeTruthy();
+    expect(retryHeaders['Idempotency-Key']).toBe(firstHeaders['Idempotency-Key']);
+    expect(events.filter((e) => e.type === 'assistant_delta').map((e) => e.delta)).toEqual(['fallback ok']);
+    expect(events.at(-1)).toMatchObject({ type: 'assistant_done' });
+  });
+});
+
 describe('CustomOpenAIProvider error mapping', () => {
   it('HTTP 401 ⇒ concise message, no raw body and no key', async () => {
     axiosRequest.mockResolvedValue({

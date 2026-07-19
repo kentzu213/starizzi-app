@@ -57,6 +57,7 @@ export interface SetupProgress {
 const IZZI_MODELS = [
   { id: 'izzi-smart', name: 'Izzi Smart Router', description: 'Auto-select the best healthy model' },
   { id: 'grok-4.5-high', name: 'Grok 4.5 High', description: 'Explicit Grok route via SmartRouter/9Router' },
+  { id: 'gpt-5.6-sol', name: 'GPT-5.6 Sol', description: 'Explicit Sol route via SmartRouter/Codex-LB' },
   { id: 'gpt-5.5', name: 'GPT-5.5', description: 'Latest GPT model' },
   { id: 'gpt-5.4', name: 'GPT-5.4', description: 'Latest GPT model' },
   { id: 'gpt-5.2', name: 'GPT-5.2', description: 'Fast & reliable' },
@@ -193,6 +194,7 @@ export class SetupWizardService {
         headers: {
           'x-api-key': apiKey,
           'Content-Type': 'application/json',
+          'X-Source-Platform': 'starizzi',
         },
       };
 

@@ -78,5 +78,7 @@ export function deriveEndpointLabel(baseUrl: string | undefined | null): string 
   const url = (baseUrl ?? '').toString();
   if (url.includes(':2455')) return 'codex-lb (local)';
   if (url.includes(':4000')) return '9router (local · smart-route)';
+  if (/https?:\/\/(api\.)?izziapi\.com\/v1/i.test(url)) return 'Izzi API (direct)';
+  if (/https?:\/\/codex\.izziapi\.com/i.test(url)) return 'codex-lb (hosted)';
   return 'Local (custom)';
 }

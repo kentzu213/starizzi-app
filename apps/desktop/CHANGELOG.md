@@ -1,5 +1,13 @@
 # Changelog — Izzi OpenClaw Desktop
 
+## 1.12.1
+
+Starizzi SmartRouter/direct-routing hotfix.
+
+- Retry a known 400 streaming limitation in non-stream mode, so GPT-5.6 Sol and Grok 4.5 keep working through production endpoints that temporarily reject streaming.
+- Added hosted Izzi API direct preset and explicit GPT-5.6 Sol exposure in the model catalog/setup wizard, so users can switch between SmartRouter and direct model routes without local router reconfiguration.
+- Stamp Izzi-bound requests with the Starizzi source header for cleaner production attribution and canary tracing.
+
 ## 1.12.0
 
 SmartRouter/Grok compatibility and a safe Codex-LB desktop cutover.
