@@ -123,6 +123,8 @@ export const MODEL_PROVIDERS: ModelProviderConfig[] = [
       { id: 'izzi-smart', name: 'Izzi Smart Router', provider: 'izzi', checked: true },
       { id: 'grok-4.5-high', name: 'Grok 4.5 High', provider: 'izzi', checked: true },
       { id: 'gpt-5.6-sol', name: 'GPT-5.6 Sol', provider: 'izzi', checked: true },
+      { id: 'gpt-5.6-terra', name: 'GPT-5.6 Terra', provider: 'izzi', checked: true },
+      { id: 'gpt-5.6-luna', name: 'GPT-5.6 Luna', provider: 'izzi', checked: true },
       { id: 'gpt-5.4', name: 'GPT-5.4', provider: 'izzi', checked: true },
       { id: 'claude-4-sonnet', name: 'Claude 4 Sonnet', provider: 'izzi', checked: true },
       { id: 'gemini-2.5-pro', name: 'Gemini 2.5 Pro', provider: 'izzi', checked: true },

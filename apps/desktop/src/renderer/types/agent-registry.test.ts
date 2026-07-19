@@ -12,6 +12,11 @@ describe('Izzi model contract', () => {
     expect(izzi!.models).toContainEqual(
       expect.objectContaining({ id: 'gpt-5.6-sol', provider: 'izzi' }),
     );
+    for (const id of ['gpt-5.6-terra', 'gpt-5.6-luna']) {
+      expect(izzi!.models).toContainEqual(
+        expect.objectContaining({ id, provider: 'izzi' }),
+      );
+    }
   });
 });
 

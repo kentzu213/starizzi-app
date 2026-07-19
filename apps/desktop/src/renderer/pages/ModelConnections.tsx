@@ -1,4 +1,8 @@
 import React, { useEffect, useState } from 'react';
+import {
+  getModelCreditPolicy,
+  MODEL_CREDIT_NOTICE_VI,
+} from '../../shared/model-credit-policy';
 
 type AuthType = 'bearer' | 'x-api-key';
 
@@ -95,7 +99,10 @@ export function ModelConnectionsPage() {
       try {
         const c = await api.getConfig();
         if (c?.config) {
-          setBaseUrl(c.config.baseUrl || '');
+          const configuredBaseUrl = c.config.baseUrl || '';
+          setBaseUrl(configuredBaseUrl);
+          const configuredPreset = PRESETS.find((preset) => preset.baseUrl === configuredBaseUrl);
+          setPresetId(configuredPreset?.id ?? 'custom');
           setModel(c.config.selectedModel || '');
           setAuthType(c.config.authType || 'bearer');
         }
@@ -238,6 +245,10 @@ export function ModelConnectionsPage() {
   }
 
   const activePreset = PRESETS.find((p) => p.id === presetId) ?? PRESETS[0];
+  const isIzziBilledConnection =
+    /^https:\/\/(api\.)?izziapi\.com\/v1(?:\/|$)/i.test(baseUrl.trim());
+  const modelCreditPolicy =
+    isIzziBilledConnection ? getModelCreditPolicy(model) : 'standard';
 
   return (
     <div className="model-conn">
@@ -287,6 +298,12 @@ export function ModelConnectionsPage() {
       </div>
 
       <div className="model-conn__hint">⚡ Setup nhanh: {activePreset.hint}</div>
+      {modelCreditPolicy !== 'standard' && (
+        <div className="model-conn__credit-notice" role="note">
+          <strong>Chính sách credit</strong>
+          <span>{MODEL_CREDIT_NOTICE_VI[modelCreditPolicy]}</span>
+        </div>
+      )}
 
       <div className="model-conn__form">
         <label className="model-conn__field">
