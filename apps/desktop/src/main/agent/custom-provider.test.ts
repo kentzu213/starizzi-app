@@ -124,6 +124,7 @@ describe('validateCustomConfig', () => {
 
   it('accepts http for a loopback endpoint (codex-lb / 9router on localhost)', () => {
     expect(validateCustomConfig({ ...VALID_CONFIG, baseUrl: 'http://127.0.0.1:2455/v1' }).ok).toBe(true);
+    expect(validateCustomConfig({ ...VALID_CONFIG, baseUrl: 'http://[::1]:2455/v1' }).ok).toBe(true);
     expect(validateCustomConfig({ ...VALID_CONFIG, baseUrl: 'http://localhost:4000/v1' }).ok).toBe(true);
   });
 
@@ -339,6 +340,72 @@ describe('ProviderSettingsStore + SecretStore smoke (in-memory db)', () => {
 
     settings.clearConfig();
     expect(settings.getConfig()).toBeNull();
+  });
+
+  it('migrates an enabled legacy loopback :2455 connection exactly once without touching config or key', () => {
+    const db = createFakeDb();
+    const settings = new ProviderSettingsStore(db);
+    const legacyConfig: CustomProviderConfig = {
+      baseUrl: 'http://127.0.0.1:2455/v1',
+      authType: 'bearer',
+      selectedModel: 'gpt-5.6-sol',
+    };
+    const storedSecret = 'encrypted-secret-fixture-that-must-not-leak';
+
+    settings.saveConfig(legacyConfig);
+    settings.setEnabled(true);
+    db.setSetting('custom_provider_api_key', storedSecret);
+
+    const first = settings.migrateLegacyLocalCodexLbConnection();
+    expect(first).toEqual({ migrated: true, reason: 'legacy-local-2455' });
+    expect(JSON.stringify(first)).not.toContain(storedSecret);
+    expect(settings.isCustomEnabled()).toBe(false);
+    expect(settings.getConfig()).toEqual(legacyConfig);
+    expect(db.getSetting('custom_provider_api_key')).toBe(storedSecret);
+
+    // A later explicit user choice to re-enable local Codex-LB must be respected.
+    settings.setEnabled(true);
+    expect(settings.migrateLegacyLocalCodexLbConnection()).toEqual({
+      migrated: false,
+      reason: 'already-completed',
+    });
+    expect(settings.isCustomEnabled()).toBe(true);
+  });
+
+  it('never migrates non-loopback, non-2455, or hosted Codex-LB endpoints', () => {
+    for (const baseUrl of [
+      'https://codex.izziapi.com/v1',
+      'https://example.com:2455/v1',
+      'http://127.0.0.1:4000/v1',
+    ]) {
+      const db = createFakeDb();
+      const settings = new ProviderSettingsStore(db);
+      settings.saveConfig({ ...VALID_CONFIG, baseUrl });
+      settings.setEnabled(true);
+
+      expect(settings.migrateLegacyLocalCodexLbConnection()).toEqual({
+        migrated: false,
+        reason: 'not-applicable',
+      });
+      expect(settings.isCustomEnabled()).toBe(true);
+      expect(settings.getConfig()?.baseUrl).toBe(baseUrl);
+    }
+  });
+
+  it('recognizes every supported loopback spelling on port 2455', () => {
+    for (const baseUrl of [
+      'http://localhost:2455/v1',
+      'http://127.0.0.1:2455/v1',
+      'http://[::1]:2455/v1',
+      'http://host.docker.internal:2455/v1',
+    ]) {
+      const db = createFakeDb();
+      const settings = new ProviderSettingsStore(db);
+      settings.saveConfig({ ...VALID_CONFIG, baseUrl });
+      settings.setEnabled(true);
+      expect(settings.migrateLegacyLocalCodexLbConnection().migrated).toBe(true);
+      expect(settings.isCustomEnabled()).toBe(false);
+    }
   });
 
   it('key set ⇒ hasKey true and get returns fake value; delete ⇒ hasKey false', () => {

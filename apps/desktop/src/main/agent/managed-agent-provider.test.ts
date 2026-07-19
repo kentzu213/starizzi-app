@@ -31,4 +31,16 @@ describe('ManagedAgentProvider mock mode', () => {
     // default under parallel-test / CI load (module transform cost), causing a
     // spurious timeout. The mock path itself is fast — just give it headroom.
   }, 20000);
+
+  it('uses canonical izzi-smart by default while preserving explicit Grok', async () => {
+    const { normalizeManagedModel } = await import('./managed-agent-provider');
+
+    expect(normalizeManagedModel(null)).toBe('izzi-smart');
+    expect(normalizeManagedModel('')).toBe('izzi-smart');
+    expect(normalizeManagedModel('izzi/auto')).toBe('izzi-smart');
+    expect(normalizeManagedModel('izzi-auto')).toBe('izzi-smart');
+    expect(normalizeManagedModel('auto')).toBe('izzi-smart');
+    expect(normalizeManagedModel('grok-4.5-high')).toBe('grok-4.5-high');
+    expect(normalizeManagedModel('gcli/grok-4.5-high')).toBe('gcli/grok-4.5-high');
+  });
 });

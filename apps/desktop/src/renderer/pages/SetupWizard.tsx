@@ -98,7 +98,8 @@ const AGENT_OPTIONS: SetupAgentOption[] = [
 // ── Izzi Models ──
 
 const IZZI_MODELS = [
-  { id: 'izzi/auto', name: 'Izzi Smart Router', checked: true },
+  { id: 'izzi-smart', name: 'Izzi Smart Router', checked: true },
+  { id: 'grok-4.5-high', name: 'Grok 4.5 High', checked: true },
   { id: 'gpt-5.5', name: 'GPT-5.5', checked: true },
   { id: 'gpt-5.4', name: 'GPT-5.4', checked: true },
   { id: 'gpt-5.2', name: 'GPT-5.2', checked: false },

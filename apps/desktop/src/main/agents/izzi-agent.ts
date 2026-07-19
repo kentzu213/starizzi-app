@@ -27,6 +27,15 @@ import type { SessionRecorder } from './agent-session-recorder';
 const IZZI_LLM_BASE = process.env.OPENAI_BASE_URL || 'https://api.izziapi.com/v1';
 const MAX_TOOL_ITERATIONS = 20;
 
+/** Canonicalize legacy SmartRouter aliases; preserve explicit model routes. */
+export function normalizeIzziAgentModel(model: string | null | undefined): string {
+  const value = model?.trim();
+  if (!value || value === 'izzi/auto' || value === 'izzi-auto' || value === 'auto') {
+    return 'izzi-smart';
+  }
+  return value.replace(/^izzi\//, '');
+}
+
 export interface IzziAgentMessage {
   role: 'system' | 'user' | 'assistant';
   content: string;
@@ -102,11 +111,9 @@ export class IzziAgent {
     if (!key) return { reply: '', error: 'no-key' };
 
     const system = typeof payload.systemPrompt === 'string' ? payload.systemPrompt : '';
-    // The Izzi smart router accepts a bare model id; strip any "izzi/" UI prefix.
-    const model = (typeof payload.model === 'string' && payload.model ? payload.model : 'auto').replace(
-      /^izzi\//,
-      '',
-    );
+    // Legacy aliases become canonical izzi-smart; explicit ids such as
+    // grok-4.5-high pass through unchanged.
+    const model = normalizeIzziAgentModel(payload.model);
     const history: IzziAgentMessage[] = Array.isArray(payload.history)
       ? payload.history
           .filter(

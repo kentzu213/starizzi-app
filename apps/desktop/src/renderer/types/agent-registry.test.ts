@@ -1,5 +1,16 @@
 import { describe, it, expect } from 'vitest';
-import { TOP_AGENTS } from './agent-registry';
+import { MODEL_PROVIDERS, TOP_AGENTS } from './agent-registry';
+
+describe('Izzi model contract', () => {
+  it('defaults to canonical izzi-smart and offers explicit Grok 4.5 High', () => {
+    const izzi = MODEL_PROVIDERS.find((provider) => provider.id === 'izzi');
+    expect(izzi).toBeDefined();
+    expect(izzi!.models[0]).toMatchObject({ id: 'izzi-smart', checked: true });
+    expect(izzi!.models).toContainEqual(
+      expect.objectContaining({ id: 'grok-4.5-high', provider: 'izzi' }),
+    );
+  });
+});
 
 describe('izzi-native agents (Socrates, Orchestrator)', () => {
   for (const id of ['socrates', 'orchestrator']) {

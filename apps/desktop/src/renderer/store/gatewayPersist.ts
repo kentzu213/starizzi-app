@@ -77,7 +77,10 @@ function sanitizeSession(raw: unknown): AgentChatSession | null {
     agentName: typeof s.agentName === 'string' ? s.agentName : s.agentId,
     agentIcon: typeof s.agentIcon === 'string' ? s.agentIcon : '🤖',
     messages,
-    model: typeof s.model === 'string' ? s.model : 'izzi/auto',
+    model:
+      typeof s.model === 'string'
+        ? (s.model === 'izzi/auto' || s.model === 'izzi-auto' || s.model === 'auto' ? 'izzi-smart' : s.model)
+        : 'izzi-smart',
     provider: (typeof s.provider === 'string' ? s.provider : 'izzi') as AIProvider,
     reasoningEffort: typeof s.reasoningEffort === 'string' ? s.reasoningEffort : undefined,
     createdAt: typeof s.createdAt === 'string' ? s.createdAt : new Date().toISOString(),

@@ -8,7 +8,7 @@ import {
 } from './model-catalog';
 import type { AIProvider } from './agent-registry';
 
-const KNOWN = ['gpt-5.6-sol', 'gpt-5.6-terra', 'gpt-5.6-luna', 'gpt-5.5', 'gpt-5.4', 'gpt-5.4-mini'];
+const KNOWN = ['izzi-smart', 'grok-4.5-high', 'gcli/grok-4.5-high', 'gpt-5.6-sol', 'gpt-5.6-terra', 'gpt-5.6-luna', 'gpt-5.5', 'gpt-5.4', 'gpt-5.4-mini'];
 
 describe('model-catalog', () => {
   // Feature: model-selection-standard, Property 1: local group de-dupes, drops
@@ -60,6 +60,9 @@ describe('model-catalog', () => {
   // Feature: model-selection-standard, Property 3: prettyModelName maps known ids
   // and is the identity for anything else (so unknown/new models still display).
   it('prettyModelName maps known ids and is identity for unknown ids', () => {
+    expect(prettyModelName('izzi-smart')).toBe('Izzi Smart Router');
+    expect(prettyModelName('grok-4.5-high')).toBe('Grok 4.5 High');
+    expect(prettyModelName('gcli/grok-4.5-high')).toBe('Grok 4.5 High (9Router upstream)');
     expect(prettyModelName('gpt-5.6-sol')).toBe('GPT-5.6 Sol');
     fc.assert(
       fc.property(fc.string(), (s) => {

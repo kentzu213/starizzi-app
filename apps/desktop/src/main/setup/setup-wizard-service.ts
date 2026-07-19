@@ -37,7 +37,7 @@ export interface WizardConfig {
   zaloRefreshToken?: string;
   apiKey: string;                 // Izzi API key or provider key
   baseUrl?: string;               // API base URL
-  selectedModels: string[];       // e.g. ['izzi/auto', 'gpt-5.4', ...]
+  selectedModels: string[];       // e.g. ['izzi-smart', 'grok-4.5-high', ...]
   installMode: 'docker' | 'native';
   autoStart: boolean;
   enableSkills: boolean;
@@ -55,7 +55,8 @@ export interface SetupProgress {
 // ── Izzi API Models ──
 
 const IZZI_MODELS = [
-  { id: 'izzi/auto', name: 'Izzi Smart Router', description: 'Auto-select best model' },
+  { id: 'izzi-smart', name: 'Izzi Smart Router', description: 'Auto-select the best healthy model' },
+  { id: 'grok-4.5-high', name: 'Grok 4.5 High', description: 'Explicit Grok route via SmartRouter/9Router' },
   { id: 'gpt-5.5', name: 'GPT-5.5', description: 'Latest GPT model' },
   { id: 'gpt-5.4', name: 'GPT-5.4', description: 'Latest GPT model' },
   { id: 'gpt-5.2', name: 'GPT-5.2', description: 'Fast & reliable' },
@@ -362,7 +363,7 @@ export class SetupWizardService {
       models: config.selectedModels.length > 0
         ? config.selectedModels
         : (config.provider === 'izzi' ? IZZI_MODELS.map(m => m.id) : existingConfig.models || []),
-      defaultModel: config.provider === 'izzi' ? 'izzi/auto' : (config.selectedModels[0] || existingConfig.defaultModel),
+      defaultModel: config.provider === 'izzi' ? 'izzi-smart' : (config.selectedModels[0] || existingConfig.defaultModel),
       skills: config.enableSkills,
       plugins: config.enablePlugins,
     };
@@ -382,7 +383,7 @@ export class SetupWizardService {
         const botConfig = {
           type: 'telegram',
           token: config.telegramTokens[i],
-          modelId: config.selectedModels[0] || 'izzi/auto',
+          modelId: config.selectedModels[0] || 'izzi-smart',
           name: `telegram-bot-${i + 1}`,
           enabled: true,
         };
@@ -398,7 +399,7 @@ export class SetupWizardService {
         appId: config.zaloAppId || '',
         appSecret: config.zaloAppSecret || '',
         refreshToken: config.zaloRefreshToken || '',
-        modelId: config.selectedModels[0] || 'izzi/auto',
+        modelId: config.selectedModels[0] || 'izzi-smart',
         name: 'zalo-bot-1',
         enabled: true,
       };

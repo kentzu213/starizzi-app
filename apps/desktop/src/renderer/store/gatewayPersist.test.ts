@@ -33,6 +33,12 @@ describe('sanitizeStoredSessions', () => {
     expect(out[0].messages).toHaveLength(1);
   });
 
+  it('canonicalizes legacy izzi/auto sessions to izzi-smart', () => {
+    const out = sanitizeStoredSessions([sess({ model: 'izzi/auto', provider: 'izzi' })]);
+    expect(out[0].model).toBe('izzi-smart');
+    expect(out[0].provider).toBe('izzi');
+  });
+
   it('drops non-objects and sessions missing id or agentId', () => {
     expect(sanitizeStoredSessions([null, 42, {}, { id: 'x' }, { agentId: 'y' }])).toEqual([]);
   });

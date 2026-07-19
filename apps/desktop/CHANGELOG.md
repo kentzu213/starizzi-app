@@ -1,5 +1,18 @@
 # Changelog — Izzi OpenClaw Desktop
 
+## 1.12.0
+
+SmartRouter/Grok compatibility and a safe Codex-LB desktop cutover.
+
+- The managed Izzi route now sends the canonical `izzi-smart` model by default;
+  legacy `izzi/auto`, `izzi-auto`, and `auto` sessions migrate transparently.
+- Added explicit `grok-4.5-high` selection plus the direct 9Router upstream id
+  `gcli/grok-4.5-high` where custom/local endpoints are configured.
+- On first launch, an enabled legacy Codex-LB config is migrated only when it is
+  plain HTTP on a loopback host at port `2455`. It is disabled so chat falls back
+  to Izzi SmartRouter, while its saved config and encrypted key remain untouched.
+  Hosted endpoints, other ports, and later explicit local reconnects are preserved.
+
 ## 1.11.0
 
 Voice Studio — first fully on-device managed-service extension.

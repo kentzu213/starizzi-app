@@ -29,7 +29,7 @@ import {
 } from './graph-agent-core';
 
 const IZZI_LLM_BASE = process.env.OPENAI_BASE_URL || 'https://api.izziapi.com/v1';
-const IZZI_MODEL = process.env.IZZI_MODEL || 'auto';
+const IZZI_MODEL = process.env.IZZI_MODEL || 'izzi-smart';
 
 export interface GraphAgentChatPayload {
   node: GraphNode;

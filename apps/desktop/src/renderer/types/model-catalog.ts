@@ -17,6 +17,9 @@ import type { AIProvider, ModelProviderConfig } from './agent-registry';
 // Map (not a plain object) so lookups can't walk the prototype chain — a raw id
 // like "toString"/"__proto__" must resolve to itself, not an inherited member.
 const PRETTY_NAMES = new Map<string, string>([
+  ['izzi-smart', 'Izzi Smart Router'],
+  ['grok-4.5-high', 'Grok 4.5 High'],
+  ['gcli/grok-4.5-high', 'Grok 4.5 High (9Router upstream)'],
   ['gpt-5.6-sol', 'GPT-5.6 Sol'],
   ['gpt-5.6-terra', 'GPT-5.6 Terra'],
   ['gpt-5.6-luna', 'GPT-5.6 Luna'],

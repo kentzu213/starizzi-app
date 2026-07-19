@@ -38,7 +38,19 @@ describe('IzziAgent tool-calling', () => {
     expect(res.reply).toBe('xin chào');
     expect(fetchMock).toHaveBeenCalledTimes(1);
     const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+    expect(body.model).toBe('izzi-smart');
     expect(body.tools).toBeUndefined();
+  });
+
+  it('preserves an explicit Grok route', async () => {
+    const fetchMock = mockFetchSequence([{ choices: [{ message: { content: 'grok ok' } }] }]);
+    vi.stubGlobal('fetch', fetchMock);
+    const agent = new IzziAgent(auth, toolHost);
+
+    await agent.chat({ systemPrompt: 's', message: 'hi', model: 'grok-4.5-high' });
+
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+    expect(body.model).toBe('grok-4.5-high');
   });
 
   it('enableTools: executes the tool_call, loops, returns final answer', async () => {

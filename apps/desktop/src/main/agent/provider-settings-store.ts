@@ -3,6 +3,9 @@ import { DatabaseManager } from '../db/database';
 // codex-lb model suggestions (validated loosely; the endpoint decides what exists).
 // Verified against codex-lb /v1/models — GPT-5.6 (Sol/Terra/Luna) are the new flagships.
 export const ALLOWED_MODELS = [
+  'izzi-smart',
+  'grok-4.5-high',
+  'gcli/grok-4.5-high',
   'gpt-5.6-sol',
   'gpt-5.6-terra',
   'gpt-5.6-luna',
@@ -30,13 +33,24 @@ export interface ValidationResult {
 
 const CONFIG_KEY = 'custom_provider_config';
 const ENABLED_KEY = 'custom_provider_enabled';
+const LEGACY_CODEX_LB_MIGRATION_KEY = 'custom_provider_legacy_2455_migrated_v1';
 
 const AUTH_TYPES: readonly AuthType[] = ['bearer', 'x-api-key'];
 
 /** Loopback/local hosts where plain http is acceptable (the user's own machine). */
 function isLoopbackHost(hostname: string): boolean {
   const h = hostname.toLowerCase();
-  return h === 'localhost' || h === '127.0.0.1' || h === '::1' || h === 'host.docker.internal';
+  return h === 'localhost' || h === '127.0.0.1' || h === '::1' || h === '[::1]' || h === 'host.docker.internal';
+}
+
+/** Exact legacy desktop preset: plain HTTP, loopback, and Codex-LB port 2455. */
+export function isLegacyLocalCodexLbBaseUrl(baseUrl: string): boolean {
+  try {
+    const url = new URL(baseUrl);
+    return url.protocol === 'http:' && url.port === '2455' && isLoopbackHost(url.hostname);
+  } catch {
+    return false;
+  }
 }
 
 /**
@@ -124,5 +138,35 @@ export class ProviderSettingsStore {
 
   setEnabled(enabled: boolean): void {
     this.db.setSetting(ENABLED_KEY, enabled ? '1' : '0');
+  }
+
+  /**
+   * One-time v1.12 migration for the retired automatic local Codex-LB route.
+   *
+   * Only an enabled loopback :2455 config is disabled. The config and encrypted
+   * key are deliberately preserved so this migration is reversible, and the
+   * marker ensures a later explicit user choice to re-enable local Codex-LB is
+   * respected. No secret is read or returned by this method.
+   */
+  migrateLegacyLocalCodexLbConnection(): {
+    migrated: boolean;
+    reason: 'legacy-local-2455' | 'not-applicable' | 'already-completed';
+  } {
+    if (this.db.getSetting(LEGACY_CODEX_LB_MIGRATION_KEY) === '1') {
+      return { migrated: false, reason: 'already-completed' };
+    }
+
+    const config = this.getConfig();
+    const shouldMigrate = Boolean(
+      this.isCustomEnabled() && config && isLegacyLocalCodexLbBaseUrl(config.baseUrl),
+    );
+    if (shouldMigrate) {
+      this.setEnabled(false);
+    }
+    this.db.setSetting(LEGACY_CODEX_LB_MIGRATION_KEY, '1');
+
+    return shouldMigrate
+      ? { migrated: true, reason: 'legacy-local-2455' }
+      : { migrated: false, reason: 'not-applicable' };
   }
 }

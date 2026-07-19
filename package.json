@@ -27,7 +27,11 @@
   },
   "pnpm": {
     "overrides": {
-      "shell-quote": "1.8.4"
+      "fast-uri": "3.1.2",
+      "form-data": "4.0.6",
+      "js-yaml": "4.2.0",
+      "shell-quote": "1.8.4",
+      "ws": "8.21.0"
     }
   }
 }

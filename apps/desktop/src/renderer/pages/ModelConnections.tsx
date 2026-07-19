@@ -28,7 +28,7 @@ const PRESETS: Preset[] = [
     label: '9router / LiteLLM (local)',
     icon: '🔀',
     baseUrl: 'http://127.0.0.1:4000/v1',
-    model: 'gpt-5.5',
+    model: 'gcli/grok-4.5-high',
     authType: 'bearer',
     hint: '9router/LiteLLM thường chạy ở cổng 4000 — sửa lại Base URL nếu bạn dùng cổng khác. Dùng master key của 9router.',
   },
@@ -301,6 +301,9 @@ export function ModelConnectionsPage() {
           {/* Quick-pick of codex-lb models (verified against /v1/models). Free text
               stays allowed so 9router / custom endpoints can use any model id. */}
           <datalist id="codexlb-model-list">
+            <option value="izzi-smart">Izzi Smart Router</option>
+            <option value="grok-4.5-high">Grok 4.5 High (Izzi canonical)</option>
+            <option value="gcli/grok-4.5-high">Grok 4.5 High (9Router upstream)</option>
             <option value="gpt-5.6-sol">GPT-5.6 Sol — flagship (mạnh nhất)</option>
             <option value="gpt-5.6-terra">GPT-5.6 Terra</option>
             <option value="gpt-5.6-luna">GPT-5.6 Luna</option>

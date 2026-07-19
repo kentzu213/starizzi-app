@@ -49,7 +49,7 @@ describe('planLoopApplication (Req 3.3, 3.4, 3.6, 8.2)', () => {
       agentName: agentId,
       agentIcon: '🤖',
       messages: [],
-      model: 'izzi/auto',
+      model: 'izzi-smart',
       provider: 'izzi',
       createdAt: new Date().toISOString(),
       isActive: true,

@@ -19,9 +19,18 @@ import * as os from 'os';
 // IMPORTANT: openclaw.json baseUrl already includes `/v1`, so we must NOT append it again
 // See TROUBLESHOOTING.md Issue #1 for the /v1/v1/chat/completions double-path bug
 
-// Default model — verified working against izziapi.com (April 2026)
-// 'auto' requires upstream OpenAI key; 'gemini-2.5-pro' works immediately
-const DEFAULT_MODEL = 'gemini-2.5-pro';
+// Canonical SmartRouter trigger. The server can select Grok/Codex or another
+// healthy candidate without requiring a desktop release for each route change.
+const DEFAULT_MODEL = 'izzi-smart';
+
+/** Normalize legacy UI aliases while preserving every explicit model id. */
+export function normalizeManagedModel(model: string | null | undefined): string {
+  const value = model?.trim();
+  if (!value || value === 'izzi/auto' || value === 'izzi-auto' || value === 'auto') {
+    return DEFAULT_MODEL;
+  }
+  return value;
+}
 
 const MOCK_AGENT_MODE =
   process.env.STARIZZI_MOCK_AGENT_MODE === 'true' ||
@@ -190,12 +199,9 @@ export class ManagedAgentProvider implements ChatProvider {
       throw new Error('Missing IzziAPI API key. Run the izzi-openclaw installer first.');
     }
 
-    // Resolve model: config primary → DEFAULT_MODEL
-    // Note: 'izzi/auto' is NOT a valid model ID; map it to DEFAULT_MODEL
-    let model = config.model || DEFAULT_MODEL;
-    if (model === 'izzi/auto' || model === 'izzi-auto') {
-      model = DEFAULT_MODEL;
-    }
+    // Resolve model: legacy SmartRouter aliases → canonical izzi-smart; explicit
+    // ids such as grok-4.5-high pass through unchanged.
+    const model = normalizeManagedModel(config.model);
 
     // Build auth headers
     // CRITICAL: izziapi.com uses `x-api-key` header, NOT `Authorization: Bearer`
