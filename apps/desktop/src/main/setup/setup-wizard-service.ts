@@ -55,9 +55,11 @@ export interface SetupProgress {
 // ── Izzi API Models ──
 
 const IZZI_MODELS = [
-  { id: 'izzi-smart', name: 'Izzi Smart Router', description: 'Auto-select the best healthy model' },
-  { id: 'grok-4.5-high', name: 'Grok 4.5 High', description: 'Explicit Grok route via SmartRouter/9Router' },
-  { id: 'gpt-5.6-sol', name: 'GPT-5.6 Sol', description: 'Explicit Sol route via SmartRouter/Codex-LB' },
+  { id: 'izzi-smart', name: 'Izzi Smart Router', description: 'Auto-select the best healthy model; may route to a paid-balance-only model' },
+  { id: 'grok-4.5-high', name: 'Grok 4.5 High', description: 'Paid balance required; $5 free credit does not apply' },
+  { id: 'gpt-5.6-sol', name: 'GPT-5.6 Sol', description: 'Paid balance required; $5 free credit does not apply' },
+  { id: 'gpt-5.6-terra', name: 'GPT-5.6 Terra', description: 'Paid balance required; $5 free credit does not apply' },
+  { id: 'gpt-5.6-luna', name: 'GPT-5.6 Luna', description: 'Paid balance required; $5 free credit does not apply' },
   { id: 'gpt-5.5', name: 'GPT-5.5', description: 'Latest GPT model' },
   { id: 'gpt-5.4', name: 'GPT-5.4', description: 'Latest GPT model' },
   { id: 'gpt-5.2', name: 'GPT-5.2', description: 'Fast & reliable' },

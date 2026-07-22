@@ -7,5 +7,14 @@ describe('SetupWizardService Izzi models', () => {
     expect(models[0]?.id).toBe('izzi-smart');
     expect(models.some((model) => model.id === 'grok-4.5-high')).toBe(true);
     expect(models.some((model) => model.id === 'gpt-5.6-sol')).toBe(true);
+    expect(models[0]?.description).toContain('paid-balance-only');
+    for (const id of [
+      'grok-4.5-high',
+      'gpt-5.6-sol',
+      'gpt-5.6-terra',
+      'gpt-5.6-luna',
+    ]) {
+      expect(models.find((model) => model.id === id)?.description).toContain('$5 free credit');
+    }
   });
 });

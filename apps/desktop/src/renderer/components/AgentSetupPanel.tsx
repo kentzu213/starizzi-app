@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { MODEL_CREDIT_NOTICE_VI } from '../../shared/model-credit-policy';
 import type { ExternalAgent } from '../types/agent-registry';
 
 /** Editorial monogram from a display name (e.g. "Hermes Agent" -> "HA"). */
@@ -319,6 +320,9 @@ export function AgentSetupPanel({ agent, onClose, onInstallComplete }: AgentSetu
             chọn model tốt nhất cho mỗi yêu cầu, tính phí vào tài khoản Izzi đã đăng nhập.
           </p>
 
+          <div className="agent-setup__credit-notice" role="note">
+            {MODEL_CREDIT_NOTICE_VI['may-route-paid-only']}
+          </div>
           <div className="agent-setup__provider-card agent-setup__provider-card--active" aria-hidden>
             <div className="agent-setup__provider-header">
               <span className="agent-setup__provider-name">

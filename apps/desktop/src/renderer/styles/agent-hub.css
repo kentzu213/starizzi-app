@@ -110,6 +110,7 @@
 .agent-setup__github-link:hover { text-decoration: underline; }
 
 .agent-setup__provider-hint { font-size: 12px; color: var(--color-text-tertiary); margin: 0; }
+.agent-setup__credit-notice { padding: 9px 10px; border: 1px solid color-mix(in srgb, var(--color-warning) 28%, transparent); border-radius: 8px; background: var(--color-warning-bg); color: var(--color-text-secondary); font-size: 11px; line-height: 1.5; }
 .agent-setup__provider-list { display: flex; flex-direction: column; gap: 6px; }
 .agent-setup__provider-card {
   display: flex; flex-direction: column; gap: 4px; padding: 10px 14px;

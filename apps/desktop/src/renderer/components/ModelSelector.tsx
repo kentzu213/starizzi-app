@@ -1,4 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
+import {
+  getModelCreditPolicy,
+  MODEL_CREDIT_NOTICE_VI,
+} from '../../shared/model-credit-policy';
 import { MODEL_PROVIDERS } from '../types/agent-registry';
 import type { AIProvider, ModelProviderConfig } from '../types/agent-registry';
 
@@ -28,6 +32,8 @@ export function ModelSelector({ currentModel, currentProvider, onSelect, groups 
   const currentProviderData = providers.find((p) => p.id === currentProvider);
   const currentModelName =
     currentProviderData?.models.find((m) => m.id === currentModel)?.name ?? currentModel;
+  const currentCreditPolicy =
+    currentProvider === 'izzi' ? getModelCreditPolicy(currentModel) : 'standard';
 
   return (
     <div className="model-selector" ref={dropdownRef}>
@@ -38,9 +44,15 @@ export function ModelSelector({ currentModel, currentProvider, onSelect, groups 
       >
         <span className="model-selector__label">Model:</span>
         <span className="model-selector__value">
-          {currentModelName}
+          <span className="model-selector__value-name">{currentModelName}</span>
           {currentProviderData?.recommended && (
             <span className="model-selector__recommended">⭐</span>
+          )}
+          {currentCreditPolicy === 'paid-balance-required' && (
+            <span className="model-selector__credit-badge">Số dư nạp</span>
+          )}
+          {currentCreditPolicy === 'may-route-paid-only' && (
+            <span className="model-selector__credit-badge">Có thể tính phí</span>
           )}
         </span>
         <span className="model-selector__chevron">{isOpen ? '▴' : '▾'}</span>
@@ -48,6 +60,11 @@ export function ModelSelector({ currentModel, currentProvider, onSelect, groups 
 
       {isOpen && (
         <div className="model-selector__dropdown">
+          {currentCreditPolicy !== 'standard' && (
+            <div className="model-selector__credit-notice" role="note">
+              {MODEL_CREDIT_NOTICE_VI[currentCreditPolicy]}
+            </div>
+          )}
           {providers.map((provider) => (
             <div key={provider.id} className="model-selector__group">
               <div className="model-selector__group-header">
@@ -80,7 +97,17 @@ export function ModelSelector({ currentModel, currentProvider, onSelect, groups 
                   }}
                   type="button"
                 >
-                  <span className="model-selector__option-name">{model.name}</span>
+                  <span className="model-selector__option-name">
+                    <span>{model.name}</span>
+                    {provider.id === 'izzi' &&
+                      getModelCreditPolicy(model.id) === 'paid-balance-required' && (
+                        <span className="model-selector__credit-badge">Cần số dư nạp</span>
+                      )}
+                    {provider.id === 'izzi' &&
+                      getModelCreditPolicy(model.id) === 'may-route-paid-only' && (
+                        <span className="model-selector__credit-badge">Có thể chọn model trả phí</span>
+                      )}
+                  </span>
                   {currentModel === model.id && currentProvider === provider.id && (
                     <span className="model-selector__option-check">✓</span>
                   )}

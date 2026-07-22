@@ -23,6 +23,7 @@ const PRETTY_NAMES = new Map<string, string>([
   ['gpt-5.6-sol', 'GPT-5.6 Sol'],
   ['gpt-5.6-terra', 'GPT-5.6 Terra'],
   ['gpt-5.6-luna', 'GPT-5.6 Luna'],
+  ['claude-opus-4.7', 'Claude Opus 4.7'],
   ['gpt-5.5', 'GPT-5.5'],
   ['gpt-5.4', 'GPT-5.4'],
   ['gpt-5.4-mini', 'GPT-5.4 mini'],

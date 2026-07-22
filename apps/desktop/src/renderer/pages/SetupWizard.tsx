@@ -1,4 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import {
+  getModelCreditPolicy,
+  MODEL_CREDIT_NOTICE_VI,
+} from '../../shared/model-credit-policy';
 
 // ── Types ──
 
@@ -101,6 +105,8 @@ const IZZI_MODELS = [
   { id: 'izzi-smart', name: 'Izzi Smart Router', checked: true },
   { id: 'grok-4.5-high', name: 'Grok 4.5 High', checked: true },
   { id: 'gpt-5.6-sol', name: 'GPT-5.6 Sol', checked: true },
+  { id: 'gpt-5.6-terra', name: 'GPT-5.6 Terra', checked: true },
+  { id: 'gpt-5.6-luna', name: 'GPT-5.6 Luna', checked: true },
   { id: 'gpt-5.5', name: 'GPT-5.5', checked: true },
   { id: 'gpt-5.4', name: 'GPT-5.4', checked: true },
   { id: 'gpt-5.2', name: 'GPT-5.2', checked: false },
@@ -762,6 +768,9 @@ function ExpressMode({
             Tạo miễn phí tại izziapi.com →
           </button>
         </div>
+        <div className="izzi-setup__field-hint izzi-setup__field-hint--credit" role="note">
+          {MODEL_CREDIT_NOTICE_VI['may-route-paid-only']}
+        </div>
       </div>
 
       {/* Step 3: Channel quick-pick */}
@@ -1001,13 +1010,23 @@ function CustomMode({
                         <div className="izzi-setup__model-chips">
                           {IZZI_MODELS.map(model => (
                             <button
+                              type="button"
                               key={model.id}
                               className={`izzi-setup__model-chip ${selectedModels.includes(model.id) ? 'izzi-setup__model-chip--active' : ''}`}
                               onClick={() => toggleModel(model.id)}
                             >
-                              {model.name}
+                              <span>{model.name}</span>
+                              {getModelCreditPolicy(model.id) === 'paid-balance-required' && (
+                                <span className="izzi-setup__model-credit">Số dư nạp</span>
+                              )}
+                              {getModelCreditPolicy(model.id) === 'may-route-paid-only' && (
+                                <span className="izzi-setup__model-credit">Có thể tính phí</span>
+                              )}
                             </button>
                           ))}
+                        </div>
+                        <div className="izzi-setup__model-credit-notice" role="note">
+                          {MODEL_CREDIT_NOTICE_VI['may-route-paid-only']}
                         </div>
                       </div>
                     )}

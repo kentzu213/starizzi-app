@@ -8,7 +8,7 @@ import {
 } from './model-catalog';
 import type { AIProvider } from './agent-registry';
 
-const KNOWN = ['izzi-smart', 'grok-4.5-high', 'gcli/grok-4.5-high', 'gpt-5.6-sol', 'gpt-5.6-terra', 'gpt-5.6-luna', 'gpt-5.5', 'gpt-5.4', 'gpt-5.4-mini'];
+const KNOWN = ['izzi-smart', 'grok-4.5-high', 'gcli/grok-4.5-high', 'gpt-5.6-sol', 'gpt-5.6-terra', 'gpt-5.6-luna', 'claude-opus-4.7', 'gpt-5.5', 'gpt-5.4', 'gpt-5.4-mini'];
 
 describe('model-catalog', () => {
   // Feature: model-selection-standard, Property 1: local group de-dupes, drops
@@ -64,6 +64,7 @@ describe('model-catalog', () => {
     expect(prettyModelName('grok-4.5-high')).toBe('Grok 4.5 High');
     expect(prettyModelName('gcli/grok-4.5-high')).toBe('Grok 4.5 High (9Router upstream)');
     expect(prettyModelName('gpt-5.6-sol')).toBe('GPT-5.6 Sol');
+    expect(prettyModelName('claude-opus-4.7')).toBe('Claude Opus 4.7');
     fc.assert(
       fc.property(fc.string(), (s) => {
         if (!KNOWN.includes(s)) expect(prettyModelName(s)).toBe(s);
